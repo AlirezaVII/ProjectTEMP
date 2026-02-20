@@ -47,9 +47,24 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state,
             SDL_QueryTexture(tex.scratch_cat, NULL, NULL, &tex_w, &tex_h);
         }
 
-        /* Apply Size */
-        int w = (tex_w * state.sprite.size) / 100;
-        int h = (tex_h * state.sprite.size) / 100;
+        /* --- NEW FIX: Normalize base size so 100% looks correct --- */
+        int base_w = tex_w;
+        int base_h = tex_h;
+        int MAX_DEFAULT = 120; // Default size of Scratch cat at 100%
+        
+        if (base_w > MAX_DEFAULT || base_h > MAX_DEFAULT) {
+            if (base_w > base_h) {
+                base_h = (base_h * MAX_DEFAULT) / base_w;
+                base_w = MAX_DEFAULT;
+            } else {
+                base_w = (base_w * MAX_DEFAULT) / base_h;
+                base_h = MAX_DEFAULT;
+            }
+        }
+
+        /* Apply Size scaling */
+        int w = (base_w * state.sprite.size) / 100;
+        int h = (base_h * state.sprite.size) / 100;
 
         SDL_Rect dest = { cx - w / 2, cy - h / 2, w, h };
 
@@ -74,8 +89,24 @@ bool stage_handle_event(const SDL_Event &e, AppState &state,
     if (tex.scratch_cat) {
         SDL_QueryTexture(tex.scratch_cat, NULL, NULL, &tex_w, &tex_h);
     }
-    int w = (tex_w * state.sprite.size) / 100;
-    int h = (tex_h * state.sprite.size) / 100;
+    
+    /* --- NEW FIX: Apply the exact same normalization for mouse dragging --- */
+    int base_w = tex_w;
+    int base_h = tex_h;
+    int MAX_DEFAULT = 120;
+    
+    if (base_w > MAX_DEFAULT || base_h > MAX_DEFAULT) {
+        if (base_w > base_h) {
+            base_h = (base_h * MAX_DEFAULT) / base_w;
+            base_w = MAX_DEFAULT;
+        } else {
+            base_w = (base_w * MAX_DEFAULT) / base_h;
+            base_h = MAX_DEFAULT;
+        }
+    }
+
+    int w = (base_w * state.sprite.size) / 100;
+    int h = (base_h * state.sprite.size) / 100;
 
     if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
         int mx = e.button.x, my = e.button.y;
