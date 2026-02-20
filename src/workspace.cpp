@@ -630,7 +630,7 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
             else if (b->kind == BK_EVENTS && b->subtype == EB_WHEN_KEY_PRESSED) max_opt = 41;
             else if (b->kind == BK_LOOKS && (b->subtype == LB_SWITCH_COSTUME_TO || b->subtype == LB_SWITCH_BACKDROP_TO)) max_opt = 3;
             else if (b->kind == BK_VARIABLES && (b->subtype == VB_SET || b->subtype == VB_CHANGE)) max_opt = state.variables.size(); // <--- CYCLES VARIABLE LIST!
-            
+            else if (b->kind == BK_MOTION && b->subtype == MB_GO_TO_TARGET) max_opt = 2;
             if (max_opt > 0) b->opt = (b->opt + 1) % max_opt;
             for (int tl_id : state.top_level_blocks) workspace_layout_chain(state, tl_id);
             return true;

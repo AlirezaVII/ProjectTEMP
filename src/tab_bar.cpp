@@ -1,6 +1,7 @@
 #include "tab_bar.h"
 #include "config.h"
 #include "renderer.h"
+#include "interpreter.h" 
 #include <cstring>
 
 static bool point_in_rect(int px, int py, const SDL_Rect &r)
@@ -191,14 +192,16 @@ bool tab_bar_handle_event(const SDL_Event &e, AppState &state,
         int scx = rects.start_btn.x + START_BTN_RADIUS;
         int scy = rects.start_btn.y + START_BTN_RADIUS;
         if (point_in_circle(mx, my, scx, scy, START_BTN_RADIUS + 2)) {
-            state.running = true;
+            // ---> CALLS THE NEW INTERPRETER! <---
+            interpreter_trigger_flag(state); 
             return true;
         }
 
         int ocx = rects.stop_btn.x + STOP_BTN_RADIUS;
         int ocy = rects.stop_btn.y + STOP_BTN_RADIUS;
         if (point_in_circle(mx, my, ocx, ocy, STOP_BTN_RADIUS + 2)) {
-            state.running = false;
+            // ---> CALLS THE NEW INTERPRETER! <---
+            interpreter_stop_all(state); 
             return true;
         }
 
