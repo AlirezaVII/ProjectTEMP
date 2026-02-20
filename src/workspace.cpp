@@ -621,6 +621,7 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
         } else if (b->kind == BK_VARIABLES) {
             field = variables_block_hittest_field(font, state, (VariablesBlockType)b->subtype, b->x, b->y, b->text, b->opt, e.button.x, e.button.y);
         }
+        
 
         if (field == -2) {
             if (state.active_input == INPUT_BLOCK_FIELD) { workspace_commit_active_input(state); state.active_input = INPUT_NONE; state.input_buffer.clear(); }
@@ -631,6 +632,7 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
             else if (b->kind == BK_LOOKS && (b->subtype == LB_SWITCH_COSTUME_TO || b->subtype == LB_SWITCH_BACKDROP_TO)) max_opt = 3;
             else if (b->kind == BK_VARIABLES && (b->subtype == VB_SET || b->subtype == VB_CHANGE)) max_opt = state.variables.size(); // <--- CYCLES VARIABLE LIST!
             else if (b->kind == BK_MOTION && b->subtype == MB_GO_TO_TARGET) max_opt = 2;
+            else if (b->kind == BK_SOUND && (b->subtype == SB_START_SOUND || b->subtype == SB_PLAY_SOUND_UNTIL_DONE)) max_opt = 1;
             if (max_opt > 0) b->opt = (b->opt + 1) % max_opt;
             for (int tl_id : state.top_level_blocks) workspace_layout_chain(state, tl_id);
             return true;

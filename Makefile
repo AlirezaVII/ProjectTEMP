@@ -1,9 +1,9 @@
 CC = g++
 CFLAGS = -Wall -Wextra -std=c++17 \
          $(shell sdl2-config --cflags) \
-         $(shell pkg-config --cflags SDL2_ttf SDL2_image)
+         $(shell pkg-config --cflags SDL2_ttf SDL2_image SDL2_mixer)
 LDFLAGS = $(shell sdl2-config --libs) \
-          $(shell pkg-config --libs SDL2_ttf SDL2_image)
+          $(shell pkg-config --libs SDL2_ttf SDL2_image SDL2_mixer)
 
 SRC = src/main.cpp \
       src/app.cpp \
@@ -25,7 +25,8 @@ SRC = src/main.cpp \
       src/sounds_tab.cpp\
       src/sprite_panel.cpp\
       src/workspace.cpp\
-      src/interpreter.cpp
+      src/interpreter.cpp\
+      src/audio.cpp
 
 OBJ = $(SRC:.cpp=.o)
 TARGET = scratch_clone

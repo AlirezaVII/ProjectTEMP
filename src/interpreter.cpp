@@ -1,5 +1,6 @@
 #include "interpreter.h"
 #include "workspace.h"
+#include "audio.h" // <--- INCLUDED AUDIO MANAGER
 #include "SDL.h" 
 #include <cmath>
 #include <cstdlib>
@@ -17,10 +18,11 @@ static void commit_active_typing(AppState& state) {
     }
 }
 
-// ---> NEW TICK-BASED THREAD ENGINE <---
+// ---> ADDED "WAITING_FOR_SOUND" FLAG TO THREADS <---
 struct ScriptThread {
     int cur_node;
     unsigned int wait_until;
+    bool waiting_for_sound; 
 };
 static std::vector<ScriptThread> g_threads;
 
@@ -60,17 +62,25 @@ static std::string eval_string(AppState& state, int block_id, const std::string&
     return text_val;
 }
 
-// ---> THE MAGIC BRAIN LOOP <---
 void interpreter_tick(AppState &state) {
     if (!state.running) return;
 
     for (size_t i = 0; i < g_threads.size(); ) {
         if (SDL_GetTicks() < g_threads[i].wait_until) {
-            i++; continue; // Thread is sleeping, skip it!
+            i++; continue; 
+        }
+
+        // ---> CHECK IF WE ARE BLOCKED BY A SOUND PLAYING <---
+        if (g_threads[i].waiting_for_sound) {
+            if (audio_is_playing()) {
+                i++; continue; // Still playing! Yield thread.
+            } else {
+                g_threads[i].waiting_for_sound = false; // Finished!
+            }
         }
 
         int cur = g_threads[i].cur_node;
-        bool yielded = false; // Check if we hit a wait block
+        bool yielded = false; 
 
         while (cur != -1 && !yielded) {
             BlockInstance* b = workspace_find(state, cur);
@@ -119,8 +129,6 @@ void interpreter_tick(AppState &state) {
                     state.sprite.is_thinking = false;
                     float sec = eval_value(state, b->arg1_id, b->a, b->text2);
                     state.sprite.say_end_time = SDL_GetTicks() + (unsigned int)(sec * 1000);
-                    
-                    // YIELD AND WAIT!
                     g_threads[i].wait_until = state.sprite.say_end_time;
                     cur = b->next_id; yielded = true; 
                 } else if (b->subtype == LB_THINK_FOR) {
@@ -128,8 +136,6 @@ void interpreter_tick(AppState &state) {
                     state.sprite.is_thinking = true;
                     float sec = eval_value(state, b->arg1_id, b->a, b->text2);
                     state.sprite.say_end_time = SDL_GetTicks() + (unsigned int)(sec * 1000);
-                    
-                    // YIELD AND WAIT!
                     g_threads[i].wait_until = state.sprite.say_end_time;
                     cur = b->next_id; yielded = true;
                 } else if (b->subtype == LB_CHANGE_SIZE_BY) {
@@ -142,11 +148,33 @@ void interpreter_tick(AppState &state) {
                     state.sprite.visible = false; cur = b->next_id;
                 }
             }
+            // ---> NEW: ALL SOUND EXECUTION LOGIC <---
+            else if (b->kind == BK_SOUND) {
+                if (b->subtype == SB_CHANGE_VOLUME_BY) {
+                    state.sprite.volume += (int)eval_value(state, b->arg0_id, b->a, b->text);
+                    audio_set_volume(state.sprite.volume);
+                    cur = b->next_id;
+                } else if (b->subtype == SB_SET_VOLUME_TO) {
+                    state.sprite.volume = (int)eval_value(state, b->arg0_id, b->a, b->text);
+                    audio_set_volume(state.sprite.volume);
+                    cur = b->next_id;
+                } else if (b->subtype == SB_STOP_ALL_SOUNDS) {
+                    audio_stop_all();
+                    cur = b->next_id;
+                } else if (b->subtype == SB_START_SOUND) {
+                    audio_play_meow();
+                    cur = b->next_id;
+                } else if (b->subtype == SB_PLAY_SOUND_UNTIL_DONE) {
+                    audio_play_meow();
+                    g_threads[i].waiting_for_sound = true; // YIELD UNTIL SOUND FINISHES
+                    cur = b->next_id; yielded = true;
+                }
+            }
             else if (b->kind == BK_CONTROL) {
                 if (b->subtype == CB_WAIT) {
                     float sec = eval_value(state, b->arg0_id, b->a, b->text);
                     g_threads[i].wait_until = SDL_GetTicks() + (unsigned int)(sec * 1000);
-                    cur = b->next_id; yielded = true; // YIELD!
+                    cur = b->next_id; yielded = true; 
                 } else {
                     cur = b->next_id;
                 }
@@ -160,7 +188,7 @@ void interpreter_tick(AppState &state) {
         }
 
         g_threads[i].cur_node = cur;
-        if (cur == -1) g_threads.erase(g_threads.begin() + i); // Destroy finished threads!
+        if (cur == -1) g_threads.erase(g_threads.begin() + i); 
         else i++;
     }
 }
@@ -172,7 +200,7 @@ void interpreter_trigger_flag(AppState &state) {
     for (int root_id : state.top_level_blocks) {
         BlockInstance* b = workspace_find(state, root_id);
         if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_FLAG_CLICKED) {
-            g_threads.push_back({b->next_id, 0});
+            g_threads.push_back({b->next_id, 0, false});
         }
     }
 }
@@ -186,7 +214,7 @@ void interpreter_trigger_key(AppState &state, SDL_Keycode sym) {
     for (int root_id : state.top_level_blocks) {
         BlockInstance* b = workspace_find(state, root_id);
         if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_KEY_PRESSED && b->opt == opt) {
-            g_threads.push_back({b->next_id, 0});
+            g_threads.push_back({b->next_id, 0, false});
         }
     }
 }
@@ -196,7 +224,7 @@ void interpreter_trigger_sprite_click(AppState &state) {
     for (int root_id : state.top_level_blocks) {
         BlockInstance* b = workspace_find(state, root_id);
         if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_SPRITE_CLICKED) {
-            g_threads.push_back({b->next_id, 0});
+            g_threads.push_back({b->next_id, 0, false});
         }
     }
 }
@@ -206,7 +234,7 @@ void interpreter_trigger_message(AppState &state, int msg_opt) {
     for (int root_id : state.top_level_blocks) {
         BlockInstance* b = workspace_find(state, root_id);
         if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_I_RECEIVE && b->opt == msg_opt) {
-            g_threads.push_back({b->next_id, 0});
+            g_threads.push_back({b->next_id, 0, false});
         }
     }
 }
@@ -217,4 +245,5 @@ void interpreter_stop_all(AppState &state) {
     g_threads.clear();
     state.sprite.say_text = "";
     state.sprite.say_end_time = 0;
+    audio_stop_all(); // KILLS SOUNDS IMMEDIATELY
 }

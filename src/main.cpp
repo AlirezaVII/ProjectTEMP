@@ -5,6 +5,7 @@
 #include "config.h"
 #include "types.h"
 #include "textures.h"
+#include "audio.h" // ADD THIS WITH THE OTHERS
 #include "navbar.h"
 #include "filemenu.h"
 #include "tab_bar.h"
@@ -66,6 +67,11 @@ int main(int /*argc*/, char* /*argv*/[])
     if (!font) { std::fprintf(stderr, "Font load failed: %s\n", TTF_GetError()); SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window); IMG_Quit(); TTF_Quit(); SDL_Quit(); return 1; }
 
     Textures tex; textures_load(tex, renderer);
+
+    // ---> NEW: INIT AUDIO <---
+    if (!audio_init()) {
+        std::fprintf(stderr, "Warning: Audio failed to load. Sounds will be silent.\n");
+    }
 
     NavbarRects     navbar_rects;      navbar_layout(navbar_rects);
     FileMenuRects   filemenu_rects;    filemenu_layout(filemenu_rects, navbar_rects.file_btn.x);
@@ -176,5 +182,7 @@ int main(int /*argc*/, char* /*argv*/[])
         SDL_RenderPresent(renderer);
     }
 
-    textures_free(tex); TTF_CloseFont(font); SDL_StopTextInput(); SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window); IMG_Quit(); TTF_Quit(); SDL_Quit(); return 0;
+    textures_free(tex);
+    audio_quit();
+    TTF_CloseFont(font); SDL_StopTextInput(); SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window); IMG_Quit(); TTF_Quit(); SDL_Quit(); return 0;
 }
