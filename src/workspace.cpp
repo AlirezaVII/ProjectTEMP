@@ -892,6 +892,7 @@ static void finish_drag(AppState &state)
     if (state.drag.snap_valid && new_root_id != -1)
     {
         BlockInstance *target = workspace_find(state, state.drag.snap_target_id);
+        
         if (state.drag.snap_type == SNAP_BEFORE)
         {
             insert_chain_before(state, state.drag.snap_target_id, new_root_id);
@@ -899,11 +900,22 @@ static void finish_drag(AppState &state)
         else if (state.drag.snap_type == SNAP_AFTER)
         {
             attach_chain(state, state.drag.snap_target_id, new_root_id);
-            remove_from_top_level(state, new_root_id); // <--- FIX: Deletes the ghost clone!
+            remove_from_top_level(state, new_root_id);
         }
+        // --- FIXED: Boolean Hexagon Snapping ---
         else if (state.drag.snap_type == SNAP_CONDITION && target)
         {
+            target->condition_id = new_root_id; // Added this missing line back!
+            BlockInstance *nr = workspace_find(state, new_root_id);
+            if (nr)
+                nr->parent_id = target->id;
+            remove_from_top_level(state, new_root_id);
+        }
+        // --- FIXED: C-Shape Nesting ---
+        else if ((state.drag.snap_type == SNAP_INSIDE_1 || state.drag.snap_type == SNAP_INSIDE_2) && target)
+        {
             int old_child = (state.drag.snap_type == SNAP_INSIDE_1) ? target->child_id : target->child2_id;
+            
             if (state.drag.snap_type == SNAP_INSIDE_1)
                 target->child_id = new_root_id;
             else
@@ -913,13 +925,17 @@ static void finish_drag(AppState &state)
             if (nr)
                 nr->parent_id = target->id;
             remove_from_top_level(state, new_root_id);
+            
             if (old_child != -1)
                 attach_chain(state, new_root_id, old_child);
         }
+        
         workspace_layout_chain(state, workspace_root_id(state, new_root_id));
     }
     else if (new_root_id != -1)
+    {
         workspace_layout_chain(state, new_root_id);
+    }
 
     for (int tl_id : state.top_level_blocks)
     {
@@ -931,7 +947,6 @@ static void finish_drag(AppState &state)
     state.drag.snap_target_id = -1;
     state.drag.dragged_block_id = -1;
 }
-
 /* ---------------- input typing ---------------- */
 
 static BlockFieldType block_field_type(const BlockInstance &b, int field)
@@ -1011,7 +1026,7 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
     {
         if (state.drag.active)
         {
-            (state);
+            finish_drag(state);
             return true;
         }
     }
@@ -1119,40 +1134,51 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
                 field = sensing_stack_block_hittest_field(font, sbt, b->x, b->y, b->text, b->opt, e.button.x, e.button.y);
         }
 
-        if (field == 0 || field == 1)
+        // --- SMART DROPDOWN VS INPUT LOGIC ---
+        if (field != -1)
         {
-            // Your existing Input Field logic (I left this untouched!)
-            state.active_input = INPUT_BLOCK_FIELD;
-            state.block_input.block_id = b->id;
-            state.block_input.field_index = field;
-            state.block_input.type = block_field_type(*b, field);
-            state.input_buffer = (state.block_input.type == BFT_TEXT) ? b->text : std::to_string(b->a);
-            return true;
-        }
-        // --- BULLETPROOF DROPDOWN LOGIC ---
-        if (field >= 2)
-        {
-            if (b->kind == BK_MOTION)
-                b->opt = (b->opt + 1) % 2;
-            else if (b->kind == BK_LOOKS)
-                b->opt = (b->opt + 1) % 2;
-            else if (b->kind == BK_SOUND)
-                b->opt = (b->opt + 1) % 2;
-            else if (b->kind == BK_EVENTS)
-                b->opt = (b->opt + 1) % 2;
-            else if (b->kind == BK_SENSING)
+            // 1. Is this field actually a dropdown?
+            bool is_dd = false;
+            if (field >= 2) is_dd = true;
+            if (b->kind == BK_MOTION && b->subtype == MB_GO_TO_TARGET && field == 0) is_dd = true;
+            if (b->kind == BK_LOOKS && (b->subtype == LB_SWITCH_COSTUME_TO || b->subtype == LB_SWITCH_BACKDROP_TO || b->subtype == LB_GO_TO_LAYER || b->subtype == LB_GO_LAYERS) && field == 0) is_dd = true;
+            if (b->kind == BK_SOUND && (b->subtype == SB_START_SOUND || b->subtype == SB_PLAY_SOUND_UNTIL_DONE) && field == 0) is_dd = true;
+            if (b->kind == BK_EVENTS && (b->subtype == EB_WHEN_KEY_PRESSED || b->subtype == EB_WHEN_I_RECEIVE || b->subtype == EB_BROADCAST) && field == 0) is_dd = true;
+            if (b->kind == BK_SENSING && (b->subtype == SENSB_TOUCHING || b->subtype == SENSB_KEY_PRESSED || b->subtype == SENSB_SET_DRAG_MODE) && field == 0) is_dd = true;
+
+            if (is_dd)
             {
-                if (b->subtype == SENSB_TOUCHING)
-                    b->opt = (b->opt + 1) % 3;
-                else
-                    b->opt = (b->opt + 1) % 2;
+                // IT IS A DROPDOWN! Cycle the options.
+                int max_opt = 2; // Default for most dropdowns
+                if (b->kind == BK_SENSING && b->subtype == SENSB_TOUCHING) max_opt = 3;
+                else if (b->kind == BK_SENSING && b->subtype == SENSB_KEY_PRESSED) max_opt = 37;
+                else if (b->kind == BK_EVENTS && b->subtype == EB_WHEN_KEY_PRESSED) max_opt = 37;
+                
+                b->opt = (b->opt + 1) % max_opt;
+
+                // Layout again just in case the dropdown text changed the block width
+                for (int tl_id : state.top_level_blocks)
+                    workspace_layout_chain(state, tl_id);
+                return true; // STOP HERE! Do not start a drag!
             }
-            // Layout again just in case the dropdown text changed the block width
-            for (int tl_id : state.top_level_blocks)
-                workspace_layout_chain(state, tl_id);
-            return true; // STOP HERE! Do not start a drag!
+            else
+            {
+                // IT IS A TEXT/NUMBER INPUT! Open the typing caret.
+                state.active_input = INPUT_BLOCK_FIELD;
+                state.block_input.block_id = b->id;
+                state.block_input.field_index = field;
+                state.block_input.type = block_field_type(*b, field);
+                
+                if (state.block_input.type == BFT_TEXT) state.input_buffer = b->text;
+                else if (field == 0) state.input_buffer = std::to_string(b->a);
+                else if (field == 1) state.input_buffer = std::to_string(b->b);
+                else state.input_buffer = std::to_string(b->c);
+                
+                return true; // STOP HERE! Do not start a drag!
+            }
         }
 
+        // Clean up input if clicking the body of the block
         if (state.active_input == INPUT_BLOCK_FIELD)
         {
             workspace_commit_active_input(state);
@@ -1162,7 +1188,7 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
 
         start_drag_from_workspace(state, b->id, e.button.x, e.button.y);
 
-        // ADD THIS LOOP: Shrink C-shapes instantly when a block is pulled out!
+        // Shrink C-shapes instantly when a block is pulled out!
         for (int tl_id : state.top_level_blocks)
         {
             workspace_layout_chain(state, tl_id);
