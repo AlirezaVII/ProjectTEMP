@@ -18,10 +18,25 @@
 #include "costumes_tab.h"
 #include "sounds_tab.h"
 #include "sprite_panel.h"
+#include "renderer.h"
 
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+
+// ---> ADDED LOCAL TEXT RENDERER (WITH C++11 NARROWING FIX) <---
+static void render_simple_text(SDL_Renderer *r, TTF_Font *font, const char *text, int x, int y, Color c) {
+    if (!text || text[0] == '\0') return;
+    SDL_Color sc = { static_cast<Uint8>(c.r), static_cast<Uint8>(c.g), static_cast<Uint8>(c.b), 255 };
+    SDL_Surface *surf = TTF_RenderUTF8_Blended(font, text, sc);
+    if (surf) {
+        SDL_Texture *tex = SDL_CreateTextureFromSurface(r, surf);
+        SDL_Rect dst = {x, y, surf->w, surf->h};
+        SDL_RenderCopy(r, tex, NULL, &dst);
+        SDL_DestroyTexture(tex);
+        SDL_FreeSurface(surf);
+    }
+}
 
 int main(int /*argc*/, char* /*argv*/[])
 {
@@ -113,23 +128,79 @@ int main(int /*argc*/, char* /*argv*/[])
                 quit = true;
                 break;
             }
+
+            // ---> ISOLATED VARIABLES MODAL INTERCEPT <---
+            if (state.var_modal_active) {
+                if (e.type == SDL_KEYDOWN) {
+                    if (e.key.keysym.sym == SDLK_ESCAPE) {
+                        state.var_modal_active = false;
+                        state.active_input = INPUT_NONE;
+                        state.input_buffer.clear();
+                    } else if (e.key.keysym.sym == SDLK_RETURN || e.key.keysym.sym == SDLK_KP_ENTER) {
+                        bool unique = true;
+                        for (const auto& v : state.variables) {
+                            if (v == state.input_buffer) { unique = false; break; }
+                        }
+                        if (unique && !state.input_buffer.empty()) {
+                            state.variables.push_back(state.input_buffer);
+                        }
+                        state.var_modal_active = false;
+                        state.active_input = INPUT_NONE;
+                        state.input_buffer.clear();
+                    } else if (e.key.keysym.sym == SDLK_BACKSPACE) {
+                        if (!state.input_buffer.empty()) state.input_buffer.pop_back();
+                    }
+                } else if (e.type == SDL_TEXTINPUT) {
+                    state.input_buffer += e.text.text;
+                } else if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
+                    // Handle button clicks in the modal
+                    int mw = 400, mh = 200;
+                    int mx = WINDOW_WIDTH / 2 - mw / 2;
+                    int my = WINDOW_HEIGHT / 2 - mh / 2;
+                    SDL_Rect submit_btn = {mx + mw - 120, my + mh - 60, 90, 40};
+                    SDL_Rect cancel_btn = {mx + mw - 220, my + mh - 60, 90, 40};
+
+                    int mouseX = e.button.x;
+                    int mouseY = e.button.y;
+
+                    auto in_rect = [](int px, int py, const SDL_Rect& r) {
+                        return px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h;
+                    };
+
+                    if (in_rect(mouseX, mouseY, submit_btn)) {
+                        bool unique = true;
+                        for (const auto& v : state.variables) {
+                            if (v == state.input_buffer) { unique = false; break; }
+                        }
+                        if (unique && !state.input_buffer.empty()) {
+                            state.variables.push_back(state.input_buffer);
+                        }
+                        state.var_modal_active = false;
+                        state.active_input = INPUT_NONE;
+                        state.input_buffer.clear();
+                    } else if (in_rect(mouseX, mouseY, cancel_btn)) {
+                        state.var_modal_active = false;
+                        state.active_input = INPUT_NONE;
+                        state.input_buffer.clear();
+                    }
+                }
+                continue; // IMPORTANT: BLOCKS ALL BACKGROUND CLICKS!
+            }
+            // ---------------------------------------------
+
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE &&
                 state.active_input == INPUT_NONE && !state.file_menu_open) {
                 quit = true;
                 break;
             }
 
-/* --- always-active UI (regardless of tab) --- */
             if (filemenu_handle_event(e, state, filemenu_rects)) continue;
             if (navbar_handle_event(e, state, navbar_rects)) continue;
             if (tab_bar_handle_event(e, state, tab_bar_rects)) continue;
             if (settings_handle_event(e, state, settings_rects)) continue;
-            
-            // Pass tex into stage_handle_event!
             if (stage_handle_event(e, state, stage_rects, tex)) continue;
-            
             if (sprite_panel_handle_event(e, state, sprite_panel_rects)) continue;
-            /* --- tab-specific event handling --- */
+            
             if (state.current_tab == TAB_CODE)
             {
                 if (categories_handle_event(e, state, cat_rects)) continue;
@@ -149,8 +220,6 @@ int main(int /*argc*/, char* /*argv*/[])
                 if (sounds_tab_handle_event(e, state)) continue;
             }
 
-            /* Fallback: commit active input on click elsewhere */
-            /* Fallback: commit active input on click elsewhere */
             if (e.type == SDL_MOUSEBUTTONDOWN) {
                 if (state.active_input != INPUT_NONE &&
                     state.active_input != INPUT_PROJECT_NAME) {
@@ -189,7 +258,6 @@ int main(int /*argc*/, char* /*argv*/[])
         SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
         SDL_RenderClear(renderer);
 
-        /* --- tab-specific drawing --- */
         if (state.current_tab == TAB_CODE)
         {
             drag_area_draw(renderer, font, state, drag_rects);
@@ -206,14 +274,60 @@ int main(int /*argc*/, char* /*argv*/[])
             sounds_tab_draw(renderer, font, state);
         }
 
-        /* --- always-visible UI (right column + top bars) --- */
-    stage_draw(renderer, font, state, stage_rects, tex);
-        
+        stage_draw(renderer, font, state, stage_rects, tex);
         settings_draw(renderer, font, state, settings_rects, tex);
         sprite_panel_draw(renderer, font, state, tex, sprite_panel_rects);
         tab_bar_draw(renderer, font, state, tab_bar_rects, tex);
         navbar_draw(renderer, font, state, navbar_rects, tex);
         filemenu_draw(renderer, font, state, filemenu_rects);
+
+        // ---> RENDER LARGER VARIABLES MODAL OVER EVERYTHING <---
+        if (state.var_modal_active) {
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 150);
+            SDL_Rect screen_rect = {0, 0, WINDOW_WIDTH, WINDOW_HEIGHT};
+            SDL_RenderFillRect(renderer, &screen_rect);
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+
+            int mw = 400; // Much larger!
+            int mh = 200;
+            int mx = WINDOW_WIDTH / 2 - mw / 2;
+            int my = WINDOW_HEIGHT / 2 - mh / 2;
+
+            SDL_Rect modal_rect = {mx, my, mw, mh};
+            renderer_fill_rounded_rect(renderer, &modal_rect, 8, 255, 255, 255);
+            SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
+            SDL_RenderDrawRect(renderer, &modal_rect);
+            
+            Color textCol = {40, 40, 40};
+            render_simple_text(renderer, font, "New variable name:", modal_rect.x + 30, modal_rect.y + 30, textCol);
+            
+            SDL_Rect input_rect = {modal_rect.x + 30, modal_rect.y + 70, mw - 60, 40};
+            renderer_fill_rounded_rect(renderer, &input_rect, 4, 240, 240, 240);
+            SDL_SetRenderDrawColor(renderer, 76, 151, 255, 255); 
+            SDL_RenderDrawRect(renderer, &input_rect);
+            
+            render_simple_text(renderer, font, state.input_buffer.c_str(), input_rect.x + 10, input_rect.y + 12, textCol);
+            
+            if ((SDL_GetTicks() / 500) % 2 == 0) {
+                int tw = 0;
+                TTF_SizeUTF8(font, state.input_buffer.c_str(), &tw, NULL);
+                SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+                SDL_RenderDrawLine(renderer, input_rect.x + 10 + tw + 2, input_rect.y + 10, input_rect.x + 10 + tw + 2, input_rect.y + 30);
+            }
+
+            // Draw OK (Submit) Button
+            SDL_Rect submit_btn = {mx + mw - 120, my + mh - 60, 90, 40};
+            renderer_fill_rounded_rect(renderer, &submit_btn, 4, 76, 151, 255); // Blue
+            render_simple_text(renderer, font, "OK", submit_btn.x + 35, submit_btn.y + 12, (Color){255, 255, 255});
+
+            // Draw Cancel Button
+            SDL_Rect cancel_btn = {mx + mw - 220, my + mh - 60, 90, 40};
+            renderer_fill_rounded_rect(renderer, &cancel_btn, 4, 220, 220, 220); // Gray
+            render_simple_text(renderer, font, "Cancel", cancel_btn.x + 22, cancel_btn.y + 12, (Color){40, 40, 40});
+        }
+        // ------------------------------------------------
+
         SDL_RenderPresent(renderer);
     }
 

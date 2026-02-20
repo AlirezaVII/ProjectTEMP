@@ -20,7 +20,8 @@ enum ActiveInput {
     INPUT_Y,
     INPUT_DIRECTION,
     INPUT_SIZE,
-    INPUT_BLOCK_FIELD
+    INPUT_BLOCK_FIELD,
+    INPUT_VAR_MODAL // <--- ADDED MODAL INPUT STATE
 };
 
 struct LegacySprite {
@@ -60,21 +61,21 @@ enum SoundBlockType { SB_CHANGE_VOLUME_BY = 0, SB_SET_VOLUME_TO, SB_STOP_ALL_SOU
 enum EventsBlockType { EB_WHEN_FLAG_CLICKED = 0, EB_WHEN_KEY_PRESSED, EB_WHEN_SPRITE_CLICKED, EB_WHEN_I_RECEIVE, EB_BROADCAST };
 enum ControlBlockType { CB_WAIT = 0, CB_REPEAT, CB_FOREVER, CB_IF, CB_WAIT_UNTIL, CB_IF_ELSE };
 enum SensingBlockType { SENSB_TOUCHING = 0, SENSB_ASK_AND_WAIT, SENSB_KEY_PRESSED, SENSB_MOUSE_DOWN, SENSB_SET_DRAG_MODE, SENSB_COUNT };
-// ADD THIS ENUM (Right after SensingBlockType is fine)
+
 enum OperatorsBlockType {
     OP_ADD = 0, OP_SUB, OP_MUL, OP_DIV,
     OP_GT, OP_LT, OP_EQ,
     OP_AND, OP_OR, OP_NOT,
     OP_JOIN, OP_LETTER_OF, OP_LENGTH_OF
 };
-// --- ADDED OPERATORS HERE ---
+
 enum OperatorBlockType { OB_ADD = 0, OB_SUB, OB_MUL, OB_DIV, OB_GT, OB_LT, OB_EQ, OB_AND, OB_OR, OB_NOT, OB_JOIN, OB_LETTER_OF, OB_LENGTH_OF };
+enum VariablesBlockType { VB_VARIABLE = 0, VB_SET, VB_CHANGE, VB_SHOW, VB_HIDE }; // <--- ADDED VARIABLES BLOCKS
 
 enum TouchingTarget { TOUCHING_MOUSE_POINTER = 0, TOUCHING_EDGE = 1, TOUCHING_SPRITE = 2 };
 enum DragMode { DRAG_DRAGGABLE = 0, DRAG_NOT_DRAGGABLE = 1 };
 
-// --- ADDED BK_OPERATORS = 6 ---
-enum BlockKind { BK_MOTION = 0, BK_LOOKS = 1, BK_SOUND = 2, BK_EVENTS = 3, BK_CONTROL = 4, BK_SENSING = 5, BK_OPERATORS = 6 }; 
+enum BlockKind { BK_MOTION = 0, BK_LOOKS = 1, BK_SOUND = 2, BK_EVENTS = 3, BK_CONTROL = 4, BK_SENSING = 5, BK_OPERATORS = 6, BK_VARIABLES = 7 }; // <--- ADDED BK_VARIABLES
 enum BlockFieldType { BFT_INT = 0, BFT_TEXT = 1 };
 
 struct BlockInstance {
@@ -86,16 +87,15 @@ struct BlockInstance {
     int c = 0, d = 0, e = 0, f = 0; 
     int opt = 0;
     std::string text;
-    std::string text2; // <--- ADD THIS NEW LINE
+    std::string text2; 
     
     /* AST Pointers */
     int next_id = -1;
     int parent_id = -1;
-    int child_id = -1;      // First block inside C-shape (or IF)
-    int child2_id = -1;     // First block inside ELSE shape
-    int condition_id = -1;  // Hexagonal boolean block attached here
+    int child_id = -1;      
+    int child2_id = -1;     
+    int condition_id = -1;  
     
-    // NEW AST Pointers for Reporter Blocks dropping into Inputs!
     int arg0_id = -1;
     int arg1_id = -1;
     int arg2_id = -1;
@@ -103,12 +103,11 @@ struct BlockInstance {
 
 enum SnapType {
     SNAP_NONE = 0,
-    SNAP_AFTER,       // Bottom notch
-    SNAP_BEFORE,      // Top notch
-    SNAP_INSIDE_1,    // Inside first C-shape mouth
-    SNAP_INSIDE_2,    // Inside ELSE mouth
-    SNAP_CONDITION,   // Hex slot
-    // --- ADDED SNAP TYPES ---
+    SNAP_AFTER,       
+    SNAP_BEFORE,      
+    SNAP_INSIDE_1,    
+    SNAP_INSIDE_2,    
+    SNAP_CONDITION,   
     SNAP_INPUT_1,
     SNAP_INPUT_2,
     SNAP_INPUT_3
@@ -121,6 +120,7 @@ struct DragState {
     int palette_subtype;
     int dragged_block_id;
     int off_x; int off_y;
+    std::string palette_text; // <--- ADD THIS NEW LINE
     int ghost_x; int ghost_y;
     int mouse_x; int mouse_y;
     bool snap_valid;
@@ -162,12 +162,17 @@ struct AppState {
     std::string input_buffer;
     BlockInputState block_input;
 
+    /* ---> Variables Engine State <--- */
+    std::vector<std::string> variables;
+    bool var_modal_active;
+
     /* Stage Dragging State */
     bool stage_drag_active;
     int stage_drag_off_x;
     int stage_drag_off_y;
 
-    AppState() : file_menu_open(false), file_menu_hover(-1), sprite_menu_open(false), backdrop_menu_open(false), current_tab(TAB_CODE), start_hover(false), stop_hover(false), running(false), sprite(), selected_sprite(0), selected_tab(TAB_CODE), selected_category(0), project_name("Untitled"), next_block_id(1), active_input(INPUT_NONE), stage_drag_active(false), stage_drag_off_x(0), stage_drag_off_y(0) {}
+    // Added initialization for variables memory and modal
+    AppState() : file_menu_open(false), file_menu_hover(-1), sprite_menu_open(false), backdrop_menu_open(false), current_tab(TAB_CODE), start_hover(false), stop_hover(false), running(false), sprite(), selected_sprite(0), selected_tab(TAB_CODE), selected_category(0), project_name("Untitled"), next_block_id(1), active_input(INPUT_NONE), variables({"my variable"}), var_modal_active(false), stage_drag_active(false), stage_drag_off_x(0), stage_drag_off_y(0) {}
 };
 
 #endif

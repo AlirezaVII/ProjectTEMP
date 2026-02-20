@@ -27,8 +27,7 @@ struct BlockDef {
 };
 
 /* Get blocks for a category index (0-8). Returns count. */
-int blocks_get_for_category(int category, BlockDef *out, int max_out);
-
+int blocks_get_for_category(const AppState& state, int category, BlockDef *out, int max_out);
 /* Get category name */
 const char* blocks_category_name(int category);
 

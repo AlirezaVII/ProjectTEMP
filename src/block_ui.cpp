@@ -2427,3 +2427,80 @@ int operators_block_hittest_dynamic(TTF_Font *font, OperatorsBlockType type,
         default: return -1;
     }
 }
+/* ================================================================ */
+/* ===============       V A R I A B L E S      =================== */
+/* ================================================================ */
+
+SDL_Rect variables_block_rect(VariablesBlockType type, int x, int y, const std::string& var_name) {
+    if (type == VB_VARIABLE) return {x, y, std::max(60, (int)var_name.length()*8 + 24), 40};
+    if (type == VB_SET || type == VB_CHANGE) return {x, y, 240, 40};
+    return {x, y, 150, 40};
+}
+
+void variables_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState& state, 
+                          VariablesBlockType type, int x, int y, 
+                          const std::string& var_name, const std::string& input_text, 
+                          int input_num, int opt, bool ghost, int selected_field, 
+                          const char *override_field0_text) 
+{
+    Color c = {255, 140, 26}; // Scratch Dark Orange
+    SDL_Rect br = variables_block_rect(type, x, y, var_name);
+    
+    // FIXED: Detect if we are in the Palette or Workspace to give the notch the right color!
+    Color panel_bg = (x < 300) ? (Color){249, 249, 249} : (Color){200, 200, 200}; 
+    
+    if (type == VB_VARIABLE) {
+        draw_reporter_shape(r, br, c, ghost);
+        int tw = text_w(font, var_name.c_str());
+        draw_text(r, font, var_name.c_str(), br.x + (br.w - tw)/2, br.y + 12, {255, 255, 255});
+    } else if (type == VB_SET || type == VB_CHANGE) {
+        
+        // FIXED: We now pass 'panel_bg' instead of 'false' to satisfy C++!
+        draw_stack_shape(r, br, c, panel_bg, ghost);
+        
+        int cx = br.x + 16;
+        const char* verb = (type == VB_SET) ? "set" : "change";
+        draw_text(r, font, verb, cx, br.y + 12, {255,255,255});
+        cx += text_w(font, verb) + 8;
+
+        // Draw the Dropdown list UI
+        std::string sel_var = (opt >= 0 && opt < (int)state.variables.size()) ? state.variables[opt] : "";
+        SDL_Rect drop_r = {cx, br.y + 8, std::max(60, text_w(font, sel_var.c_str()) + 24), 24};
+        renderer_fill_rounded_rect(r, &drop_r, 12, 220, 100, 10); 
+        draw_text(r, font, sel_var.c_str(), cx + 8, br.y + 12, {255,255,255});
+        draw_caret(r, cx + drop_r.w - 12, br.y + 20, {255, 255, 255});
+        cx += drop_r.w + 8;
+
+        const char* prep = (type == VB_SET) ? "to" : "by";
+        draw_text(r, font, prep, cx, br.y + 12, {255,255,255});
+        cx += text_w(font, prep) + 8;
+
+        SDL_Rect cap = input_capsule_rect(cx, br.y + 8, 46, 24);
+        draw_input_capsule(r, cap, selected_field == 0);
+        std::string disp = override_field0_text && selected_field == 0 ? override_field0_text : (type == VB_SET ? input_text : std::to_string(input_num));
+        int dw = text_w(font, disp.c_str());
+        int dx = (dw <= cap.w - 10) ? (cap.x + (cap.w - dw) / 2) : (cap.x + 6);
+        draw_text(r, font, disp.c_str(), dx, cap.y + 4, {40,40,40});
+    }
+}
+
+int variables_block_hittest_field(TTF_Font *font, const AppState& state, VariablesBlockType type, int x, int y, const std::string& var_name, int opt, int px, int py) {
+    SDL_Rect br = variables_block_rect(type, x, y, var_name);
+    if (!(px >= br.x && px < br.x+br.w && py >= br.y && py < br.y+br.h)) return -1;
+    
+    if (type == VB_SET || type == VB_CHANGE) {
+        int cx = br.x + 16;
+        cx += text_w(font, (type == VB_SET) ? "set" : "change") + 8;
+        
+        std::string sel_var = (opt >= 0 && opt < (int)state.variables.size()) ? state.variables[opt] : "";
+        SDL_Rect drop_r = {cx, br.y + 8, std::max(60, text_w(font, sel_var.c_str()) + 24), 24};
+        if (px >= drop_r.x && px < drop_r.x+drop_r.w && py >= drop_r.y && py < drop_r.y+drop_r.h) return -2; // Clicked the Dropdown!
+        
+        cx += drop_r.w + 8;
+        cx += text_w(font, (type == VB_SET) ? "to" : "by") + 8;
+        
+        SDL_Rect cap = {cx, br.y + 8, 46, 24};
+        if (px >= cap.x && px < cap.x+cap.w && py >= cap.y && py < cap.y+cap.h) return 0; // Clicked the Input!
+    }
+    return -1;
+}
