@@ -228,5 +228,18 @@ int operators_block_hittest_field(TTF_Font *font,
                                   OperatorsBlockType type,
                                   int x, int y,
                                   int px, int py);
+                                  void operators_block_draw_dynamic(SDL_Renderer *r, TTF_Font *font,
+                                  OperatorsBlockType type,
+                                  int x, int y, int total_w,
+                                  const std::string &str_a, const std::string &str_b,
+                                  int cap0_w, int cap1_w,
+                                  bool ghost, Color panel_bg,
+                                  int selected_field,
+                                  const char *override_field0_text,
+                                  const char *override_field1_text);
+
+int operators_block_hittest_dynamic(TTF_Font *font, OperatorsBlockType type, 
+                                    int x, int y, int total_w, int cap0_w, int cap1_w, 
+                                    int px, int py);
 
 #endif

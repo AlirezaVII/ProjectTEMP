@@ -86,6 +86,7 @@ struct BlockInstance {
     int c = 0, d = 0, e = 0, f = 0; 
     int opt = 0;
     std::string text;
+    std::string text2; // <--- ADD THIS NEW LINE
     
     /* AST Pointers */
     int next_id = -1;

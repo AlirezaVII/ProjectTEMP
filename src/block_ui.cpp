@@ -2295,3 +2295,135 @@ int operators_block_hittest_field(TTF_Font *font, OperatorsBlockType type, int x
         default: return -1;
     }
 }
+void operators_block_draw_dynamic(SDL_Renderer *r, TTF_Font *font,
+                              OperatorsBlockType type,
+                              int x, int y, int total_w,
+                              const std::string &str_a, const std::string &str_b,
+                              int cap0_w, int cap1_w,
+                              bool ghost, Color panel_bg,
+                              int selected_field,
+                              const char *override_field0_text,
+                              const char *override_field1_text)
+{
+    Color op_col = {89, 192, 89};
+    SDL_Rect br = {x, y, total_w, 40};
+    bool is_bool = (type == OP_GT || type == OP_LT || type == OP_EQ || type == OP_AND || type == OP_OR || type == OP_NOT);
+
+    if (is_bool) draw_boolean_shape(r, br, op_col, panel_bg, ghost); 
+    else draw_reporter_shape(r, br, op_col, ghost);          
+
+    int cy = br.y + (br.h - 16) / 2;
+    int cap_h = 24;
+    int cap_y = br.y + (br.h - cap_h) / 2;
+
+    auto get_word_w = [&](const char *w) { return text_w(font, w) + 6; };
+    auto get_cw = [&](int cw) { return cw + 6; };
+    
+    int content_w = 0;
+    switch (type) {
+        case OP_ADD: case OP_SUB: case OP_MUL: case OP_DIV: content_w = get_cw(cap0_w) + get_word_w(type==OP_ADD?"+":type==OP_SUB?"-":type==OP_MUL?"*":"/") + get_cw(cap1_w); break;
+        case OP_GT: case OP_LT: case OP_EQ: content_w = get_cw(cap0_w) + get_word_w(type==OP_GT?">":type==OP_LT?"<":"=") + get_cw(cap1_w); break;
+        case OP_AND: case OP_OR: content_w = get_cw(cap0_w) + get_word_w(type==OP_AND?"and":"or") + get_cw(cap1_w); break;
+        case OP_NOT: content_w = get_word_w("not") + get_cw(cap0_w); break;
+        case OP_JOIN: content_w = get_word_w("join") + get_cw(cap0_w) + get_cw(cap1_w); break;
+        case OP_LETTER_OF: content_w = get_word_w("letter") + get_cw(cap0_w) + get_word_w("of") + get_cw(cap1_w); break;
+        case OP_LENGTH_OF: content_w = get_word_w("length of") + get_cw(cap0_w); break;
+    }
+    if (content_w > 0) content_w -= 6;
+
+    int cur_x = br.x + (br.w - content_w) / 2;
+    Color txt_col = {255, 255, 255};
+
+    auto draw_word = [&](const char *w) {
+        draw_text(r, font, w, cur_x, cy, txt_col);
+        cur_x += text_w(font, w) + 6;
+    };
+
+    auto draw_capsule = [&](const char *txt, const char *override_txt, int field_index, int cw, bool is_hex) {
+        const char *show = (override_txt && selected_field == field_index) ? override_txt : txt;
+        SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cw, cap_h);
+        
+        bool filled = (override_txt != nullptr && override_txt[0] == '\0' && selected_field != field_index);
+
+        if (is_hex) {
+            // FIXED: Removed the rogue + cw/2 offset that was causing overlaps!
+            if (!filled) draw_hex_slot(r, cur_x, cy + 8, op_col, false);
+        } else {
+            draw_input_capsule(r, cap, selected_field == field_index);
+            if (!filled) {
+                int tw = text_w(font, show);
+                int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6);
+                int ty = cap.y + (cap.h - 16) / 2;
+                draw_text(r, font, show, tx, ty, (Color){40, 40, 40});
+            }
+        }
+        cur_x += cw + 6;
+    };
+
+    switch (type) {
+        case OP_ADD: draw_capsule(str_a.c_str(), override_field0_text, 0, cap0_w, false); draw_word("+"); draw_capsule(str_b.c_str(), override_field1_text, 1, cap1_w, false); break;
+        case OP_SUB: draw_capsule(str_a.c_str(), override_field0_text, 0, cap0_w, false); draw_word("-"); draw_capsule(str_b.c_str(), override_field1_text, 1, cap1_w, false); break;
+        case OP_MUL: draw_capsule(str_a.c_str(), override_field0_text, 0, cap0_w, false); draw_word("*"); draw_capsule(str_b.c_str(), override_field1_text, 1, cap1_w, false); break;
+        case OP_DIV: draw_capsule(str_a.c_str(), override_field0_text, 0, cap0_w, false); draw_word("/"); draw_capsule(str_b.c_str(), override_field1_text, 1, cap1_w, false); break;
+        case OP_GT:  draw_capsule(str_a.c_str(), override_field0_text, 0, cap0_w, false); draw_word(">"); draw_capsule(str_b.c_str(), override_field1_text, 1, cap1_w, false); break;
+        case OP_LT:  draw_capsule(str_a.c_str(), override_field0_text, 0, cap0_w, false); draw_word("<"); draw_capsule(str_b.c_str(), override_field1_text, 1, cap1_w, false); break;
+        case OP_EQ:  draw_capsule(str_a.c_str(), override_field0_text, 0, cap0_w, false); draw_word("="); draw_capsule(str_b.c_str(), override_field1_text, 1, cap1_w, false); break;
+        case OP_AND: draw_capsule("", override_field0_text, 0, cap0_w, true); draw_word("and"); draw_capsule("", override_field1_text, 1, cap1_w, true); break;
+        case OP_OR:  draw_capsule("", override_field0_text, 0, cap0_w, true); draw_word("or"); draw_capsule("", override_field1_text, 1, cap1_w, true); break;
+        case OP_NOT: draw_word("not"); draw_capsule("", override_field0_text, 0, cap0_w, true); break;
+        case OP_JOIN: draw_word("join"); draw_capsule(str_a.c_str(), override_field0_text, 0, cap0_w, false); draw_capsule(str_b.c_str(), override_field1_text, 1, cap1_w, false); break;
+        case OP_LETTER_OF: draw_word("letter"); draw_capsule(str_a.c_str(), override_field0_text, 0, cap0_w, false); draw_word("of"); draw_capsule(str_b.c_str(), override_field1_text, 1, cap1_w, false); break;
+        case OP_LENGTH_OF: draw_word("length of"); draw_capsule(str_a.c_str(), override_field0_text, 0, cap0_w, false); break;
+    }
+}
+
+int operators_block_hittest_dynamic(TTF_Font *font, OperatorsBlockType type, 
+                                    int x, int y, int total_w, int cap0_w, int cap1_w, 
+                                    int px, int py)
+{
+    SDL_Rect br = {x, y, total_w, 40};
+    if (!(px >= br.x && px < br.x+br.w && py >= br.y && py < br.y+br.h)) return -1;
+
+    int cap_h = 24;
+    int cap_y = br.y + (br.h - cap_h)/2;
+
+    auto get_word_w = [&](const char *w) { return text_w(font, w) + 6; };
+    auto get_cw = [&](int cw) { return cw + 6; };
+    
+    int content_w = 0;
+    switch (type) {
+        case OP_ADD: case OP_SUB: case OP_MUL: case OP_DIV: content_w = get_cw(cap0_w) + get_word_w(type==OP_ADD?"+":type==OP_SUB?"-":type==OP_MUL?"*":"/") + get_cw(cap1_w); break;
+        case OP_GT: case OP_LT: case OP_EQ: content_w = get_cw(cap0_w) + get_word_w(type==OP_GT?">":type==OP_LT?"<":"=") + get_cw(cap1_w); break;
+        case OP_AND: case OP_OR: content_w = get_cw(cap0_w) + get_word_w(type==OP_AND?"and":"or") + get_cw(cap1_w); break;
+        case OP_NOT: content_w = get_word_w("not") + get_cw(cap0_w); break;
+        case OP_JOIN: content_w = get_word_w("join") + get_cw(cap0_w) + get_cw(cap1_w); break;
+        case OP_LETTER_OF: content_w = get_word_w("letter") + get_cw(cap0_w) + get_word_w("of") + get_cw(cap1_w); break;
+        case OP_LENGTH_OF: content_w = get_word_w("length of") + get_cw(cap0_w); break;
+    }
+    if (content_w > 0) content_w -= 6;
+
+    int cur_x = br.x + (br.w - content_w) / 2;
+
+    auto adv_word = [&](const char *w) { cur_x += text_w(font, w) + 6; };
+    auto cap_rect = [&](int cw) {
+        SDL_Rect rc {cur_x, cap_y, cw, cap_h}; cur_x += cw + 6; return rc;
+    };
+    auto in = [&](const SDL_Rect &rc) { return px >= rc.x && px < rc.x+rc.w && py >= rc.y && py < rc.y+rc.h; };
+
+    switch (type) {
+        case OP_ADD: if (in(cap_rect(cap0_w))) return 0; adv_word("+"); if (in(cap_rect(cap1_w))) return 1; return -1;
+        case OP_SUB: if (in(cap_rect(cap0_w))) return 0; adv_word("-"); if (in(cap_rect(cap1_w))) return 1; return -1;
+        case OP_MUL: if (in(cap_rect(cap0_w))) return 0; adv_word("*"); if (in(cap_rect(cap1_w))) return 1; return -1;
+        case OP_DIV: if (in(cap_rect(cap0_w))) return 0; adv_word("/"); if (in(cap_rect(cap1_w))) return 1; return -1;
+        case OP_GT:  if (in(cap_rect(cap0_w))) return 0; adv_word(">"); if (in(cap_rect(cap1_w))) return 1; return -1;
+        case OP_LT:  if (in(cap_rect(cap0_w))) return 0; adv_word("<"); if (in(cap_rect(cap1_w))) return 1; return -1;
+        case OP_EQ:  if (in(cap_rect(cap0_w))) return 0; adv_word("="); if (in(cap_rect(cap1_w))) return 1; return -1;
+        case OP_AND: if (in(cap_rect(cap0_w))) return 0; adv_word("and"); if (in(cap_rect(cap1_w))) return 1; return -1;
+        case OP_OR:  if (in(cap_rect(cap0_w))) return 0; adv_word("or"); if (in(cap_rect(cap1_w))) return 1; return -1;
+        case OP_NOT: adv_word("not"); if (in(cap_rect(cap0_w))) return 0; return -1;
+        case OP_JOIN: adv_word("join"); if (in(cap_rect(cap0_w))) return 0; if (in(cap_rect(cap1_w))) return 1; return -1;
+        case OP_LETTER_OF: adv_word("letter"); if (in(cap_rect(cap0_w))) return 0; adv_word("of"); if (in(cap_rect(cap1_w))) return 1; return -1;
+        case OP_LENGTH_OF: adv_word("length of"); if (in(cap_rect(cap0_w))) return 0; return -1;
+        default: return -1;
+    }
+}
