@@ -24,6 +24,23 @@ static BlockDef make_c_shape(BlockKind kind, int subtype, Color col, int w, int 
     return b;
 }
 
+static BlockDef make_reporter(BlockKind kind, int subtype, Color col, int w, int h, const char *label)
+{
+    BlockDef b;
+    b.label = label;
+    b.color = col;
+    b.width = w;
+    b.height = h;
+    b.is_stack_block = false;
+    b.is_boolean_block = false;
+    b.is_c_shape = false;
+    b.is_e_shape = false;
+    b.is_reporter_block = true;
+    b.kind = kind;
+    b.subtype = subtype;
+    return b;
+}
+
 static BlockDef make_e_shape(BlockKind kind, int subtype, Color col, int w, int h, const char *label)
 {
     BlockDef b;
@@ -202,6 +219,28 @@ int blocks_get_for_category(int cat, BlockDef *out, int max_out)
         if (n < max_out) out[n++] = make_boolean(BK_SENSING, (int)SENSB_KEY_PRESSED, c, 280, 36, "key pressed");
         if (n < max_out) out[n++] = make_boolean(BK_SENSING, (int)SENSB_MOUSE_DOWN, c, 220, 36, "mouse down");
         if (n < max_out) out[n++] = make_stack(BK_SENSING, (int)SENSB_SET_DRAG_MODE, c, 300, 40, "set drag mode");
+        break;
+    }
+    case 6: /* Operators */{
+        Color c = CAT_COLORS[6];
+        // Math Reporters
+        if (n < max_out) out[n++] = make_reporter(BK_OPERATORS, (int)OP_ADD, c, 120, 40, "+");
+        if (n < max_out) out[n++] = make_reporter(BK_OPERATORS, (int)OP_SUB, c, 120, 40, "-");
+        if (n < max_out) out[n++] = make_reporter(BK_OPERATORS, (int)OP_MUL, c, 120, 40, "*");
+        if (n < max_out) out[n++] = make_reporter(BK_OPERATORS, (int)OP_DIV, c, 120, 40, "/");
+        if (n < max_out) out[n++] = make_reporter(BK_OPERATORS, (int)OP_RANDOM, c, 190, 40, "pick random");
+        // Booleans
+        if (n < max_out) out[n++] = make_boolean(BK_OPERATORS, (int)OP_GT, c, 140, 40, ">");
+        if (n < max_out) out[n++] = make_boolean(BK_OPERATORS, (int)OP_LT, c, 140, 40, "<");
+        if (n < max_out) out[n++] = make_boolean(BK_OPERATORS, (int)OP_EQ, c, 140, 40, "=");
+        if (n < max_out) out[n++] = make_boolean(BK_OPERATORS, (int)OP_AND, c, 140, 40, "and");
+        if (n < max_out) out[n++] = make_boolean(BK_OPERATORS, (int)OP_OR, c, 140, 40, "or");
+        if (n < max_out) out[n++] = make_boolean(BK_OPERATORS, (int)OP_NOT, c, 100, 40, "not");
+        // String Reporters
+        if (n < max_out) out[n++] = make_reporter(BK_OPERATORS, (int)OP_JOIN, c, 180, 40, "join");
+        if (n < max_out) out[n++] = make_reporter(BK_OPERATORS, (int)OP_LETTER_OF, c, 180, 40, "letter of");
+        if (n < max_out) out[n++] = make_reporter(BK_OPERATORS, (int)OP_LENGTH_OF, c, 140, 40, "length of");
+        if (n < max_out) out[n++] = make_boolean(BK_OPERATORS, (int)OP_CONTAINS, c, 200, 40, "contains");
         break;
     }
 

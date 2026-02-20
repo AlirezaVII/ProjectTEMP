@@ -13,15 +13,16 @@ struct BlockDef {
 
     bool is_stack_block;
     bool is_boolean_block;
-    bool is_c_shape;       // <--- ADD THIS
-    bool is_e_shape;       // <--- ADD THIS (for if/else)
+    bool is_c_shape;       
+    bool is_e_shape;       
+    bool is_reporter_block; // <--- ADD THIS
 
     BlockKind kind; 
     int subtype;    
 
     BlockDef() : label(""), color({128,128,128}), width(0), height(0),
                  is_stack_block(false), is_boolean_block(false), 
-                 is_c_shape(false), is_e_shape(false), // <--- ADD INITIALIZERS
+                 is_c_shape(false), is_e_shape(false), is_reporter_block(false), // <--- UPDATE INIT
                  kind(BK_MOTION), subtype(0) {}
 };
 

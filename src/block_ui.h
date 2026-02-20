@@ -210,4 +210,23 @@ int control_block_hittest_field(TTF_Font *font,
                                 int x, int y, int inner1_h, int inner2_h,
                                 int a, int px, int py);
 
+/* ---------------- Operators UI ---------------- */
+int operators_block_width(OperatorsBlockType type);
+SDL_Rect operators_block_rect(OperatorsBlockType type, int x, int y);
+
+void operators_block_draw(SDL_Renderer *r, TTF_Font *font,
+                          OperatorsBlockType type,
+                          int x, int y,
+                          const std::string &str_a, const std::string &str_b,
+                          int a, int b,
+                          bool ghost, Color panel_bg,
+                          int selected_field,
+                          const char *override_field0_text,
+                          const char *override_field1_text);
+
+int operators_block_hittest_field(TTF_Font *font,
+                                  OperatorsBlockType type,
+                                  int x, int y,
+                                  int px, int py);
+
 #endif

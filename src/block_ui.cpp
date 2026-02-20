@@ -2111,3 +2111,213 @@ int control_block_hittest_field(TTF_Font *font, ControlBlockType type, int x, in
     }
     return -1;
 }
+/* ================================================================ */
+/* ===============       O P E R A T O R S      =================== */
+/* ================================================================ */
+
+static void draw_reporter_shape(SDL_Renderer *r, const SDL_Rect &br, Color col, bool ghost) {
+    float gk = ghost ? 0.75f : 1.0f;
+    Color border = shade(col, 0.80f * gk);
+    Color fill   = shade(col, 1.00f * gk);
+
+    // Pill shape has radius = height / 2
+    renderer_fill_rounded_rect(r, &br, br.h/2, border.r, border.g, border.b);
+    SDL_Rect inner{ br.x + 1, br.y + 1, br.w - 2, br.h - 2 };
+    renderer_fill_rounded_rect(r, &inner, std::max(0, inner.h/2), fill.r, fill.g, fill.b);
+}
+
+int operators_block_width(OperatorsBlockType type) {
+    switch (type) {
+        case OP_ADD: case OP_SUB: case OP_MUL: case OP_DIV: return 120;
+        case OP_RANDOM: return 190;
+        case OP_GT: case OP_LT: case OP_EQ: return 140;
+        case OP_AND: case OP_OR: return 140;
+        case OP_NOT: return 100;
+        case OP_JOIN: return 180;
+        case OP_LETTER_OF: return 180;
+        case OP_LENGTH_OF: return 140;
+        case OP_CONTAINS: return 200;
+        default: return 120;
+    }
+}
+
+SDL_Rect operators_block_rect(OperatorsBlockType type, int x, int y) {
+    return { x, y, operators_block_width(type), 40 };
+}
+
+void operators_block_draw(SDL_Renderer *r, TTF_Font *font,
+                          OperatorsBlockType type,
+                          int x, int y,
+                          const std::string &str_a, const std::string &str_b,
+                          int a, int b,
+                          bool ghost, Color panel_bg,
+                          int selected_field,
+                          const char *override_field0_text,
+                          const char *override_field1_text)
+{
+    Color op_col = {89, 192, 89}; // Scratch Operators Green
+    SDL_Rect br = operators_block_rect(type, x, y);
+
+    bool is_bool = (type == OP_GT || type == OP_LT || type == OP_EQ || 
+                    type == OP_AND || type == OP_OR || type == OP_NOT || type == OP_CONTAINS);
+
+    if (is_bool) {
+        draw_boolean_shape(r, br, op_col, panel_bg, ghost); // Reuses sensing hexagon shape
+    } else {
+        draw_reporter_shape(r, br, op_col, ghost);          // Uses the pill shape
+    }
+
+    int padding_x = is_bool ? (br.h / 2 + 6) : 16;
+    int cy = br.y + (br.h - 16) / 2;
+    int cap_h = 24;
+    int cap_y = br.y + (br.h - cap_h) / 2;
+    int cur_x = br.x + padding_x;
+
+    Color txt_col = {255, 255, 255};
+
+    auto draw_word = [&](const char *w) {
+        draw_text(r, font, w, cur_x, cy, txt_col);
+        cur_x += text_w(font, w) + 6;
+    };
+
+    auto draw_capsule = [&](const char *txt, const char *override_txt, int field_index, int cap_w) {
+        const char *show = (override_txt && selected_field == field_index) ? override_txt : txt;
+        SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cap_w, cap_h);
+        draw_input_capsule(r, cap, selected_field == field_index);
+        int tw = text_w(font, show);
+        int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6);
+        int ty = cap.y + (cap.h - 16) / 2;
+        draw_text(r, font, show, tx, ty, (Color){40, 40, 40});
+        cur_x += cap.w + 6;
+    };
+
+    auto draw_empty_hex = [&]() {
+        draw_hex_slot(r, cur_x + 20, cy + 8, op_col, false);
+        cur_x += 46;
+    };
+
+    char bufA[32], bufB[32];
+    std::snprintf(bufA, sizeof(bufA), "%d", a);
+    std::snprintf(bufB, sizeof(bufB), "%d", b);
+
+    switch (type) {
+        case OP_ADD:
+            draw_capsule(bufA, override_field0_text, 0, 36); draw_word("+"); draw_capsule(bufB, override_field1_text, 1, 36);
+            break;
+        case OP_SUB:
+            draw_capsule(bufA, override_field0_text, 0, 36); draw_word("-"); draw_capsule(bufB, override_field1_text, 1, 36);
+            break;
+        case OP_MUL:
+            draw_capsule(bufA, override_field0_text, 0, 36); draw_word("*"); draw_capsule(bufB, override_field1_text, 1, 36);
+            break;
+        case OP_DIV:
+            draw_capsule(bufA, override_field0_text, 0, 36); draw_word("/"); draw_capsule(bufB, override_field1_text, 1, 36);
+            break;
+        case OP_RANDOM:
+            draw_word("pick random"); draw_capsule(bufA, override_field0_text, 0, 32); draw_word("to"); draw_capsule(bufB, override_field1_text, 1, 32);
+            break;
+        case OP_GT:
+            draw_capsule(bufA, override_field0_text, 0, 36); draw_word(">"); draw_capsule(bufB, override_field1_text, 1, 36);
+            break;
+        case OP_LT:
+            draw_capsule(bufA, override_field0_text, 0, 36); draw_word("<"); draw_capsule(bufB, override_field1_text, 1, 36);
+            break;
+        case OP_EQ:
+            draw_capsule(bufA, override_field0_text, 0, 36); draw_word("="); draw_capsule(bufB, override_field1_text, 1, 36);
+            break;
+        case OP_AND:
+            draw_empty_hex(); draw_word("and"); draw_empty_hex();
+            break;
+        case OP_OR:
+            draw_empty_hex(); draw_word("or"); draw_empty_hex();
+            break;
+        case OP_NOT:
+            draw_word("not"); draw_empty_hex();
+            break;
+        case OP_JOIN:
+            draw_word("join");
+            draw_capsule(str_a.empty() ? "apple" : str_a.c_str(), override_field0_text, 0, 46);
+            draw_capsule(str_b.empty() ? "banana" : str_b.c_str(), override_field1_text, 1, 56);
+            break;
+        case OP_LETTER_OF:
+            draw_word("letter");
+            draw_capsule(bufA, override_field0_text, 0, 26);
+            draw_word("of");
+            draw_capsule(str_a.empty() ? "apple" : str_a.c_str(), override_field1_text, 1, 56);
+            break;
+        case OP_LENGTH_OF:
+            draw_word("length of");
+            draw_capsule(str_a.empty() ? "apple" : str_a.c_str(), override_field0_text, 0, 56);
+            break;
+        case OP_CONTAINS:
+            draw_capsule(str_a.empty() ? "apple" : str_a.c_str(), override_field0_text, 0, 56);
+            draw_word("contains");
+            draw_capsule(str_b.empty() ? "a" : str_b.c_str(), override_field1_text, 1, 32);
+            draw_word("?");
+            break;
+    }
+}
+
+int operators_block_hittest_field(TTF_Font *font, OperatorsBlockType type, int x, int y, int px, int py) {
+    SDL_Rect br = operators_block_rect(type, x, y);
+    if (!(px >= br.x && px < br.x+br.w && py >= br.y && py < br.y+br.h)) return -1;
+
+    bool is_bool = (type == OP_GT || type == OP_LT || type == OP_EQ || 
+                    type == OP_AND || type == OP_OR || type == OP_NOT || type == OP_CONTAINS);
+
+    int padding_x = is_bool ? (br.h / 2 + 6) : 16;
+    int cap_h = 24;
+    int cap_y = br.y + (br.h - cap_h)/2;
+    int cur_x = br.x + padding_x;
+
+    auto adv_word = [&](const char *w) { cur_x += text_w(font, w) + 6; };
+    auto cap_rect = [&](int w) {
+        SDL_Rect rc {cur_x, cap_y, w, cap_h}; cur_x += w + 6; return rc;
+    };
+    auto in = [&](const SDL_Rect &rc) {
+        return px >= rc.x && px < rc.x+rc.w && py >= rc.y && py < rc.y+rc.h;
+    };
+
+    switch (type) {
+        case OP_ADD: case OP_SUB: case OP_MUL: case OP_DIV:
+            if (in(cap_rect(36))) return 0;
+            adv_word("+"); 
+            if (in(cap_rect(36))) return 1;
+            return -1;
+        case OP_RANDOM:
+            adv_word("pick random");
+            if (in(cap_rect(32))) return 0;
+            adv_word("to");
+            if (in(cap_rect(32))) return 1;
+            return -1;
+        case OP_GT: case OP_LT: case OP_EQ:
+            if (in(cap_rect(36))) return 0;
+            adv_word("=");
+            if (in(cap_rect(36))) return 1;
+            return -1;
+        case OP_AND: case OP_OR: case OP_NOT:
+            return -1; // No capsules here, just block-drop targets for Part 2
+        case OP_JOIN:
+            adv_word("join");
+            if (in(cap_rect(46))) return 0;
+            if (in(cap_rect(56))) return 1;
+            return -1;
+        case OP_LETTER_OF:
+            adv_word("letter");
+            if (in(cap_rect(26))) return 0;
+            adv_word("of");
+            if (in(cap_rect(56))) return 1;
+            return -1;
+        case OP_LENGTH_OF:
+            adv_word("length of");
+            if (in(cap_rect(56))) return 0;
+            return -1;
+        case OP_CONTAINS:
+            if (in(cap_rect(56))) return 0;
+            adv_word("contains");
+            if (in(cap_rect(32))) return 1;
+            return -1;
+        default:
+            return -1;
+    }
+}
