@@ -27,6 +27,22 @@
 #include <cstdlib>
 #include <iostream>
 
+// ---> NEW: GLOBAL SPRITE LIBRARY MEMORY <---
+static std::vector<std::pair<std::string, SDL_Texture *>> global_sprite_lib;
+
+static void load_library_sprites(SDL_Renderer *renderer)
+{
+    const char *lib_files[] = {"businessman.png", "car.png", "crab.png", "soldier.png", "call_center.png", "celebrater.png", "working.png"};
+    const char *lib_names[] = {"businessman", "car", "crab", "soldier", "IT guy", "celebrater", "working"};
+    for (int i = 0; i < 7; ++i)
+    {
+        std::string path = "assets/sprites/" + std::string(lib_files[i]);
+        SDL_Texture *t = IMG_LoadTexture(renderer, path.c_str());
+        if (t)
+            global_sprite_lib.push_back({lib_names[i], t});
+    }
+}
+
 static void render_simple_text(SDL_Renderer *r, TTF_Font *font, const char *text, int x, int y, Color c)
 {
     if (!text || text[0] == '\0')
@@ -46,20 +62,15 @@ static void render_simple_text(SDL_Renderer *r, TTF_Font *font, const char *text
 int main(int /*argc*/, char * /*argv*/[])
 {
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
-    {
-        std::fprintf(stderr, "SDL_Init: %s\n", SDL_GetError());
         return 1;
-    }
     if (TTF_Init() != 0)
     {
-        std::fprintf(stderr, "TTF_Init: %s\n", TTF_GetError());
         SDL_Quit();
         return 1;
     }
-    int img_flags = IMG_INIT_PNG;
+    int img_flags = IMG_INIT_PNG | IMG_INIT_JPG;
     if ((IMG_Init(img_flags) & img_flags) == 0)
     {
-        std::fprintf(stderr, "IMG_Init: %s\n", IMG_GetError());
         TTF_Quit();
         SDL_Quit();
         return 1;
@@ -73,16 +84,14 @@ int main(int /*argc*/, char * /*argv*/[])
     if (!renderer)
         return 1;
 
+    int ww = 0, wh = 0;
+    SDL_GetWindowSize(window, &ww, &wh);
+    if (ww > 0 && wh > 0)
     {
-        int ww = 0, wh = 0;
-        SDL_GetWindowSize(window, &ww, &wh);
-        if (ww > 0 && wh > 0)
-        {
-            WINDOW_WIDTH = ww;
-            WINDOW_HEIGHT = wh;
-        }
-        SDL_RenderSetLogicalSize(renderer, WINDOW_WIDTH, WINDOW_HEIGHT);
+        WINDOW_WIDTH = ww;
+        WINDOW_HEIGHT = wh;
     }
+    SDL_RenderSetLogicalSize(renderer, WINDOW_WIDTH, WINDOW_HEIGHT);
 
     TTF_Font *font = TTF_OpenFont("assets/fonts/NotoSans-Regular.ttf", 13);
     if (!font)
@@ -95,9 +104,9 @@ int main(int /*argc*/, char * /*argv*/[])
     Textures tex;
     textures_load(tex, renderer);
     if (!audio_init())
-    {
         std::fprintf(stderr, "Warning: Audio failed to load. Sounds will be silent.\n");
-    }
+
+    load_library_sprites(renderer);
 
     NavbarRects navbar_rects;
     navbar_layout(navbar_rects);
@@ -121,6 +130,7 @@ int main(int /*argc*/, char * /*argv*/[])
     sprite_panel_layout(sprite_panel_rects);
 
     AppState state;
+    state.sprites.push_back(Sprite("Sprite1", tex.scratch_cat)); // INITIALIZE DEFAULT SPRITE
     SDL_StartTextInput();
     bool quit = false;
 
@@ -135,7 +145,6 @@ int main(int /*argc*/, char * /*argv*/[])
                 break;
             }
 
-            // ---> NEW: INTERCEPT "ASK" POPUP TYPING! <---
             if (state.ask_active)
             {
                 if (e.type == SDL_KEYDOWN)
@@ -156,7 +165,7 @@ int main(int /*argc*/, char * /*argv*/[])
                 {
                     state.ask_reply += e.text.text;
                 }
-                continue; // Block all other input while asking!
+                continue;
             }
 
             if (state.var_modal_active)
@@ -173,17 +182,13 @@ int main(int /*argc*/, char * /*argv*/[])
                     {
                         bool unique = true;
                         for (const auto &v : state.variables)
-                        {
                             if (v == state.input_buffer)
                             {
                                 unique = false;
                                 break;
                             }
-                        }
                         if (unique && !state.input_buffer.empty())
                             state.variables.push_back(state.input_buffer);
-                            state.variable_values[state.input_buffer] = "0";  // INIT TO 0
-                            state.variable_visible[state.input_buffer] = true; // SHOW BY DEFAULT
                         state.var_modal_active = false;
                         state.active_input = INPUT_NONE;
                         state.input_buffer.clear();
@@ -209,17 +214,13 @@ int main(int /*argc*/, char * /*argv*/[])
                     {
                         bool unique = true;
                         for (const auto &v : state.variables)
-                        {
                             if (v == state.input_buffer)
                             {
                                 unique = false;
                                 break;
                             }
-                        }
                         if (unique && !state.input_buffer.empty())
                             state.variables.push_back(state.input_buffer);
-                            state.variable_values[state.input_buffer] = "0";  // INIT TO 0
-                            state.variable_visible[state.input_buffer] = true; // SHOW BY DEFAULT
                         state.var_modal_active = false;
                         state.active_input = INPUT_NONE;
                         state.input_buffer.clear();
@@ -234,10 +235,41 @@ int main(int /*argc*/, char * /*argv*/[])
                 continue;
             }
 
-            if (e.type == SDL_KEYDOWN && state.active_input == INPUT_NONE && !state.file_menu_open && !state.var_modal_active)
+            if (state.mode == MODE_SPRITE_LIBRARY)
             {
-                interpreter_trigger_key(state, e.key.keysym.sym);
+                if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
+                {
+                    int mx = e.button.x;
+                    int my = e.button.y;
+                    if (mx >= 10 && mx <= 80 && my >= 10 && my <= 40)
+                    {
+                        state.mode = MODE_EDITOR;
+                    } // Back button
+                    for (size_t i = 0; i < global_sprite_lib.size(); i++)
+                    {
+                        int x = 50 + (i % 6) * 150;
+                        int y = 100 + (i / 6) * 150;
+                        if (mx >= x && mx <= x + 120 && my >= y && my <= y + 120)
+                        {
+                            std::string new_name = global_sprite_lib[i].first;
+                            int count = 1;
+                            for (auto &s : state.sprites)
+                                if (s.name.find(new_name) != std::string::npos)
+                                    count++;
+                            if (count > 1)
+                                new_name += std::to_string(count);
+                            state.sprites.push_back(Sprite(new_name, global_sprite_lib[i].second));
+                            state.selected_sprite = state.sprites.size() - 1;
+                            state.mode = MODE_EDITOR;
+                            break;
+                        }
+                    }
+                }
+                continue; // Block all other interactions while in library
             }
+
+            if (e.type == SDL_KEYDOWN && state.active_input == INPUT_NONE && !state.file_menu_open && !state.var_modal_active)
+                interpreter_trigger_key(state, e.key.keysym.sym);
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE && state.active_input == INPUT_NONE && !state.file_menu_open)
             {
                 quit = true;
@@ -256,6 +288,39 @@ int main(int /*argc*/, char * /*argv*/[])
                 continue;
             if (sprite_panel_handle_event(e, state, sprite_panel_rects))
                 continue;
+            if (state.sprite_menu_open && e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
+            {
+                int mx = e.button.x, my = e.button.y;
+                if (mx >= sprite_panel_rects.sprite_menu_items[2].x && mx <= sprite_panel_rects.sprite_menu_items[2].x + 36 &&
+                    my >= sprite_panel_rects.sprite_menu_items[2].y && my <= sprite_panel_rects.sprite_menu_items[2].y + 36)
+                {
+
+                    // Trigger Native Mac Upload Dialog
+                    char buffer[1024];
+                    std::string result = "";
+                    FILE *pipe = popen("osascript -e 'POSIX path of (choose file with prompt \"Choose Sprite\" of type {\"png\", \"jpg\", \"jpeg\"})'", "r");
+                    if (pipe)
+                    {
+                        while (fgets(buffer, sizeof(buffer), pipe) != NULL)
+                            result += buffer;
+                        pclose(pipe);
+                    }
+                    if (!result.empty() && result.back() == '\n')
+                        result.pop_back();
+
+                    if (!result.empty())
+                    {
+                        SDL_Texture *t = IMG_LoadTexture(renderer, result.c_str());
+                        if (t)
+                        {
+                            state.sprites.push_back(Sprite("Sprite" + std::to_string(state.sprites.size() + 1), t));
+                            state.selected_sprite = state.sprites.size() - 1;
+                        }
+                    }
+                    state.sprite_menu_open = false;
+                    continue;
+                }
+            }
 
             if (state.current_tab == TAB_CODE)
             {
@@ -281,42 +346,46 @@ int main(int /*argc*/, char * /*argv*/[])
             {
                 if (state.active_input != INPUT_NONE && state.active_input != INPUT_PROJECT_NAME)
                 {
-                    if (state.active_input == INPUT_SPRITE_NAME)
+                    if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
                     {
-                        if (!state.input_buffer.empty())
-                            state.sprite.name = state.input_buffer;
-                    }
-                    else if (state.active_input == INPUT_X)
-                    {
-                        if (!state.input_buffer.empty() && state.input_buffer != "-")
-                            state.sprite.x = std::atoi(state.input_buffer.c_str());
-                    }
-                    else if (state.active_input == INPUT_Y)
-                    {
-                        if (!state.input_buffer.empty() && state.input_buffer != "-")
-                            state.sprite.y = std::atoi(state.input_buffer.c_str());
-                    }
-                    else if (state.active_input == INPUT_DIRECTION)
-                    {
-                        if (!state.input_buffer.empty() && state.input_buffer != "-")
-                            state.sprite.direction = std::atoi(state.input_buffer.c_str());
-                    }
-                    else if (state.active_input == INPUT_SIZE)
-                    {
-                        if (!state.input_buffer.empty())
+                        Sprite &spr = state.sprites[state.selected_sprite];
+                        if (state.active_input == INPUT_SPRITE_NAME)
                         {
-                            int s = std::atoi(state.input_buffer.c_str());
-                            if (s < 0)
-                                s = 0;
-                            if (s > 999)
-                                s = 999;
-                            state.sprite.size = s;
+                            if (!state.input_buffer.empty())
+                                spr.name = state.input_buffer;
+                        }
+                        else if (state.active_input == INPUT_X)
+                        {
+                            if (!state.input_buffer.empty() && state.input_buffer != "-")
+                                spr.x = std::atoi(state.input_buffer.c_str());
+                        }
+                        else if (state.active_input == INPUT_Y)
+                        {
+                            if (!state.input_buffer.empty() && state.input_buffer != "-")
+                                spr.y = std::atoi(state.input_buffer.c_str());
+                        }
+                        else if (state.active_input == INPUT_DIRECTION)
+                        {
+                            if (!state.input_buffer.empty() && state.input_buffer != "-")
+                                spr.direction = std::atoi(state.input_buffer.c_str());
+                        }
+                        else if (state.active_input == INPUT_SIZE)
+                        {
+                            if (!state.input_buffer.empty())
+                            {
+                                int s = std::atoi(state.input_buffer.c_str());
+                                if (s < 0)
+                                    s = 0;
+                                if (s > 999)
+                                    s = 999;
+                                spr.size = s;
+                            }
                         }
                     }
-                    else if (state.active_input == INPUT_BLOCK_FIELD)
-                    {
+                    if (state.active_input == INPUT_BLOCK_FIELD)
                         workspace_commit_active_input(state);
-                    }
+
+                    // ---> CRITICAL FIX: THESE LINES WERE MISSING LAST TIME! <---
                     state.active_input = INPUT_NONE;
                     state.input_buffer.clear();
                 }
@@ -328,28 +397,57 @@ int main(int /*argc*/, char * /*argv*/[])
         SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
         SDL_RenderClear(renderer);
 
-        if (state.current_tab == TAB_CODE)
+        if (state.mode == MODE_SPRITE_LIBRARY)
         {
-            drag_area_draw(renderer, font, state, drag_rects);
-            canvas_draw(renderer, font, state, canvas_rects, tex);
-            categories_draw(renderer, font, state, cat_rects);
-            palette_draw(renderer, font, state, pal_rects, tex);
-        }
-        else if (state.current_tab == TAB_COSTUMES)
-        {
-            costumes_tab_draw(renderer, font, state);
-        }
-        else if (state.current_tab == TAB_SOUNDS)
-        {
-            sounds_tab_draw(renderer, font, state);
-        }
+            SDL_SetRenderDrawColor(renderer, 245, 245, 245, 255);
+            SDL_RenderFillRect(renderer, NULL);
+            SDL_Rect nav_bg = {0, 0, WINDOW_WIDTH, NAVBAR_HEIGHT};
+            SDL_SetRenderDrawColor(renderer, 76, 151, 255, 255);
+            SDL_RenderFillRect(renderer, &nav_bg);
+            render_simple_text(renderer, font, "< Back", 20, 15, {255, 255, 255});
 
-        stage_draw(renderer, font, state, stage_rects, tex);
-        settings_draw(renderer, font, state, settings_rects, tex);
-        sprite_panel_draw(renderer, font, state, tex, sprite_panel_rects);
-        tab_bar_draw(renderer, font, state, tab_bar_rects, tex);
-        navbar_draw(renderer, font, state, navbar_rects, tex);
-        filemenu_draw(renderer, font, state, filemenu_rects);
+            for (size_t i = 0; i < global_sprite_lib.size(); i++)
+            {
+                int x = 50 + (i % 6) * 150;
+                int y = 100 + (i / 6) * 150;
+                SDL_Rect box = {x, y, 120, 120};
+                renderer_fill_rounded_rect(renderer, &box, 8, 255, 255, 255);
+                SDL_SetRenderDrawColor(renderer, 220, 220, 220, 255);
+                SDL_RenderDrawRect(renderer, &box);
+                if (global_sprite_lib[i].second)
+                {
+                    SDL_Rect img_dst = {x + 20, y + 10, 80, 80};
+                    SDL_RenderCopy(renderer, global_sprite_lib[i].second, NULL, &img_dst);
+                }
+                int tw = 0;
+                TTF_SizeUTF8(font, global_sprite_lib[i].first.c_str(), &tw, NULL);
+                render_simple_text(renderer, font, global_sprite_lib[i].first.c_str(), x + 60 - tw / 2, y + 95, {40, 40, 40});
+            }
+        }
+        else
+        {
+            if (state.current_tab == TAB_CODE)
+            {
+                drag_area_draw(renderer, font, state, drag_rects);
+                canvas_draw(renderer, font, state, canvas_rects, tex);
+                categories_draw(renderer, font, state, cat_rects);
+                palette_draw(renderer, font, state, pal_rects, tex);
+            }
+            else if (state.current_tab == TAB_COSTUMES)
+            {
+                costumes_tab_draw(renderer, font, state);
+            }
+            else if (state.current_tab == TAB_SOUNDS)
+            {
+                sounds_tab_draw(renderer, font, state);
+            }
+            stage_draw(renderer, font, state, stage_rects, tex);
+            settings_draw(renderer, font, state, settings_rects, tex);
+            sprite_panel_draw(renderer, font, state, tex, sprite_panel_rects);
+            tab_bar_draw(renderer, font, state, tab_bar_rects, tex);
+            navbar_draw(renderer, font, state, navbar_rects, tex);
+            filemenu_draw(renderer, font, state, filemenu_rects);
+        }
 
         if (state.var_modal_active)
         {

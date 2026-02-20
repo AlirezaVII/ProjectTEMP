@@ -10,16 +10,21 @@
 
 static bool point_in_rect(int px, int py, const SDL_Rect &r) { return px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h; }
 
+// ---> FIXED: MAPS WORKSPACE DIRECTLY TO THE SELECTED SPRITE! <---
 BlockInstance *workspace_find(AppState &state, int id)
 {
-    for (auto &b : state.blocks)
+    if (state.selected_sprite < 0 || state.selected_sprite >= (int)state.sprites.size())
+        return nullptr;
+    for (auto &b : state.sprites[state.selected_sprite].blocks)
         if (b.id == id)
             return &b;
     return nullptr;
 }
 const BlockInstance *workspace_find_const(const AppState &state, int id)
 {
-    for (const auto &b : state.blocks)
+    if (state.selected_sprite < 0 || state.selected_sprite >= (int)state.sprites.size())
+        return nullptr;
+    for (const auto &b : state.sprites[state.selected_sprite].blocks)
         if (b.id == id)
             return &b;
     return nullptr;
@@ -104,10 +109,7 @@ static SDL_Rect block_rect(const AppState &state, const BlockInstance &b)
 {
     if (b.kind == BK_CONTROL)
     {
-        ControlBlockType ct = (ControlBlockType)b.subtype;
-        int inner1_h = chain_height(state, b.child_id);
-        int inner2_h = chain_height(state, b.child2_id);
-        return control_block_rect(ct, b.x, b.y, inner1_h, inner2_h);
+        return control_block_rect((ControlBlockType)b.subtype, b.x, b.y, chain_height(state, b.child_id), chain_height(state, b.child2_id));
     }
     if (b.kind == BK_MOTION)
         return motion_block_rect((MotionBlockType)b.subtype, b.x, b.y);
@@ -392,10 +394,12 @@ BlockInstance workspace_make_default_variables(VariablesBlockType type, const st
 
 int workspace_add_top_level(AppState &state, const BlockInstance &b0)
 {
+    if (state.selected_sprite < 0 || state.selected_sprite >= (int)state.sprites.size())
+        return -1;
     BlockInstance b = b0;
     b.id = state.next_block_id++;
-    state.blocks.push_back(b);
-    state.top_level_blocks.push_back(b.id);
+    state.sprites[state.selected_sprite].blocks.push_back(b);
+    state.sprites[state.selected_sprite].top_level_blocks.push_back(b.id);
     return b.id;
 }
 int workspace_root_id(const AppState &state, int id)
@@ -469,7 +473,9 @@ void workspace_layout_chain(AppState &state, int root_id)
 
 static void remove_from_top_level(AppState &state, int root_id)
 {
-    auto &tl = state.top_level_blocks;
+    if (state.selected_sprite < 0 || state.selected_sprite >= (int)state.sprites.size())
+        return;
+    auto &tl = state.sprites[state.selected_sprite].top_level_blocks;
     tl.erase(std::remove(tl.begin(), tl.end(), root_id), tl.end());
 }
 static int detach_subchain(AppState &state, int id)
@@ -523,18 +529,21 @@ static void insert_chain_before(AppState &state, int target_id, int chain_root_i
     r->parent_id = parent;
     if (parent == -1)
     {
+        if (state.selected_sprite < 0 || state.selected_sprite >= (int)state.sprites.size())
+            return;
+        auto &top_levels = state.sprites[state.selected_sprite].top_level_blocks;
         bool replaced = false;
-        for (size_t i = 0; i < state.top_level_blocks.size(); ++i)
+        for (size_t i = 0; i < top_levels.size(); ++i)
         {
-            if (state.top_level_blocks[i] == target_id)
+            if (top_levels[i] == target_id)
             {
-                state.top_level_blocks[i] = chain_root_id;
+                top_levels[i] = chain_root_id;
                 replaced = true;
                 break;
             }
         }
         if (!replaced)
-            state.top_level_blocks.push_back(chain_root_id);
+            top_levels.push_back(chain_root_id);
     }
     else
     {
@@ -561,6 +570,8 @@ static void attach_chain(AppState &state, int target_id, int chain_root_id)
 
 static void delete_chain(AppState &state, int root_id)
 {
+    if (state.selected_sprite < 0 || state.selected_sprite >= (int)state.sprites.size())
+        return;
     std::vector<int> ids;
     int cur = root_id;
     while (cur != -1)
@@ -571,14 +582,13 @@ static void delete_chain(AppState &state, int root_id)
             break;
         cur = b->next_id;
     }
-    state.blocks.erase(std::remove_if(state.blocks.begin(), state.blocks.end(), [&](const BlockInstance &b)
-                                      { return std::find(ids.begin(), ids.end(), b.id) != ids.end(); }),
-                       state.blocks.end());
+
+    auto &blks = state.sprites[state.selected_sprite].blocks;
+    blks.erase(std::remove_if(blks.begin(), blks.end(), [&](const BlockInstance &b)
+                              { return std::find(ids.begin(), ids.end(), b.id) != ids.end(); }),
+               blks.end());
     for (int id : ids)
-    {
-        auto &tl = state.top_level_blocks;
-        tl.erase(std::remove(tl.begin(), tl.end(), id), tl.end());
-    }
+        remove_from_top_level(state, id);
     if (state.active_input == INPUT_BLOCK_FIELD && std::find(ids.begin(), ids.end(), state.block_input.block_id) != ids.end())
     {
         state.active_input = INPUT_NONE;
@@ -597,16 +607,8 @@ static void compute_snap(AppState &state, TTF_Font *font)
         return;
     const int SNAP_DIST = 20;
     SDL_Rect dr = {state.drag.ghost_x, state.drag.ghost_y, 200, 40};
-
     auto is_bool = [](BlockKind k, int sub)
-    {
-        if (k == BK_SENSING && (sub == SENSB_TOUCHING || sub == SENSB_KEY_PRESSED || sub == SENSB_MOUSE_DOWN))
-            return true;
-        if (k == BK_OPERATORS && (sub == OP_GT || sub == OP_LT || sub == OP_EQ || sub == OP_AND || sub == OP_OR || sub == OP_NOT))
-            return true;
-        return false;
-    };
-
+    { if (k == BK_SENSING && (sub == SENSB_TOUCHING || sub == SENSB_KEY_PRESSED || sub == SENSB_MOUSE_DOWN)) return true; if (k == BK_OPERATORS && (sub == OP_GT || sub == OP_LT || sub == OP_EQ || sub == OP_AND || sub == OP_OR || sub == OP_NOT)) return true; return false; };
     bool dragging_bool = false;
     bool dragging_reporter = false;
     if (state.drag.from_palette)
@@ -653,7 +655,6 @@ static void compute_snap(AppState &state, TTF_Font *font)
             const BlockInstance *b = workspace_find_const(state, cur);
             if (!b)
                 break;
-
             if (dragging_reporter)
             {
                 int field = -1;
@@ -689,7 +690,6 @@ static void compute_snap(AppState &state, TTF_Font *font)
                 {
                     field = variables_block_hittest_field(font, state, (VariablesBlockType)b->subtype, b->x, b->y, b->text, b->opt, px, py);
                 }
-
                 if (field >= 0 && field <= 2)
                 {
                     best_dist = 0;
@@ -700,7 +700,6 @@ static void compute_snap(AppState &state, TTF_Font *font)
                     return;
                 }
             }
-
             SDL_Rect br = block_rect(state, *b);
             auto try_snap = [&](int tx, int ty, SnapType st, bool is_hex_slot)
             {
@@ -720,7 +719,6 @@ static void compute_snap(AppState &state, TTF_Font *font)
                     }
                 }
             };
-
             if (!dragging_reporter || dragging_bool)
             {
                 try_snap(br.x, br.y + br.h - motion_block_metrics().overlap, SNAP_AFTER, false);
@@ -751,8 +749,11 @@ static void compute_snap(AppState &state, TTF_Font *font)
             cur = b->next_id;
         }
     };
-    for (int root_id : state.top_level_blocks)
-        check_block_snaps(check_block_snaps, root_id);
+    if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
+    {
+        for (int root_id : state.sprites[state.selected_sprite].top_level_blocks)
+            check_block_snaps(check_block_snaps, root_id);
+    }
     if (best_id != -1)
     {
         state.drag.snap_valid = true;
@@ -777,7 +778,6 @@ static void draw_chain(SDL_Renderer *r, TTF_Font *font, const Textures &tex, con
         int sel = -1;
         const char *ov0 = (b->arg0_id != -1) ? "" : nullptr;
         const char *ov1 = (b->arg1_id != -1) ? "" : nullptr;
-
         if (!ghost && state.active_input == INPUT_BLOCK_FIELD && state.block_input.block_id == b->id)
         {
             sel = state.block_input.field_index;
@@ -796,7 +796,6 @@ static void draw_chain(SDL_Renderer *r, TTF_Font *font, const Textures &tex, con
                     ov1 = state.input_buffer.c_str();
             }
         }
-
         if (b->kind == BK_MOTION)
             motion_block_draw(r, font, tex, (MotionBlockType)b->subtype, bx, by, b->a, b->b, (GoToTarget)b->opt, ghost, bg, sel, ov0, ov1);
         else if (b->kind == BK_LOOKS)
@@ -859,35 +858,14 @@ static void draw_chain(SDL_Renderer *r, TTF_Font *font, const Textures &tex, con
             else
                 variables_block_draw(r, font, state, (VariablesBlockType)b->subtype, bx, by, "", b->text, b->a, b->opt, ghost, sel, ov0);
         }
-
         if (b->condition_id != -1)
             draw_chain(r, font, tex, state, bg, b->condition_id, ghost, off_x, off_y);
         if (b->child_id != -1)
             draw_chain(r, font, tex, state, bg, b->child_id, ghost, off_x, off_y);
         if (b->child2_id != -1)
             draw_chain(r, font, tex, state, bg, b->child2_id, ghost, off_x, off_y);
-
         auto draw_reporter = [&](int arg_id, int index)
-        {
-            if (arg_id != -1)
-            {
-                SDL_Rect cap = get_capsule_rect(font, state, *b, index);
-                const BlockInstance *child = workspace_find_const(state, arg_id);
-                if (child)
-                {
-                    SDL_Rect cbr = block_rect(state, *child);
-                    int cx = cap.x - 2;
-                    int cy = cap.y + (cap.h - cbr.h) / 2;
-                    BlockInstance *mutable_child = workspace_find((AppState &)state, arg_id);
-                    if (mutable_child)
-                    {
-                        mutable_child->x = cx;
-                        mutable_child->y = cy;
-                    }
-                    draw_chain(r, font, tex, state, bg, arg_id, ghost, cx - child->x + off_x, cy - child->y + off_y);
-                }
-            }
-        };
+        { if (arg_id != -1) { SDL_Rect cap = get_capsule_rect(font, state, *b, index); const BlockInstance *child = workspace_find_const(state, arg_id); if (child) { SDL_Rect cbr = block_rect(state, *child); int cx = cap.x - 2; int cy = cap.y + (cap.h - cbr.h) / 2; BlockInstance *mutable_child = workspace_find((AppState &)state, arg_id); if (mutable_child) { mutable_child->x = cx; mutable_child->y = cy; } draw_chain(r, font, tex, state, bg, arg_id, ghost, cx - child->x + off_x, cy - child->y + off_y); } } };
         draw_reporter(b->arg0_id, 0);
         draw_reporter(b->arg1_id, 1);
         draw_reporter(b->arg2_id, 2);
@@ -898,8 +876,11 @@ static void draw_chain(SDL_Renderer *r, TTF_Font *font, const Textures &tex, con
 void workspace_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex, const AppState &state, const SDL_Rect &workspace_rect, Color bg)
 {
     (void)workspace_rect;
-    for (int root_id : state.top_level_blocks)
-        draw_chain(r, font, tex, state, bg, root_id, false, 0, 0);
+    if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
+    {
+        for (int root_id : state.sprites[state.selected_sprite].top_level_blocks)
+            draw_chain(r, font, tex, state, bg, root_id, false, 0, 0);
+    }
     if (state.drag.active)
     {
         if (state.drag.snap_valid)
@@ -936,7 +917,6 @@ void workspace_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex, const 
         }
         int dx = state.drag.snap_valid && (state.drag.snap_type != SNAP_INPUT_1 && state.drag.snap_type != SNAP_INPUT_2 && state.drag.snap_type != SNAP_INPUT_3) ? (state.drag.snap_x - state.drag.ghost_x) : 0;
         int dy = state.drag.snap_valid && (state.drag.snap_type != SNAP_INPUT_1 && state.drag.snap_type != SNAP_INPUT_2 && state.drag.snap_type != SNAP_INPUT_3) ? (state.drag.snap_y - state.drag.ghost_y) : 0;
-
         if (state.drag.from_palette)
         {
             BlockInstance def;
@@ -966,16 +946,21 @@ void workspace_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex, const 
             def.id = 9999;
             def.x = state.drag.ghost_x;
             def.y = state.drag.ghost_y;
-            ((AppState &)state).blocks.push_back(def);
+            if (state.selected_sprite >= 0)
+                ((AppState &)state).sprites[state.selected_sprite].blocks.push_back(def);
             draw_chain(r, font, tex, state, bg, 9999, true, dx, dy);
-            ((AppState &)state).blocks.pop_back();
+            if (state.selected_sprite >= 0)
+                ((AppState &)state).sprites[state.selected_sprite].blocks.pop_back();
         }
         else
         {
             BlockInstance *drb = workspace_find((AppState &)state, state.drag.dragged_block_id);
-            int real_dx = state.drag.ghost_x - drb->x + dx;
-            int real_dy = state.drag.ghost_y - drb->y + dy;
-            draw_chain(r, font, tex, state, bg, state.drag.dragged_block_id, true, real_dx, real_dy);
+            if (drb)
+            {
+                int real_dx = state.drag.ghost_x - drb->x + dx;
+                int real_dy = state.drag.ghost_y - drb->y + dy;
+                draw_chain(r, font, tex, state, bg, state.drag.dragged_block_id, true, real_dx, real_dy);
+            }
         }
     }
 }
@@ -1046,7 +1031,8 @@ static void finish_drag(AppState &state)
                 root->y = state.drag.snap_y;
             }
             new_root_id = root->id;
-            state.top_level_blocks.push_back(new_root_id);
+            if (state.selected_sprite >= 0)
+                state.sprites[state.selected_sprite].top_level_blocks.push_back(new_root_id);
         }
     }
     if (state.drag.snap_valid && new_root_id != -1)
@@ -1109,7 +1095,8 @@ static void finish_drag(AppState &state)
                 if (old)
                 {
                     old->parent_id = -1;
-                    state.top_level_blocks.push_back(old->id);
+                    if (state.selected_sprite >= 0)
+                        state.sprites[state.selected_sprite].top_level_blocks.push_back(old->id);
                     old->x = state.drag.ghost_x + 20;
                     old->y = state.drag.ghost_y + 40;
                 }
@@ -1121,8 +1108,11 @@ static void finish_drag(AppState &state)
     {
         workspace_layout_chain(state, new_root_id);
     }
-    for (int tl_id : state.top_level_blocks)
-        workspace_layout_chain(state, tl_id);
+    if (state.selected_sprite >= 0)
+    {
+        for (int tl_id : state.sprites[state.selected_sprite].top_level_blocks)
+            workspace_layout_chain(state, tl_id);
+    }
     state.drag.active = false;
     state.drag.snap_valid = false;
     state.drag.snap_target_id = -1;
@@ -1197,15 +1187,17 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
         state.drag.ghost_x = e.motion.x - state.drag.off_x;
         state.drag.ghost_y = e.motion.y - state.drag.off_y;
         compute_snap(state, font);
-
         BlockInstance *dragged_b = workspace_find(state, state.drag.dragged_block_id);
         if (dragged_b && dragged_b->kind == BK_SENSING && dragged_b->subtype == SENSB_DISTANCE_TO)
         {
-            int mx, my;
-            SDL_GetMouseState(&mx, &my);
-            float dx = (mx - (1280 - 240)) - state.sprite.x;
-            float dy = (180 - my + 60) - state.sprite.y;
-            std::cout << "[DRAGGING] Live Distance to mouse-pointer: " << std::sqrt(dx * dx + dy * dy) << std::endl;
+            if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
+            {
+                int mx, my;
+                SDL_GetMouseState(&mx, &my);
+                float dx = (mx - (1280 - 240)) - state.sprites[state.selected_sprite].x;
+                float dy = (180 - my + 60) - state.sprites[state.selected_sprite].y;
+                std::cout << "[DRAGGING] Live Distance to mouse-pointer: " << std::sqrt(dx * dx + dy * dy) << std::endl;
+            }
         }
         return true;
     }
@@ -1254,6 +1246,8 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
     if (e.type != SDL_MOUSEBUTTONDOWN || e.button.button != SDL_BUTTON_LEFT)
         return false;
     if (!point_in_rect(e.button.x, e.button.y, workspace_rect))
+        return false;
+    if (state.selected_sprite < 0 || state.selected_sprite >= (int)state.sprites.size())
         return false;
 
     auto find_hit = [&](auto &self, int root_id) -> int
@@ -1307,8 +1301,8 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
         return -1;
     };
     int hit_id = -1;
-    for (int i = (int)state.top_level_blocks.size() - 1; i >= 0 && hit_id == -1; --i)
-        hit_id = find_hit(find_hit, state.top_level_blocks[i]);
+    for (int i = (int)state.sprites[state.selected_sprite].top_level_blocks.size() - 1; i >= 0 && hit_id == -1; --i)
+        hit_id = find_hit(find_hit, state.sprites[state.selected_sprite].top_level_blocks[i]);
 
     if (hit_id != -1)
     {
@@ -1360,7 +1354,7 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
             if (b->kind == BK_SENSING && b->subtype == SENSB_TOUCHING)
                 max_opt = 3;
             else if (b->kind == BK_SENSING && b->subtype == SENSB_KEY_PRESSED)
-                max_opt = 41; // <--- CRITICAL FIX: 41 Keys!
+                max_opt = 41;
             else if (b->kind == BK_EVENTS && b->subtype == EB_WHEN_KEY_PRESSED)
                 max_opt = 41;
             else if (b->kind == BK_LOOKS && (b->subtype == LB_SWITCH_COSTUME_TO || b->subtype == LB_SWITCH_BACKDROP_TO))
@@ -1375,21 +1369,16 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
                 max_opt = 1;
             else if (b->kind == BK_SENSING && b->subtype == SENSB_SET_DRAG_MODE)
                 max_opt = 2;
-
             if (max_opt > 0)
             {
                 b->opt = (b->opt + 1) % max_opt;
                 if (b->kind == BK_SENSING && b->subtype == SENSB_SET_DRAG_MODE)
-                {
-                    state.sprite.draggable = (b->opt == 0);
-                }
+                    state.sprites[state.selected_sprite].draggable = (b->opt == 0);
             }
-
-            for (int tl_id : state.top_level_blocks)
+            for (int tl_id : state.sprites[state.selected_sprite].top_level_blocks)
                 workspace_layout_chain(state, tl_id);
             return true;
         }
-
         else if (field >= 0)
         {
             if (state.active_input == INPUT_BLOCK_FIELD)
@@ -1425,7 +1414,7 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
             state.input_buffer.clear();
         }
         start_drag_from_workspace(state, b->id, e.button.x, e.button.y, font);
-        for (int tl_id : state.top_level_blocks)
+        for (int tl_id : state.sprites[state.selected_sprite].top_level_blocks)
             workspace_layout_chain(state, tl_id);
         compute_snap(state, font);
         return true;
