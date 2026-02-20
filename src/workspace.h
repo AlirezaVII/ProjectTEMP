@@ -52,4 +52,8 @@ void workspace_commit_active_input(AppState &state);
 bool workspace_save_txt(const AppState &state, const char *path);
 bool workspace_load_txt(AppState &state, const char *path);
 
+static int chain_height(const AppState &state, int root_id);
+static SDL_Rect block_rect(const AppState &state, const BlockInstance &b);
+static int block_height(const AppState &state, const BlockInstance &b);
+
 #endif
