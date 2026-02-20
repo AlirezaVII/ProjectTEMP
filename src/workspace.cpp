@@ -1134,48 +1134,37 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
                 field = sensing_stack_block_hittest_field(font, sbt, b->x, b->y, b->text, b->opt, e.button.x, e.button.y);
         }
 
-        // --- SMART DROPDOWN VS INPUT LOGIC ---
-        if (field != -1)
+        // --- NEW BULLETPROOF DROPDOWN & INPUT LOGIC ---
+        if (field == -2)
         {
-            // 1. Is this field actually a dropdown?
-            bool is_dd = false;
-            if (field >= 2) is_dd = true;
-            if (b->kind == BK_MOTION && b->subtype == MB_GO_TO_TARGET && field == 0) is_dd = true;
-            if (b->kind == BK_LOOKS && (b->subtype == LB_SWITCH_COSTUME_TO || b->subtype == LB_SWITCH_BACKDROP_TO || b->subtype == LB_GO_TO_LAYER || b->subtype == LB_GO_LAYERS) && field == 0) is_dd = true;
-            if (b->kind == BK_SOUND && (b->subtype == SB_START_SOUND || b->subtype == SB_PLAY_SOUND_UNTIL_DONE) && field == 0) is_dd = true;
-            if (b->kind == BK_EVENTS && (b->subtype == EB_WHEN_KEY_PRESSED || b->subtype == EB_WHEN_I_RECEIVE || b->subtype == EB_BROADCAST) && field == 0) is_dd = true;
-            if (b->kind == BK_SENSING && (b->subtype == SENSB_TOUCHING || b->subtype == SENSB_KEY_PRESSED || b->subtype == SENSB_SET_DRAG_MODE) && field == 0) is_dd = true;
+            // IT IS A DROPDOWN! Cycle the options.
+            int max_opt = 2; // Default for most dropdowns
+            if (b->kind == BK_SENSING && b->subtype == SENSB_TOUCHING) max_opt = 3;
+            else if (b->kind == BK_SENSING && b->subtype == SENSB_KEY_PRESSED) max_opt = 37;
+            else if (b->kind == BK_EVENTS && b->subtype == EB_WHEN_KEY_PRESSED) max_opt = 41; // 41 keys!
+            else if (b->kind == BK_LOOKS && (b->subtype == LB_SWITCH_COSTUME_TO || b->subtype == LB_SWITCH_BACKDROP_TO)) max_opt = 3;
+            
+            b->opt = (b->opt + 1) % max_opt;
 
-            if (is_dd)
-            {
-                // IT IS A DROPDOWN! Cycle the options.
-                int max_opt = 2; // Default for most dropdowns
-                if (b->kind == BK_SENSING && b->subtype == SENSB_TOUCHING) max_opt = 3;
-                else if (b->kind == BK_SENSING && b->subtype == SENSB_KEY_PRESSED) max_opt = 37;
-                else if (b->kind == BK_EVENTS && b->subtype == EB_WHEN_KEY_PRESSED) max_opt = 37;
-                
-                b->opt = (b->opt + 1) % max_opt;
-
-                // Layout again just in case the dropdown text changed the block width
-                for (int tl_id : state.top_level_blocks)
-                    workspace_layout_chain(state, tl_id);
-                return true; // STOP HERE! Do not start a drag!
-            }
-            else
-            {
-                // IT IS A TEXT/NUMBER INPUT! Open the typing caret.
-                state.active_input = INPUT_BLOCK_FIELD;
-                state.block_input.block_id = b->id;
-                state.block_input.field_index = field;
-                state.block_input.type = block_field_type(*b, field);
-                
-                if (state.block_input.type == BFT_TEXT) state.input_buffer = b->text;
-                else if (field == 0) state.input_buffer = std::to_string(b->a);
-                else if (field == 1) state.input_buffer = std::to_string(b->b);
-                else state.input_buffer = std::to_string(b->c);
-                
-                return true; // STOP HERE! Do not start a drag!
-            }
+            // Layout again just in case the dropdown text changed the block width
+            for (int tl_id : state.top_level_blocks)
+                workspace_layout_chain(state, tl_id);
+            return true; // STOP HERE! Do not start a drag!
+        }
+        else if (field >= 0)
+        {
+            // IT IS A TEXT/NUMBER INPUT! Open the typing caret.
+            state.active_input = INPUT_BLOCK_FIELD;
+            state.block_input.block_id = b->id;
+            state.block_input.field_index = field;
+            state.block_input.type = block_field_type(*b, field);
+            
+            if (state.block_input.type == BFT_TEXT) state.input_buffer = b->text;
+            else if (field == 0) state.input_buffer = std::to_string(b->a);
+            else if (field == 1) state.input_buffer = std::to_string(b->b);
+            else state.input_buffer = std::to_string(b->c);
+            
+            return true; // STOP HERE! Do not start a drag!
         }
 
         // Clean up input if clicking the body of the block
