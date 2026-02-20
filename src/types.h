@@ -21,7 +21,7 @@ enum ActiveInput {
     INPUT_DIRECTION,
     INPUT_SIZE,
     INPUT_BLOCK_FIELD,
-    INPUT_VAR_MODAL // <--- ADDED MODAL INPUT STATE
+    INPUT_VAR_MODAL
 };
 
 struct LegacySprite {
@@ -32,12 +32,18 @@ struct LegacySprite {
     bool visible;
     int size;
 
+    /* ---> NEW LOOKS STATE <--- */
+    std::string say_text;
+    bool is_thinking;
+    unsigned int say_end_time;
+
     LegacySprite()
         : name("Sprite1"),
           x(0), y(0),
           direction(90),
           visible(true),
-          size(100) {}
+          size(100),
+          say_text(""), is_thinking(false), say_end_time(0) {}
 };
 
 struct SpriteSt {
@@ -70,12 +76,12 @@ enum OperatorsBlockType {
 };
 
 enum OperatorBlockType { OB_ADD = 0, OB_SUB, OB_MUL, OB_DIV, OB_GT, OB_LT, OB_EQ, OB_AND, OB_OR, OB_NOT, OB_JOIN, OB_LETTER_OF, OB_LENGTH_OF };
-enum VariablesBlockType { VB_VARIABLE = 0, VB_SET, VB_CHANGE, VB_SHOW, VB_HIDE }; // <--- ADDED VARIABLES BLOCKS
+enum VariablesBlockType { VB_VARIABLE = 0, VB_SET, VB_CHANGE, VB_SHOW, VB_HIDE }; 
 
 enum TouchingTarget { TOUCHING_MOUSE_POINTER = 0, TOUCHING_EDGE = 1, TOUCHING_SPRITE = 2 };
 enum DragMode { DRAG_DRAGGABLE = 0, DRAG_NOT_DRAGGABLE = 1 };
 
-enum BlockKind { BK_MOTION = 0, BK_LOOKS = 1, BK_SOUND = 2, BK_EVENTS = 3, BK_CONTROL = 4, BK_SENSING = 5, BK_OPERATORS = 6, BK_VARIABLES = 7 }; // <--- ADDED BK_VARIABLES
+enum BlockKind { BK_MOTION = 0, BK_LOOKS = 1, BK_SOUND = 2, BK_EVENTS = 3, BK_CONTROL = 4, BK_SENSING = 5, BK_OPERATORS = 6, BK_VARIABLES = 7 }; 
 enum BlockFieldType { BFT_INT = 0, BFT_TEXT = 1 };
 
 struct BlockInstance {
@@ -120,7 +126,7 @@ struct DragState {
     int palette_subtype;
     int dragged_block_id;
     int off_x; int off_y;
-    std::string palette_text; // <--- ADD THIS NEW LINE
+    std::string palette_text; 
     int ghost_x; int ghost_y;
     int mouse_x; int mouse_y;
     bool snap_valid;
@@ -171,7 +177,6 @@ struct AppState {
     int stage_drag_off_x;
     int stage_drag_off_y;
 
-    // Added initialization for variables memory and modal
     AppState() : file_menu_open(false), file_menu_hover(-1), sprite_menu_open(false), backdrop_menu_open(false), current_tab(TAB_CODE), start_hover(false), stop_hover(false), running(false), sprite(), selected_sprite(0), selected_tab(TAB_CODE), selected_category(0), project_name("Untitled"), next_block_id(1), active_input(INPUT_NONE), variables({"my variable"}), var_modal_active(false), stage_drag_active(false), stage_drag_off_x(0), stage_drag_off_y(0) {}
 };
 

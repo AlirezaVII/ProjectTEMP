@@ -5,11 +5,10 @@
 #include <cstdlib>
 #include <iostream>
 #include <string>
+#include <vector>
 
-// Forward declaration so broadcast can trigger messages
 void interpreter_trigger_message(AppState &state, int msg_opt);
 
-// ---> NEW FIX: FORCE SAVE ANY ACTIVE TYPING BEFORE RUNNING <---
 static void commit_active_typing(AppState& state) {
     if (state.active_input == INPUT_BLOCK_FIELD) {
         workspace_commit_active_input(state);
@@ -18,7 +17,13 @@ static void commit_active_typing(AppState& state) {
     }
 }
 
-// Evaluates a capsule input (returns the nested reporter block value, OR the typed text/number)
+// ---> NEW TICK-BASED THREAD ENGINE <---
+struct ScriptThread {
+    int cur_node;
+    unsigned int wait_until;
+};
+static std::vector<ScriptThread> g_threads;
+
 static float eval_value(AppState& state, int block_id, float default_val, const std::string& text_val) {
     if (block_id != -1) {
         BlockInstance* b = workspace_find(state, block_id);
@@ -35,128 +40,173 @@ static float eval_value(AppState& state, int block_id, float default_val, const 
     return default_val;
 }
 
-// Executes a connected stack of blocks linearly
-static void execute_chain(AppState& state, int start_id) {
-    int cur = start_id;
-    while (cur != -1) {
-        BlockInstance* b = workspace_find(state, cur);
-        if (!b) break;
-
-        if (b->kind == BK_MOTION) {
-            if (b->subtype == MB_MOVE_STEPS) {
-                float steps = eval_value(state, b->arg0_id, b->a, b->text);
-                float rad = (state.sprite.direction - 90.0f) * M_PI / 180.0f;
-                state.sprite.x += (int)(steps * std::cos(rad));
-                state.sprite.y -= (int)(steps * std::sin(rad));
-            } 
-            else if (b->subtype == MB_TURN_RIGHT_DEG) {
-                float deg = eval_value(state, b->arg0_id, b->a, b->text);
-                state.sprite.direction += (int)deg;
-            } 
-            else if (b->subtype == MB_TURN_LEFT_DEG) {
-                float deg = eval_value(state, b->arg0_id, b->a, b->text);
-                state.sprite.direction -= (int)deg;
-            } 
-            else if (b->subtype == MB_GO_TO_XY) {
-                float vx = eval_value(state, b->arg0_id, b->a, b->text);
-                float vy = eval_value(state, b->arg1_id, b->b, b->text2);
-                state.sprite.x = (int)vx;
-                state.sprite.y = (int)vy;
-            } 
-            else if (b->subtype == MB_CHANGE_X_BY) {
-                state.sprite.x += (int)eval_value(state, b->arg0_id, b->a, b->text);
-            } 
-            else if (b->subtype == MB_CHANGE_Y_BY) {
-                state.sprite.y += (int)eval_value(state, b->arg0_id, b->a, b->text);
-            } 
-            else if (b->subtype == MB_POINT_IN_DIR) {
-                state.sprite.direction = (int)eval_value(state, b->arg0_id, b->a, b->text);
+static std::string eval_string(AppState& state, int block_id, const std::string& text_val) {
+    if (block_id != -1) {
+        BlockInstance* b = workspace_find(state, block_id);
+        if (b && b->kind == BK_OPERATORS) {
+            if (b->subtype == OP_JOIN) return eval_string(state, b->arg0_id, b->text) + eval_string(state, b->arg1_id, b->text2);
+            if (b->subtype == OP_LETTER_OF) {
+                std::string s = eval_string(state, b->arg1_id, b->text2);
+                int idx = (int)eval_value(state, b->arg0_id, b->a, b->text) - 1; 
+                if (idx >= 0 && idx < (int)s.length()) return std::string(1, s[idx]);
+                return "";
             }
-            else if (b->subtype == MB_GO_TO_TARGET) {
-                if (b->opt == TARGET_RANDOM_POSITION) {
-                    state.sprite.x = (std::rand() % 400) - 200;
-                    state.sprite.y = (std::rand() % 300) - 150;
-                } else if (b->opt == TARGET_MOUSE_POINTER) {
-                    int mx, my;
-                    SDL_GetMouseState(&mx, &my);
-                    state.sprite.x = mx - (1280 - 240); 
-                    state.sprite.y = 180 - my + 60;
+            if (b->subtype == OP_LENGTH_OF) return std::to_string(eval_string(state, b->arg0_id, b->text).length());
+            
+            float val = eval_value(state, block_id, 0, "");
+            char buf[32]; std::snprintf(buf, sizeof(buf), "%g", val); return std::string(buf);
+        }
+    }
+    return text_val;
+}
+
+// ---> THE MAGIC BRAIN LOOP <---
+void interpreter_tick(AppState &state) {
+    if (!state.running) return;
+
+    for (size_t i = 0; i < g_threads.size(); ) {
+        if (SDL_GetTicks() < g_threads[i].wait_until) {
+            i++; continue; // Thread is sleeping, skip it!
+        }
+
+        int cur = g_threads[i].cur_node;
+        bool yielded = false; // Check if we hit a wait block
+
+        while (cur != -1 && !yielded) {
+            BlockInstance* b = workspace_find(state, cur);
+            if (!b) { cur = -1; break; }
+
+            if (b->kind == BK_MOTION) {
+                if (b->subtype == MB_MOVE_STEPS) {
+                    float steps = eval_value(state, b->arg0_id, b->a, b->text);
+                    float rad = (state.sprite.direction - 90.0f) * M_PI / 180.0f;
+                    state.sprite.x += (int)(steps * std::cos(rad));
+                    state.sprite.y -= (int)(steps * std::sin(rad));
+                } else if (b->subtype == MB_TURN_RIGHT_DEG) {
+                    state.sprite.direction += (int)eval_value(state, b->arg0_id, b->a, b->text);
+                } else if (b->subtype == MB_TURN_LEFT_DEG) {
+                    state.sprite.direction -= (int)eval_value(state, b->arg0_id, b->a, b->text);
+                } else if (b->subtype == MB_GO_TO_XY) {
+                    state.sprite.x = (int)eval_value(state, b->arg0_id, b->a, b->text);
+                    state.sprite.y = (int)eval_value(state, b->arg1_id, b->b, b->text2);
+                } else if (b->subtype == MB_CHANGE_X_BY) {
+                    state.sprite.x += (int)eval_value(state, b->arg0_id, b->a, b->text);
+                } else if (b->subtype == MB_CHANGE_Y_BY) {
+                    state.sprite.y += (int)eval_value(state, b->arg0_id, b->a, b->text);
+                } else if (b->subtype == MB_POINT_IN_DIR) {
+                    state.sprite.direction = (int)eval_value(state, b->arg0_id, b->a, b->text);
+                } else if (b->subtype == MB_GO_TO_TARGET) {
+                    if (b->opt == TARGET_RANDOM_POSITION) {
+                        state.sprite.x = (std::rand() % 400) - 200; state.sprite.y = (std::rand() % 300) - 150;
+                    } else if (b->opt == TARGET_MOUSE_POINTER) {
+                        int mx, my; SDL_GetMouseState(&mx, &my);
+                        state.sprite.x = mx - (1280 - 240); state.sprite.y = 180 - my + 60;
+                    }
+                }
+                cur = b->next_id;
+            } 
+            else if (b->kind == BK_LOOKS) {
+                if (b->subtype == LB_SAY) {
+                    state.sprite.say_text = eval_string(state, b->arg0_id, b->text);
+                    state.sprite.is_thinking = false; state.sprite.say_end_time = 0;
+                    cur = b->next_id;
+                } else if (b->subtype == LB_THINK) {
+                    state.sprite.say_text = eval_string(state, b->arg0_id, b->text);
+                    state.sprite.is_thinking = true; state.sprite.say_end_time = 0;
+                    cur = b->next_id;
+                } else if (b->subtype == LB_SAY_FOR) {
+                    state.sprite.say_text = eval_string(state, b->arg0_id, b->text);
+                    state.sprite.is_thinking = false;
+                    float sec = eval_value(state, b->arg1_id, b->a, b->text2);
+                    state.sprite.say_end_time = SDL_GetTicks() + (unsigned int)(sec * 1000);
+                    
+                    // YIELD AND WAIT!
+                    g_threads[i].wait_until = state.sprite.say_end_time;
+                    cur = b->next_id; yielded = true; 
+                } else if (b->subtype == LB_THINK_FOR) {
+                    state.sprite.say_text = eval_string(state, b->arg0_id, b->text);
+                    state.sprite.is_thinking = true;
+                    float sec = eval_value(state, b->arg1_id, b->a, b->text2);
+                    state.sprite.say_end_time = SDL_GetTicks() + (unsigned int)(sec * 1000);
+                    
+                    // YIELD AND WAIT!
+                    g_threads[i].wait_until = state.sprite.say_end_time;
+                    cur = b->next_id; yielded = true;
+                } else if (b->subtype == LB_CHANGE_SIZE_BY) {
+                    state.sprite.size += (int)eval_value(state, b->arg0_id, b->a, b->text); cur = b->next_id;
+                } else if (b->subtype == LB_SET_SIZE_TO) {
+                    state.sprite.size = (int)eval_value(state, b->arg0_id, b->a, b->text); cur = b->next_id;
+                } else if (b->subtype == LB_SHOW) {
+                    state.sprite.visible = true; cur = b->next_id;
+                } else if (b->subtype == LB_HIDE) {
+                    state.sprite.visible = false; cur = b->next_id;
                 }
             }
-        } 
-        else if (b->kind == BK_LOOKS) {
-            if (b->subtype == LB_CHANGE_SIZE_BY) {
-                state.sprite.size += (int)eval_value(state, b->arg0_id, b->a, b->text);
-            } else if (b->subtype == LB_SET_SIZE_TO) {
-                state.sprite.size = (int)eval_value(state, b->arg0_id, b->a, b->text);
-            } else if (b->subtype == LB_SHOW) {
-                state.sprite.visible = true;
-            } else if (b->subtype == LB_HIDE) {
-                state.sprite.visible = false;
+            else if (b->kind == BK_CONTROL) {
+                if (b->subtype == CB_WAIT) {
+                    float sec = eval_value(state, b->arg0_id, b->a, b->text);
+                    g_threads[i].wait_until = SDL_GetTicks() + (unsigned int)(sec * 1000);
+                    cur = b->next_id; yielded = true; // YIELD!
+                } else {
+                    cur = b->next_id;
+                }
+            }
+            else if (b->kind == BK_EVENTS) {
+                if (b->subtype == EB_BROADCAST) interpreter_trigger_message(state, b->opt);
+                cur = b->next_id;
+            } else {
+                cur = b->next_id;
             }
         }
-        else if (b->kind == BK_EVENTS) {
-            if (b->subtype == EB_BROADCAST) {
-                interpreter_trigger_message(state, b->opt);
-            }
-        }
-        
-        cur = b->next_id;
+
+        g_threads[i].cur_node = cur;
+        if (cur == -1) g_threads.erase(g_threads.begin() + i); // Destroy finished threads!
+        else i++;
     }
 }
 
-// 1. Green Flag
 void interpreter_trigger_flag(AppState &state) {
-    commit_active_typing(state); // <--- FIX APPLIED HERE
+    commit_active_typing(state); 
     state.running = true;
+    g_threads.clear();
     for (int root_id : state.top_level_blocks) {
         BlockInstance* b = workspace_find(state, root_id);
         if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_FLAG_CLICKED) {
-            execute_chain(state, b->next_id);
+            g_threads.push_back({b->next_id, 0});
         }
     }
 }
 
-// 2. Keyboard Press
 void interpreter_trigger_key(AppState &state, SDL_Keycode sym) {
-    commit_active_typing(state); // <--- FIX APPLIED HERE
+    commit_active_typing(state); 
     int opt = -1;
-    if (sym == SDLK_SPACE) opt = 0;
-    else if (sym == SDLK_UP) opt = 1;
-    else if (sym == SDLK_DOWN) opt = 2;
-    else if (sym == SDLK_LEFT) opt = 3;
-    else if (sym == SDLK_RIGHT) opt = 4;
-    else if (sym >= SDLK_a && sym <= SDLK_z) opt = 5 + (sym - SDLK_a);
-    else if (sym >= SDLK_0 && sym <= SDLK_9) opt = 31 + (sym - SDLK_0);
-
+    if (sym == SDLK_SPACE) opt = 0; else if (sym == SDLK_UP) opt = 1; else if (sym == SDLK_DOWN) opt = 2; else if (sym == SDLK_LEFT) opt = 3; else if (sym == SDLK_RIGHT) opt = 4; else if (sym >= SDLK_a && sym <= SDLK_z) opt = 5 + (sym - SDLK_a); else if (sym >= SDLK_0 && sym <= SDLK_9) opt = 31 + (sym - SDLK_0);
     if (opt == -1) return;
 
     for (int root_id : state.top_level_blocks) {
         BlockInstance* b = workspace_find(state, root_id);
         if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_KEY_PRESSED && b->opt == opt) {
-            execute_chain(state, b->next_id);
+            g_threads.push_back({b->next_id, 0});
         }
     }
 }
 
-// 3. Sprite Clicked
 void interpreter_trigger_sprite_click(AppState &state) {
-    commit_active_typing(state); // <--- FIX APPLIED HERE
+    commit_active_typing(state); 
     for (int root_id : state.top_level_blocks) {
         BlockInstance* b = workspace_find(state, root_id);
         if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_SPRITE_CLICKED) {
-            execute_chain(state, b->next_id);
+            g_threads.push_back({b->next_id, 0});
         }
     }
 }
 
-// 4. When I Receive (Broadcast message)
 void interpreter_trigger_message(AppState &state, int msg_opt) {
-    commit_active_typing(state); // <--- FIX APPLIED HERE
+    commit_active_typing(state); 
     for (int root_id : state.top_level_blocks) {
         BlockInstance* b = workspace_find(state, root_id);
         if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_I_RECEIVE && b->opt == msg_opt) {
-            execute_chain(state, b->next_id);
+            g_threads.push_back({b->next_id, 0});
         }
     }
 }
@@ -164,4 +214,7 @@ void interpreter_trigger_message(AppState &state, int msg_opt) {
 void interpreter_stop_all(AppState &state) {
     commit_active_typing(state);
     state.running = false;
+    g_threads.clear();
+    state.sprite.say_text = "";
+    state.sprite.say_end_time = 0;
 }

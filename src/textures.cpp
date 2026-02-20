@@ -39,14 +39,19 @@ bool textures_load(Textures &tex, SDL_Renderer *r)
 
     tex.logo              = load(r, "logo.png");
 
-        /* sprite panel */
+    /* sprite panel */
     tex.search_icon     = load(r, "search_icon.png");
     tex.surprise_icon   = load(r, "surprise_icon.png");
     tex.upload_icon     = load(r, "upload_icon.png");
     tex.sprite_btn_icon = load(r, "sprite_btn_icon.png");
     tex.backdrop_btn_icon = load(r, "backdrop_btn_icon.png");
-    tex.scratch_cat     = load(r, "scratch_cat.png");
-    tex.delete_sprite     = load(r, "delete_icon.png");
+    
+    // Custom path for scratch cat
+    tex.scratch_cat     = renderer_load_texture(r, "assets/sprites/scratch_cat.png");
+    tex.delete_sprite   = load(r, "delete_icon.png");
+
+    // NEW CLOUD TEXTURE
+    tex.cloud           = load(r, "cloud.png"); 
 
     return true;
 }
@@ -71,10 +76,12 @@ void textures_free(Textures &tex)
     if (tex.rotate_left)       SDL_DestroyTexture(tex.rotate_left);
     if (tex.rotate_right)      SDL_DestroyTexture(tex.rotate_right);
     if (tex.logo)              SDL_DestroyTexture(tex.logo);
-    if (tex.search_icon)      SDL_DestroyTexture(tex.search_icon);
-    if (tex.surprise_icon)    SDL_DestroyTexture(tex.surprise_icon);
-    if (tex.upload_icon)      SDL_DestroyTexture(tex.upload_icon);
-    if (tex.sprite_btn_icon)  SDL_DestroyTexture(tex.sprite_btn_icon);
+    if (tex.search_icon)       SDL_DestroyTexture(tex.search_icon);
+    if (tex.surprise_icon)     SDL_DestroyTexture(tex.surprise_icon);
+    if (tex.upload_icon)       SDL_DestroyTexture(tex.upload_icon);
+    if (tex.sprite_btn_icon)   SDL_DestroyTexture(tex.sprite_btn_icon);
     if (tex.backdrop_btn_icon) SDL_DestroyTexture(tex.backdrop_btn_icon);
-    if (tex.scratch_cat)      SDL_DestroyTexture(tex.scratch_cat);
+    if (tex.scratch_cat)       SDL_DestroyTexture(tex.scratch_cat);
+    if (tex.delete_sprite)     SDL_DestroyTexture(tex.delete_sprite);
+    if (tex.cloud)             SDL_DestroyTexture(tex.cloud); // FREE CLOUD
 }

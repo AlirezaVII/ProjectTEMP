@@ -39,6 +39,9 @@ struct Textures {
     SDL_Texture *backdrop_btn_icon;
     SDL_Texture *scratch_cat;
     SDL_Texture *delete_sprite;
+
+    /* NEW CLOUD TEXTURE */
+    SDL_Texture *cloud;
 };
 
 /* Load all textures from assets/icons/. Returns false on critical failure. */
