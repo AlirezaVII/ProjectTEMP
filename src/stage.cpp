@@ -39,6 +39,10 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state,
     set_color(r, COL_STAGE_BORDER);
     SDL_RenderDrawRect(r, &rects.stage_area);
 
+    // ---> FIXED: Set Clip Rect ONCE for the entire Stage area <---
+    SDL_RenderSetClipRect(r, const_cast<SDL_Rect *>(&rects.stage_area));
+
+    // 1. DRAW SPRITE (ONLY IF VISIBLE)
     if (state.sprite.visible)
     {
         int cx = rects.stage_area.x + rects.stage_area.w / 2 + state.sprite.x;
@@ -69,8 +73,6 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state,
         int h = (base_h * state.sprite.size) / 100;
         SDL_Rect dest = {cx - w / 2, cy - h / 2, w, h};
 
-        SDL_RenderSetClipRect(r, const_cast<SDL_Rect *>(&rects.stage_area));
-
         if (tex.scratch_cat)
         {
             double angle = state.sprite.direction - 90.0;
@@ -82,6 +84,7 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state,
             SDL_RenderFillRect(r, &dest);
         }
 
+        // DRAW SAY / THINK BUBBLES
         if (!state.sprite.say_text.empty())
         {
             bool should_draw = true;
@@ -141,101 +144,104 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state,
                 }
             }
         }
-
-        if (state.ask_active)
-        {
-            int ask_h = 60;
-            SDL_Rect ask_bg = {rects.stage_area.x, rects.stage_area.y + rects.stage_area.h - ask_h, rects.stage_area.w, ask_h};
-            SDL_SetRenderDrawColor(r, 230, 240, 255, 255);
-            SDL_RenderFillRect(r, &ask_bg);
-            SDL_SetRenderDrawColor(r, 0, 160, 255, 255);
-            SDL_RenderDrawRect(r, &ask_bg);
-
-            SDL_Color tc = {40, 40, 40, 255};
-            SDL_Surface *ms = TTF_RenderUTF8_Blended(font, state.ask_msg.c_str(), tc);
-            if (ms)
-            {
-                SDL_Texture *mt = SDL_CreateTextureFromSurface(r, ms);
-                SDL_Rect md = {ask_bg.x + 10, ask_bg.y + 10, ms->w, ms->h};
-                SDL_RenderCopy(r, mt, NULL, &md);
-                SDL_DestroyTexture(mt);
-                SDL_FreeSurface(ms);
-            }
-
-            SDL_Rect inp_r = {ask_bg.x + 10, ask_bg.y + 30, ask_bg.w - 20, 24};
-            renderer_fill_rounded_rect(r, &inp_r, 4, 255, 255, 255);
-            SDL_SetRenderDrawColor(r, 200, 200, 200, 255);
-            SDL_RenderDrawRect(r, &inp_r);
-
-            SDL_Surface *rs = TTF_RenderUTF8_Blended(font, state.ask_reply.c_str(), tc);
-            if (rs)
-            {
-                SDL_Texture *rt = SDL_CreateTextureFromSurface(r, rs);
-                SDL_Rect rd = {inp_r.x + 6, inp_r.y + 4, rs->w, rs->h};
-                SDL_RenderCopy(r, rt, NULL, &rd);
-                SDL_DestroyTexture(rt);
-                SDL_FreeSurface(rs);
-            }
-
-            if ((SDL_GetTicks() / 500) % 2 == 0)
-            {
-                int tw = 0;
-                TTF_SizeUTF8(font, state.ask_reply.c_str(), &tw, NULL);
-                SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
-                SDL_RenderDrawLine(r, inp_r.x + 6 + tw, inp_r.y + 4, inp_r.x + 6 + tw, inp_r.y + 20);
-            }
-        }
-        // ---> FIXED: DRAW VARIABLE MONITORS (SUPPORTS TEXT) <---
-        int var_y = rects.stage_area.y + 10;
-        for (const std::string &vname : state.variables)
-        {
-            if (state.variable_visible.count(vname) && state.variable_visible.at(vname))
-            {
-
-                // Just grab the string directly!
-                std::string s_val = state.variable_values.count(vname) ? state.variable_values.at(vname) : "0";
-
-                int tw1 = 0, th1 = 0;
-                TTF_SizeUTF8(font, vname.c_str(), &tw1, &th1);
-                int tw2 = 0, th2 = 0;
-                TTF_SizeUTF8(font, s_val.c_str(), &tw2, &th2);
-
-                int box_w = tw1 + tw2 + 24;
-                SDL_Rect mon = {rects.stage_area.x + 10, var_y, box_w, 24};
-
-                renderer_fill_rounded_rect(r, &mon, 4, 210, 210, 210);
-                SDL_SetRenderDrawColor(r, 180, 180, 180, 255);
-                SDL_RenderDrawRect(r, &mon);
-
-                SDL_Color tcl = {40, 40, 40, 255};
-                SDL_Surface *s1 = TTF_RenderUTF8_Blended(font, vname.c_str(), tcl);
-                if (s1)
-                {
-                    SDL_Texture *t1 = SDL_CreateTextureFromSurface(r, s1);
-                    SDL_Rect d1 = {mon.x + 6, mon.y + (24 - s1->h) / 2, s1->w, s1->h};
-                    SDL_RenderCopy(r, t1, NULL, &d1);
-                    SDL_DestroyTexture(t1);
-                    SDL_FreeSurface(s1);
-                }
-
-                SDL_Rect val_bg = {mon.x + tw1 + 12, mon.y + 3, tw2 + 8, 18};
-                renderer_fill_rounded_rect(r, &val_bg, 4, 255, 140, 26);
-
-                SDL_Color tcv = {255, 255, 255, 255};
-                SDL_Surface *s2 = TTF_RenderUTF8_Blended(font, s_val.c_str(), tcv);
-                if (s2)
-                {
-                    SDL_Texture *t2 = SDL_CreateTextureFromSurface(r, s2);
-                    SDL_Rect d2 = {val_bg.x + 4, val_bg.y + (18 - s2->h) / 2, s2->w, s2->h};
-                    SDL_RenderCopy(r, t2, NULL, &d2);
-                    SDL_DestroyTexture(t2);
-                    SDL_FreeSurface(s2);
-                }
-                var_y += 30;
-            }
-        }
-        SDL_RenderSetClipRect(r, NULL);
     }
+
+    // 2. DRAW ASK & WAIT BOX (Even if Sprite is Hidden!)
+    if (state.ask_active)
+    {
+        int ask_h = 60;
+        SDL_Rect ask_bg = {rects.stage_area.x, rects.stage_area.y + rects.stage_area.h - ask_h, rects.stage_area.w, ask_h};
+        SDL_SetRenderDrawColor(r, 230, 240, 255, 255);
+        SDL_RenderFillRect(r, &ask_bg);
+        SDL_SetRenderDrawColor(r, 0, 160, 255, 255);
+        SDL_RenderDrawRect(r, &ask_bg);
+
+        SDL_Color tc = {40, 40, 40, 255};
+        SDL_Surface *ms = TTF_RenderUTF8_Blended(font, state.ask_msg.c_str(), tc);
+        if (ms)
+        {
+            SDL_Texture *mt = SDL_CreateTextureFromSurface(r, ms);
+            SDL_Rect md = {ask_bg.x + 10, ask_bg.y + 10, ms->w, ms->h};
+            SDL_RenderCopy(r, mt, NULL, &md);
+            SDL_DestroyTexture(mt);
+            SDL_FreeSurface(ms);
+        }
+
+        SDL_Rect inp_r = {ask_bg.x + 10, ask_bg.y + 30, ask_bg.w - 20, 24};
+        renderer_fill_rounded_rect(r, &inp_r, 4, 255, 255, 255);
+        SDL_SetRenderDrawColor(r, 200, 200, 200, 255);
+        SDL_RenderDrawRect(r, &inp_r);
+
+        SDL_Surface *rs = TTF_RenderUTF8_Blended(font, state.ask_reply.c_str(), tc);
+        if (rs)
+        {
+            SDL_Texture *rt = SDL_CreateTextureFromSurface(r, rs);
+            SDL_Rect rd = {inp_r.x + 6, inp_r.y + 4, rs->w, rs->h};
+            SDL_RenderCopy(r, rt, NULL, &rd);
+            SDL_DestroyTexture(rt);
+            SDL_FreeSurface(rs);
+        }
+
+        if ((SDL_GetTicks() / 500) % 2 == 0)
+        {
+            int tw = 0;
+            TTF_SizeUTF8(font, state.ask_reply.c_str(), &tw, NULL);
+            SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
+            SDL_RenderDrawLine(r, inp_r.x + 6 + tw, inp_r.y + 4, inp_r.x + 6 + tw, inp_r.y + 20);
+        }
+    }
+
+    // 3. DRAW VARIABLES (Even if Sprite is Hidden!)
+    int var_y = rects.stage_area.y + 10;
+    for (const std::string &vname : state.variables)
+    {
+        if (state.variable_visible.count(vname) && state.variable_visible.at(vname))
+        {
+
+            std::string s_val = state.variable_values.count(vname) ? state.variable_values.at(vname) : "0";
+
+            int tw1 = 0, th1 = 0;
+            TTF_SizeUTF8(font, vname.c_str(), &tw1, &th1);
+            int tw2 = 0, th2 = 0;
+            TTF_SizeUTF8(font, s_val.c_str(), &tw2, &th2);
+
+            int box_w = tw1 + tw2 + 24;
+            SDL_Rect mon = {rects.stage_area.x + 10, var_y, box_w, 24};
+
+            renderer_fill_rounded_rect(r, &mon, 4, 210, 210, 210);
+            SDL_SetRenderDrawColor(r, 180, 180, 180, 255);
+            SDL_RenderDrawRect(r, &mon);
+
+            SDL_Color tcl = {40, 40, 40, 255};
+            SDL_Surface *s1 = TTF_RenderUTF8_Blended(font, vname.c_str(), tcl);
+            if (s1)
+            {
+                SDL_Texture *t1 = SDL_CreateTextureFromSurface(r, s1);
+                SDL_Rect d1 = {mon.x + 6, mon.y + (24 - s1->h) / 2, s1->w, s1->h};
+                SDL_RenderCopy(r, t1, NULL, &d1);
+                SDL_DestroyTexture(t1);
+                SDL_FreeSurface(s1);
+            }
+
+            SDL_Rect val_bg = {mon.x + tw1 + 12, mon.y + 3, tw2 + 8, 18};
+            renderer_fill_rounded_rect(r, &val_bg, 4, 255, 140, 26);
+
+            SDL_Color tcv = {255, 255, 255, 255};
+            SDL_Surface *s2 = TTF_RenderUTF8_Blended(font, s_val.c_str(), tcv);
+            if (s2)
+            {
+                SDL_Texture *t2 = SDL_CreateTextureFromSurface(r, s2);
+                SDL_Rect d2 = {val_bg.x + 4, val_bg.y + (18 - s2->h) / 2, s2->w, s2->h};
+                SDL_RenderCopy(r, t2, NULL, &d2);
+                SDL_DestroyTexture(t2);
+                SDL_FreeSurface(s2);
+            }
+            var_y += 30;
+        }
+    }
+
+    // ---> CLEAR THE CLIP RECT <---
+    SDL_RenderSetClipRect(r, NULL);
 }
 
 bool stage_handle_event(const SDL_Event &e, AppState &state,
@@ -276,7 +282,6 @@ bool stage_handle_event(const SDL_Event &e, AppState &state,
 
                 if (point_in_rect(mx, my, sprite_rect))
                 {
-                    // ---> FIXED: ENFORCING THE DRAG MODE MEMORY FLAG! <---
                     if (state.sprite.draggable)
                     {
                         state.stage_drag_active = true;
