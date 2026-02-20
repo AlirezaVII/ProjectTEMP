@@ -246,4 +246,7 @@ SDL_Rect variables_block_rect(VariablesBlockType type, int x, int y, const std::
 void variables_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState& state, VariablesBlockType type, int x, int y, const std::string& var_name, const std::string& input_text, int input_num, int opt, bool ghost, int selected_field, const char *override_field0_text);
 int variables_block_hittest_field(TTF_Font *font, const AppState& state, VariablesBlockType type, int x, int y, const std::string& var_name, int opt, int px, int py);
 
+SDL_Rect sensing_reporter_block_rect(SensingBlockType type, int x, int y);
+void sensing_reporter_block_draw(SDL_Renderer *r, TTF_Font *font, SensingBlockType type, int x, int y, bool ghost);
+int sensing_reporter_block_hittest_field(TTF_Font *font, SensingBlockType type, int x, int y, int px, int py);
 #endif

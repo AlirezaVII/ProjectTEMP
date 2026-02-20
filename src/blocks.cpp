@@ -88,9 +88,11 @@ int blocks_get_for_category(const AppState& state, int cat, BlockDef *out, int m
     case 5: /* Sensing */
         if (n < max_out) out[n++] = make_boolean(BK_SENSING, (int)SENSB_TOUCHING, c, 280, 36, "touching");
         if (n < max_out) out[n++] = make_stack(BK_SENSING, (int)SENSB_ASK_AND_WAIT, c, 320, 40, "ask and wait");
+        if (n < max_out) out[n++] = make_reporter(BK_SENSING, (int)SENSB_ANSWER, c, 80, 40, "answer");
         if (n < max_out) out[n++] = make_boolean(BK_SENSING, (int)SENSB_KEY_PRESSED, c, 280, 36, "key pressed");
         if (n < max_out) out[n++] = make_boolean(BK_SENSING, (int)SENSB_MOUSE_DOWN, c, 220, 36, "mouse down");
         if (n < max_out) out[n++] = make_stack(BK_SENSING, (int)SENSB_SET_DRAG_MODE, c, 300, 40, "set drag mode");
+        if (n < max_out) out[n++] = make_reporter(BK_SENSING, (int)SENSB_DISTANCE_TO, c, 180, 40, "distance to");
         break;
     case 6: /* Operators */
         if (n < max_out) out[n++] = make_reporter(BK_OPERATORS, (int)OP_ADD, c, 120, 40, "+");
