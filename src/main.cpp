@@ -182,6 +182,8 @@ int main(int /*argc*/, char * /*argv*/[])
                         }
                         if (unique && !state.input_buffer.empty())
                             state.variables.push_back(state.input_buffer);
+                            state.variable_values[state.input_buffer] = "0";  // INIT TO 0
+                            state.variable_visible[state.input_buffer] = true; // SHOW BY DEFAULT
                         state.var_modal_active = false;
                         state.active_input = INPUT_NONE;
                         state.input_buffer.clear();
@@ -216,6 +218,8 @@ int main(int /*argc*/, char * /*argv*/[])
                         }
                         if (unique && !state.input_buffer.empty())
                             state.variables.push_back(state.input_buffer);
+                            state.variable_values[state.input_buffer] = "0";  // INIT TO 0
+                            state.variable_visible[state.input_buffer] = true; // SHOW BY DEFAULT
                         state.var_modal_active = false;
                         state.active_input = INPUT_NONE;
                         state.input_buffer.clear();

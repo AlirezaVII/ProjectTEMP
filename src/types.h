@@ -226,6 +226,11 @@ struct AppState
     std::string input_buffer;
     BlockInputState block_input;
     std::vector<std::string> variables;
+    // ---> NEW: BACKEND VARIABLE MEMORY <---
+    
+    // ---> FIXED: Variables now hold STRINGS so they support text! <---
+    std::unordered_map<std::string, std::string> variable_values;
+    std::unordered_map<std::string, bool> variable_visible;
     bool var_modal_active;
     bool stage_drag_active;
     int stage_drag_off_x, stage_drag_off_y;
@@ -235,6 +240,7 @@ struct AppState
     std::string ask_reply;
     std::string global_answer;
 
-    AppState() : file_menu_open(false), file_menu_hover(-1), sprite_menu_open(false), backdrop_menu_open(false), current_tab(TAB_CODE), start_hover(false), stop_hover(false), running(false), sprite(), selected_sprite(0), selected_tab(TAB_CODE), selected_category(0), project_name("Untitled"), next_block_id(1), active_input(INPUT_NONE), variables({"my variable"}), var_modal_active(false), stage_drag_active(false), stage_drag_off_x(0), stage_drag_off_y(0), ask_active(false) {}
+// ---> NEW: INITIALIZE "my variable" TO 0 AND VISIBLE <---
+AppState() : file_menu_open(false), file_menu_hover(-1), sprite_menu_open(false), backdrop_menu_open(false), current_tab(TAB_CODE), start_hover(false), stop_hover(false), running(false), sprite(), selected_sprite(0), selected_tab(TAB_CODE), selected_category(0), project_name("Untitled"), next_block_id(1), active_input(INPUT_NONE), variables({"my variable"}), variable_values({{"my variable", "0"}}), variable_visible({{"my variable", true}}), var_modal_active(false), stage_drag_active(false), stage_drag_off_x(0), stage_drag_off_y(0), ask_active(false) {}
 };
 #endif

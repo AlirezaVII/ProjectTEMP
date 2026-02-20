@@ -13,8 +13,6 @@
 
 void interpreter_trigger_message(AppState &state, int msg_opt);
 
-static std::unordered_map<std::string, float> global_vars;
-
 static void commit_active_typing(AppState &state)
 {
     if (state.active_input == INPUT_BLOCK_FIELD)
@@ -129,8 +127,10 @@ static float eval_value(AppState &state, int block_id, float default_val, const 
                 return std::atof(eval_string(state, block_id, "").c_str()); // String -> Int cast
             }
         }
+
+        // FIXED: CONVERT STRING MEMORY TO FLOAT FOR MATH
         if (b->kind == BK_VARIABLES && b->subtype == VB_VARIABLE)
-            return global_vars[b->text];
+            return std::atof(state.variable_values[b->text].c_str());
 
         if (b->kind == BK_SENSING)
         {
@@ -165,15 +165,12 @@ static std::string eval_string(AppState &state, int block_id, const std::string 
         if (!b)
             return text_val;
 
+        // FIXED: RETURN PURE STRING DIRECTLY FROM MEMORY
         if (b->kind == BK_VARIABLES && b->subtype == VB_VARIABLE)
         {
-            float val = global_vars[b->text];
-            if (val == std::floor(val))
-                return std::to_string((int)val);
-            char buf[32];
-            std::snprintf(buf, sizeof(buf), "%g", val);
-            return std::string(buf);
+            return state.variable_values[b->text];
         }
+
         if (b->kind == BK_SENSING)
         {
             if (b->subtype == SENSB_ANSWER)
@@ -607,10 +604,33 @@ void interpreter_tick(AppState &state)
             }
             else if (b->kind == BK_VARIABLES)
             {
-                if (b->subtype == VB_SET && b->opt >= 0 && b->opt < (int)state.variables.size())
-                    global_vars[state.variables[b->opt]] = eval_value(state, b->arg0_id, b->a, b->text);
-                if (b->subtype == VB_CHANGE && b->opt >= 0 && b->opt < (int)state.variables.size())
-                    global_vars[state.variables[b->opt]] += eval_value(state, b->arg0_id, b->a, b->text);
+                if (b->opt >= 0 && b->opt < (int)state.variables.size())
+                {
+                    std::string vname = state.variables[b->opt];
+
+                    if (b->subtype == VB_SET)
+                    {
+                        state.variable_values[vname] = eval_string(state, b->arg0_id, b->text);
+                    }
+                    else if (b->subtype == VB_CHANGE)
+                    {
+                        float val = std::atof(state.variable_values[vname].c_str());
+                        val += eval_value(state, b->arg0_id, b->a, b->text);
+
+                        if (val == std::floor(val))
+                            state.variable_values[vname] = std::to_string((int)val);
+                        else
+                        {
+                            char buf[32];
+                            std::snprintf(buf, sizeof(buf), "%g", val);
+                            state.variable_values[vname] = buf;
+                        }
+                    }
+                    else if (b->subtype == VB_SHOW)
+                        state.variable_visible[vname] = true;
+                    else if (b->subtype == VB_HIDE)
+                        state.variable_visible[vname] = false;
+                }
                 frame.cur_node = b->next_id;
             }
             else if (b->kind == BK_EVENTS)

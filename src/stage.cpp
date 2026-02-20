@@ -185,7 +185,55 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state,
                 SDL_RenderDrawLine(r, inp_r.x + 6 + tw, inp_r.y + 4, inp_r.x + 6 + tw, inp_r.y + 20);
             }
         }
+        // ---> FIXED: DRAW VARIABLE MONITORS (SUPPORTS TEXT) <---
+        int var_y = rects.stage_area.y + 10;
+        for (const std::string &vname : state.variables)
+        {
+            if (state.variable_visible.count(vname) && state.variable_visible.at(vname))
+            {
 
+                // Just grab the string directly!
+                std::string s_val = state.variable_values.count(vname) ? state.variable_values.at(vname) : "0";
+
+                int tw1 = 0, th1 = 0;
+                TTF_SizeUTF8(font, vname.c_str(), &tw1, &th1);
+                int tw2 = 0, th2 = 0;
+                TTF_SizeUTF8(font, s_val.c_str(), &tw2, &th2);
+
+                int box_w = tw1 + tw2 + 24;
+                SDL_Rect mon = {rects.stage_area.x + 10, var_y, box_w, 24};
+
+                renderer_fill_rounded_rect(r, &mon, 4, 210, 210, 210);
+                SDL_SetRenderDrawColor(r, 180, 180, 180, 255);
+                SDL_RenderDrawRect(r, &mon);
+
+                SDL_Color tcl = {40, 40, 40, 255};
+                SDL_Surface *s1 = TTF_RenderUTF8_Blended(font, vname.c_str(), tcl);
+                if (s1)
+                {
+                    SDL_Texture *t1 = SDL_CreateTextureFromSurface(r, s1);
+                    SDL_Rect d1 = {mon.x + 6, mon.y + (24 - s1->h) / 2, s1->w, s1->h};
+                    SDL_RenderCopy(r, t1, NULL, &d1);
+                    SDL_DestroyTexture(t1);
+                    SDL_FreeSurface(s1);
+                }
+
+                SDL_Rect val_bg = {mon.x + tw1 + 12, mon.y + 3, tw2 + 8, 18};
+                renderer_fill_rounded_rect(r, &val_bg, 4, 255, 140, 26);
+
+                SDL_Color tcv = {255, 255, 255, 255};
+                SDL_Surface *s2 = TTF_RenderUTF8_Blended(font, s_val.c_str(), tcv);
+                if (s2)
+                {
+                    SDL_Texture *t2 = SDL_CreateTextureFromSurface(r, s2);
+                    SDL_Rect d2 = {val_bg.x + 4, val_bg.y + (18 - s2->h) / 2, s2->w, s2->h};
+                    SDL_RenderCopy(r, t2, NULL, &d2);
+                    SDL_DestroyTexture(t2);
+                    SDL_FreeSurface(s2);
+                }
+                var_y += 30;
+            }
+        }
         SDL_RenderSetClipRect(r, NULL);
     }
 }
