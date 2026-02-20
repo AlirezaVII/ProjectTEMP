@@ -2,6 +2,7 @@
 #include "workspace.h"
 #include "audio.h"
 #include "SDL.h"
+#include "config.h" // <--- CRITICAL FIX: Allows engine to see actual window dimensions!
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
@@ -39,6 +40,28 @@ struct ScriptThread
 };
 static std::vector<ScriptThread> g_threads;
 
+// ---> RESTORED: Translates backend Stage math to exact UI pixels <---
+static void get_sprite_screen_rect(const AppState &state, int &cx, int &cy, int &w, int &h)
+{
+    int col_x = WINDOW_WIDTH - RIGHT_COLUMN_WIDTH;
+    int col_h = WINDOW_HEIGHT - NAVBAR_HEIGHT;
+    int stage_h = col_h * STAGE_HEIGHT_RATIO / 100;
+
+    int margin = 8;
+    int stage_area_x = col_x + margin;
+    int stage_area_y = NAVBAR_HEIGHT + margin;
+    int stage_area_w = RIGHT_COLUMN_WIDTH - margin * 2;
+    int stage_area_h = stage_h - margin * 2;
+
+    cx = stage_area_x + stage_area_w / 2 + state.sprite.x;
+    cy = stage_area_y + stage_area_h / 2 - state.sprite.y;
+
+    int base_w = 100; // Base size of the cat texture
+    int base_h = 100;
+    w = (base_w * state.sprite.size) / 100;
+    h = (base_h * state.sprite.size) / 100;
+}
+
 static float eval_value(AppState &state, int block_id, float default_val, const std::string &text_val)
 {
     if (block_id != -1)
@@ -68,10 +91,13 @@ static float eval_value(AppState &state, int block_id, float default_val, const 
             }
             if (b->subtype == SENSB_DISTANCE_TO)
             {
+                // ---> RESTORED: PERFECT PIXEL MATH <---
                 int mx, my;
                 SDL_GetMouseState(&mx, &my);
-                float dx = (mx - (1280 - 240)) - state.sprite.x;
-                float dy = (180 - my + 60) - state.sprite.y;
+                int cx, cy, w, h;
+                get_sprite_screen_rect(state, cx, cy, w, h);
+                float dx = mx - cx;
+                float dy = my - cy;
                 return std::sqrt(dx * dx + dy * dy);
             }
         }
@@ -163,41 +189,49 @@ static bool eval_bool(AppState &state, int block_id)
     {
         if (b->subtype == SENSB_KEY_PRESSED)
         {
+            SDL_PumpEvents();
             const Uint8 *keys = SDL_GetKeyboardState(NULL);
             int opt = b->opt;
+            bool pressed = false;
+
             if (opt == 0)
-                return keys[SDL_SCANCODE_SPACE];
-            if (opt == 1)
-                return keys[SDL_SCANCODE_UP];
-            if (opt == 2)
-                return keys[SDL_SCANCODE_DOWN];
-            if (opt == 3)
-                return keys[SDL_SCANCODE_LEFT];
-            if (opt == 4)
-                return keys[SDL_SCANCODE_RIGHT];
-            if (opt >= 5 && opt <= 30)
-                return keys[SDL_SCANCODE_A + (opt - 5)];
-            if (opt >= 31 && opt <= 39)
-                return keys[SDL_SCANCODE_1 + (opt - 31)];
-            if (opt == 40)
-                return keys[SDL_SCANCODE_0];
+                pressed = keys[SDL_SCANCODE_SPACE];
+            else if (opt == 1)
+                pressed = keys[SDL_SCANCODE_UP];
+            else if (opt == 2)
+                pressed = keys[SDL_SCANCODE_DOWN];
+            else if (opt == 3)
+                pressed = keys[SDL_SCANCODE_LEFT];
+            else if (opt == 4)
+                pressed = keys[SDL_SCANCODE_RIGHT];
+            else if (opt >= 5 && opt <= 30)
+                pressed = keys[SDL_SCANCODE_A + (opt - 5)];
+            else if (opt == 31)
+                pressed = keys[SDL_SCANCODE_0];
+            else if (opt >= 32 && opt <= 40)
+                pressed = keys[SDL_SCANCODE_1 + (opt - 32)];
+
+            return pressed;
         }
         if (b->subtype == SENSB_MOUSE_DOWN)
         {
+            SDL_PumpEvents();
             return (SDL_GetMouseState(NULL, NULL) & SDL_BUTTON(SDL_BUTTON_LEFT)) != 0;
         }
         if (b->subtype == SENSB_TOUCHING)
         {
+            // ---> RESTORED: PIXEL PERFECT MOUSE HOVER MATH! <---
             if (b->opt == TOUCHING_MOUSE_POINTER)
             {
                 int mx, my;
                 SDL_GetMouseState(&mx, &my);
-                float sprite_half_w = (100 * state.sprite.size) / 200.0f;
-                float sprite_half_h = (100 * state.sprite.size) / 200.0f;
-                int sprite_screen_x = state.sprite.x + (1280 - 240);
-                int sprite_screen_y = 180 - state.sprite.y + 60;
-                return (mx >= sprite_screen_x - sprite_half_w && mx <= sprite_screen_x + sprite_half_w &&
-                        my >= sprite_screen_y - sprite_half_h && my <= sprite_screen_y + sprite_half_h);
+                int cx, cy, w, h;
+                get_sprite_screen_rect(state, cx, cy, w, h);
+                float half_w = w / 2.0f;
+                float half_h = h / 2.0f;
+
+                return (mx >= cx - half_w && mx <= cx + half_w &&
+                        my >= cy - half_h && my <= cy + half_h);
             }
             else if (b->opt == TOUCHING_EDGE)
             {
@@ -207,6 +241,10 @@ static bool eval_bool(AppState &state, int block_id)
                         state.sprite.x + half_w >= 240 ||
                         state.sprite.y - half_h <= -180 ||
                         state.sprite.y + half_h >= 180);
+            }
+            else if (b->opt == TOUCHING_SPRITE)
+            {
+                return false; // Engine currently only has 1 sprite, cannot touch itself!
             }
         }
     }
@@ -220,7 +258,6 @@ void interpreter_tick(AppState &state)
 
     for (size_t i = 0; i < g_threads.size();)
     {
-        // ---> FIXED: IMMEDIATELY BREAK IF STOP BUTTON CLICKED <---
         if (!state.running)
             break;
 
@@ -258,7 +295,6 @@ void interpreter_tick(AppState &state)
 
         bool yielded = false;
 
-        // ---> FIXED: ALSO CHECK state.running HERE TO KILL INFINITE LOOPS INSTANTLY! <---
         while (!g_threads[i].stack.empty() && !yielded && state.running)
         {
             StackFrame &frame = g_threads[i].stack.back();
@@ -484,8 +520,7 @@ void interpreter_tick(AppState &state)
                 }
                 else if (b->subtype == SENSB_SET_DRAG_MODE)
                 {
-                    state.sprite.draggable = (b->opt == 0); // 0 is DRAG_DRAGGABLE
-                    std::cout << "[Engine] Block executed! Sprite is now: " << (state.sprite.draggable ? "Draggable" : "Not Draggable") << std::endl;
+                    state.sprite.draggable = (b->opt == 0);
                     frame.cur_node = b->next_id;
                 }
                 else
@@ -589,7 +624,7 @@ void interpreter_trigger_message(AppState &state, int msg_opt)
 void interpreter_stop_all(AppState &state)
 {
     commit_active_typing(state);
-    state.running = false; // Triggered safely inside interpreter_tick!
+    state.running = false;
     g_threads.clear();
     state.sprite.say_text = "";
     state.sprite.say_end_time = 0;

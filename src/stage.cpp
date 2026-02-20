@@ -3,18 +3,27 @@
 #include "renderer.h"
 #include "interpreter.h"
 
-static bool point_in_rect(int px, int py, const SDL_Rect &r) { return px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h; }
-static void set_color(SDL_Renderer *r, Color c) { SDL_SetRenderDrawColor(r, c.r, c.g, c.b, 255); }
+static bool point_in_rect(int px, int py, const SDL_Rect &r)
+{
+    return px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h;
+}
+
+static void set_color(SDL_Renderer *r, Color c)
+{
+    SDL_SetRenderDrawColor(r, c.r, c.g, c.b, 255);
+}
 
 void stage_layout(StageRects &rects)
 {
     int col_x = WINDOW_WIDTH - RIGHT_COLUMN_WIDTH;
     int col_h = WINDOW_HEIGHT - NAVBAR_HEIGHT;
     int stage_h = col_h * STAGE_HEIGHT_RATIO / 100;
+
     rects.panel.x = col_x;
     rects.panel.y = NAVBAR_HEIGHT;
     rects.panel.w = RIGHT_COLUMN_WIDTH;
     rects.panel.h = stage_h;
+
     int margin = 8;
     rects.stage_area.x = col_x + margin;
     rects.stage_area.y = NAVBAR_HEIGHT + margin;
@@ -22,7 +31,8 @@ void stage_layout(StageRects &rects)
     rects.stage_area.h = stage_h - margin * 2;
 }
 
-void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const StageRects &rects, const Textures &tex)
+void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state,
+                const StageRects &rects, const Textures &tex)
 {
     set_color(r, COL_STAGE_BG);
     SDL_RenderFillRect(r, &rects.panel);
@@ -37,6 +47,7 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const St
         int tex_w = 100, tex_h = 100;
         if (tex.scratch_cat)
             SDL_QueryTexture(tex.scratch_cat, NULL, NULL, &tex_w, &tex_h);
+
         int base_w = tex_w;
         int base_h = tex_h;
         int MAX_DEFAULT = 120;
@@ -53,11 +64,13 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const St
                 base_h = MAX_DEFAULT;
             }
         }
+
         int w = (base_w * state.sprite.size) / 100;
         int h = (base_h * state.sprite.size) / 100;
         SDL_Rect dest = {cx - w / 2, cy - h / 2, w, h};
 
         SDL_RenderSetClipRect(r, const_cast<SDL_Rect *>(&rects.stage_area));
+
         if (tex.scratch_cat)
         {
             double angle = state.sprite.direction - 90.0;
@@ -74,18 +87,22 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const St
             bool should_draw = true;
             if (state.sprite.say_end_time > 0 && SDL_GetTicks() > state.sprite.say_end_time)
                 should_draw = false;
+
             if (should_draw)
             {
                 int tw = 0, th = 0;
                 TTF_SizeUTF8(font, state.sprite.say_text.c_str(), &tw, &th);
+
                 int bub_w = tw + 24;
                 int bub_h = th + 20;
                 int bub_x = dest.x + dest.w - 10;
                 int bub_y = dest.y - bub_h;
+
                 if (bub_x + bub_w > rects.stage_area.x + rects.stage_area.w)
                     bub_x = dest.x - bub_w + 10;
                 if (bub_y < rects.stage_area.y)
                     bub_y = dest.y + dest.h;
+
                 if (state.sprite.is_thinking && tex.cloud)
                 {
                     SDL_Rect cloud_r = {bub_x - 10, bub_y - 10, bub_w + 20, bub_h + 30};
@@ -98,6 +115,7 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const St
                     renderer_fill_rounded_rect(r, &bub_r, 12, 160, 160, 160);
                     SDL_Rect inner_r = {bub_x + 2, bub_y + 2, bub_w - 4, bub_h - 4};
                     renderer_fill_rounded_rect(r, &inner_r, 10, 255, 255, 255);
+
                     if (state.sprite.is_thinking)
                     {
                         renderer_fill_circle(r, bub_x - 5, bub_y + bub_h + 5, 4, 255, 255, 255);
@@ -110,6 +128,7 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const St
                         SDL_RenderDrawLine(r, bub_x + 20, bub_y + bub_h - 2, dest.x + dest.w / 2, dest.y + dest.h / 4);
                     }
                 }
+
                 SDL_Color tc = {0, 0, 0, 255};
                 SDL_Surface *s = TTF_RenderUTF8_Blended(font, state.sprite.say_text.c_str(), tc);
                 if (s)
@@ -123,7 +142,6 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const St
             }
         }
 
-        // ---> NEW: DRAW ASK AND WAIT INPUT BOX! <---
         if (state.ask_active)
         {
             int ask_h = 60;
@@ -133,7 +151,6 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const St
             SDL_SetRenderDrawColor(r, 0, 160, 255, 255);
             SDL_RenderDrawRect(r, &ask_bg);
 
-            // Draw message text
             SDL_Color tc = {40, 40, 40, 255};
             SDL_Surface *ms = TTF_RenderUTF8_Blended(font, state.ask_msg.c_str(), tc);
             if (ms)
@@ -145,13 +162,11 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const St
                 SDL_FreeSurface(ms);
             }
 
-            // Draw input capsule
             SDL_Rect inp_r = {ask_bg.x + 10, ask_bg.y + 30, ask_bg.w - 20, 24};
             renderer_fill_rounded_rect(r, &inp_r, 4, 255, 255, 255);
             SDL_SetRenderDrawColor(r, 200, 200, 200, 255);
             SDL_RenderDrawRect(r, &inp_r);
 
-            // Draw typing text
             SDL_Surface *rs = TTF_RenderUTF8_Blended(font, state.ask_reply.c_str(), tc);
             if (rs)
             {
@@ -162,7 +177,6 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const St
                 SDL_FreeSurface(rs);
             }
 
-            // Blinking cursor
             if ((SDL_GetTicks() / 500) % 2 == 0)
             {
                 int tw = 0;
@@ -176,7 +190,8 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const St
     }
 }
 
-bool stage_handle_event(const SDL_Event &e, AppState &state, const StageRects &rects, const Textures &tex)
+bool stage_handle_event(const SDL_Event &e, AppState &state,
+                        const StageRects &rects, const Textures &tex)
 {
     int tex_w = 100, tex_h = 100;
     if (tex.scratch_cat)
@@ -210,11 +225,16 @@ bool stage_handle_event(const SDL_Event &e, AppState &state, const StageRects &r
                 int cx = rects.stage_area.x + rects.stage_area.w / 2 + state.sprite.x;
                 int cy = rects.stage_area.y + rects.stage_area.h / 2 - state.sprite.y;
                 SDL_Rect sprite_rect = {cx - w / 2, cy - h / 2, w, h};
+
                 if (point_in_rect(mx, my, sprite_rect))
                 {
-                    state.stage_drag_active = true;
-                    state.stage_drag_off_x = mx - cx;
-                    state.stage_drag_off_y = my - cy;
+                    // ---> FIXED: ENFORCING THE DRAG MODE MEMORY FLAG! <---
+                    if (state.sprite.draggable)
+                    {
+                        state.stage_drag_active = true;
+                        state.stage_drag_off_x = mx - cx;
+                        state.stage_drag_off_y = my - cy;
+                    }
                     interpreter_trigger_sprite_click(state);
                     return true;
                 }

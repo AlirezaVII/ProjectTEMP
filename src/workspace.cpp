@@ -1360,7 +1360,7 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
             if (b->kind == BK_SENSING && b->subtype == SENSB_TOUCHING)
                 max_opt = 3;
             else if (b->kind == BK_SENSING && b->subtype == SENSB_KEY_PRESSED)
-                max_opt = 41;
+                max_opt = 41; // <--- CRITICAL FIX: 41 Keys!
             else if (b->kind == BK_EVENTS && b->subtype == EB_WHEN_KEY_PRESSED)
                 max_opt = 41;
             else if (b->kind == BK_LOOKS && (b->subtype == LB_SWITCH_COSTUME_TO || b->subtype == LB_SWITCH_BACKDROP_TO))
@@ -1374,17 +1374,14 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
             else if (b->kind == BK_SENSING && b->subtype == SENSB_DISTANCE_TO)
                 max_opt = 1;
             else if (b->kind == BK_SENSING && b->subtype == SENSB_SET_DRAG_MODE)
-                max_opt = 2; // ---> DROPDOWN ROUTING
+                max_opt = 2;
 
             if (max_opt > 0)
             {
                 b->opt = (b->opt + 1) % max_opt;
-
-                // ---> NEW UX FIX: INSTANT APPLY DRAG MODE <---
                 if (b->kind == BK_SENSING && b->subtype == SENSB_SET_DRAG_MODE)
                 {
-                    state.sprite.draggable = (b->opt == 0); // 0 = DRAG_DRAGGABLE
-                    std::cout << "[Editor] Sprite instantly set to: " << (state.sprite.draggable ? "Draggable" : "Not Draggable") << std::endl;
+                    state.sprite.draggable = (b->opt == 0);
                 }
             }
 
@@ -1392,6 +1389,7 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
                 workspace_layout_chain(state, tl_id);
             return true;
         }
+
         else if (field >= 0)
         {
             if (state.active_input == INPUT_BLOCK_FIELD)
