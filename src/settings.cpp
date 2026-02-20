@@ -85,16 +85,13 @@ void settings_layout(SettingsRects &rects) {
 
 void settings_draw(SDL_Renderer *r, TTF_Font *font, AppState &state,
                    const SettingsRects &rects, const Textures &tex) {
-    /* White background */
     SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
     SDL_RenderFillRect(r, &rects.panel);
     
-    /* Separators */
     set_color(r, COL_SETTINGS_BORDER);
     SDL_RenderDrawLine(r, rects.panel.x, rects.panel.y, rects.panel.x + rects.panel.w, rects.panel.y);
     SDL_RenderDrawLine(r, rects.panel.x, rects.panel.y + rects.panel.h - 1, rects.panel.x + rects.panel.w, rects.panel.y + rects.panel.h - 1);
 
-    /* Labels */
     int ty_offset = (SETTINGS_INPUT_H - 13) / 2;
     draw_text(r, font, "Sprite", rects.sprite_name_label.x, rects.sprite_name_label.y + ty_offset, COL_SETTINGS_TEXT);
     draw_text(r, font, "x", rects.x_icon.x, rects.x_icon.y, COL_SETTINGS_TEXT);
@@ -103,11 +100,9 @@ void settings_draw(SDL_Renderer *r, TTF_Font *font, AppState &state,
     draw_text(r, font, "Size", rects.size_label.x, rects.size_label.y + ty_offset, COL_SETTINGS_TEXT);
     draw_text(r, font, "Direction", rects.dir_label_pos.x, rects.dir_label_pos.y + ty_offset, COL_SETTINGS_TEXT);
 
-    /* Sprite Input */
     std::string txt = (state.active_input == INPUT_SPRITE_NAME) ? state.input_buffer + "|" : state.sprite.name;
     draw_input_box(r, font, rects.sprite_name_input, txt.c_str(), state.active_input == INPUT_SPRITE_NAME);
 
-    /* X Input */
     char buf[32];
     if (state.active_input == INPUT_X) {
         draw_input_box(r, font, rects.x_input, (state.input_buffer + "|").c_str(), true);
@@ -116,7 +111,6 @@ void settings_draw(SDL_Renderer *r, TTF_Font *font, AppState &state,
         draw_input_box(r, font, rects.x_input, buf, false);
     }
 
-    /* Y Input */
     if (state.active_input == INPUT_Y) {
         draw_input_box(r, font, rects.y_input, (state.input_buffer + "|").c_str(), true);
     } else {
@@ -124,7 +118,6 @@ void settings_draw(SDL_Renderer *r, TTF_Font *font, AppState &state,
         draw_input_box(r, font, rects.y_input, buf, false);
     }
 
-    /* Size Input */
     if (state.active_input == INPUT_SIZE) {
         draw_input_box(r, font, rects.size_input, (state.input_buffer + "|").c_str(), true);
     } else {
@@ -132,7 +125,6 @@ void settings_draw(SDL_Renderer *r, TTF_Font *font, AppState &state,
         draw_input_box(r, font, rects.size_input, buf, false);
     }
 
-    /* Direction Input */
     if (state.active_input == INPUT_DIRECTION) {
         draw_input_box(r, font, rects.dir_input, (state.input_buffer + "|").c_str(), true);
     } else {
@@ -140,7 +132,6 @@ void settings_draw(SDL_Renderer *r, TTF_Font *font, AppState &state,
         draw_input_box(r, font, rects.dir_input, buf, false);
     }
 
-    /* Show/Hide Toggles */
     SDL_SetRenderDrawColor(r, 240, 240, 240, 255);
     SDL_RenderFillRect(r, &rects.vis_on_btn);
     SDL_RenderFillRect(r, &rects.vis_off_btn);
@@ -161,16 +152,21 @@ static void commit_input(AppState &state) {
     if (state.active_input == INPUT_SPRITE_NAME) {
         if (!state.input_buffer.empty()) state.sprite.name = state.input_buffer;
     } else if (state.active_input == INPUT_X) {
-        state.sprite.x = std::atoi(state.input_buffer.c_str());
+        if (!state.input_buffer.empty() && state.input_buffer != "-")
+            state.sprite.x = std::atoi(state.input_buffer.c_str());
     } else if (state.active_input == INPUT_Y) {
-        state.sprite.y = std::atoi(state.input_buffer.c_str());
+        if (!state.input_buffer.empty() && state.input_buffer != "-")
+            state.sprite.y = std::atoi(state.input_buffer.c_str());
     } else if (state.active_input == INPUT_SIZE) {
-        int val = std::atoi(state.input_buffer.c_str());
-        if (val < 0) val = 0;
-        if (val > 100) val = 100;
-        state.sprite.size = val;
+        if (!state.input_buffer.empty()) {
+            int val = std::atoi(state.input_buffer.c_str());
+            if (val < 0) val = 0;
+            if (val > 999) val = 999; /* Allow sizes up to 999 now */
+            state.sprite.size = val;
+        }
     } else if (state.active_input == INPUT_DIRECTION) {
-        state.sprite.direction = std::atoi(state.input_buffer.c_str());
+        if (!state.input_buffer.empty() && state.input_buffer != "-")
+            state.sprite.direction = std::atoi(state.input_buffer.c_str());
     }
     state.active_input = INPUT_NONE;
     state.input_buffer.clear();
@@ -184,20 +180,21 @@ bool settings_handle_event(const SDL_Event &e, AppState &state, const SettingsRe
             commit_input(state);
         }
 
+        /* Notice we set state.input_buffer = "" (empty) instead of pre-filling it */
         if (point_in_rect(mx, my, rects.sprite_name_input)) {
-            state.active_input = INPUT_SPRITE_NAME; state.input_buffer = state.sprite.name; return true;
+            state.active_input = INPUT_SPRITE_NAME; state.input_buffer = ""; return true;
         }
         if (point_in_rect(mx, my, rects.x_input)) {
-            state.active_input = INPUT_X; state.input_buffer = std::to_string(state.sprite.x); return true;
+            state.active_input = INPUT_X; state.input_buffer = ""; return true;
         }
         if (point_in_rect(mx, my, rects.y_input)) {
-            state.active_input = INPUT_Y; state.input_buffer = std::to_string(state.sprite.y); return true;
+            state.active_input = INPUT_Y; state.input_buffer = ""; return true;
         }
         if (point_in_rect(mx, my, rects.size_input)) {
-            state.active_input = INPUT_SIZE; state.input_buffer = std::to_string(state.sprite.size); return true;
+            state.active_input = INPUT_SIZE; state.input_buffer = ""; return true;
         }
         if (point_in_rect(mx, my, rects.dir_input)) {
-            state.active_input = INPUT_DIRECTION; state.input_buffer = std::to_string(state.sprite.direction); return true;
+            state.active_input = INPUT_DIRECTION; state.input_buffer = ""; return true;
         }
         if (point_in_rect(mx, my, rects.vis_on_btn)) {
             state.sprite.visible = true; return true;

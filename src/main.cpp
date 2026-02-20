@@ -150,6 +150,7 @@ int main(int /*argc*/, char* /*argv*/[])
             }
 
             /* Fallback: commit active input on click elsewhere */
+            /* Fallback: commit active input on click elsewhere */
             if (e.type == SDL_MOUSEBUTTONDOWN) {
                 if (state.active_input != INPUT_NONE &&
                     state.active_input != INPUT_PROJECT_NAME) {
@@ -158,16 +159,21 @@ int main(int /*argc*/, char* /*argv*/[])
                         if (!state.input_buffer.empty())
                             state.sprite.name = state.input_buffer;
                     } else if (state.active_input == INPUT_X) {
-                        state.sprite.x = std::atoi(state.input_buffer.c_str());
+                        if (!state.input_buffer.empty() && state.input_buffer != "-")
+                            state.sprite.x = std::atoi(state.input_buffer.c_str());
                     } else if (state.active_input == INPUT_Y) {
-                        state.sprite.y = std::atoi(state.input_buffer.c_str());
+                        if (!state.input_buffer.empty() && state.input_buffer != "-")
+                            state.sprite.y = std::atoi(state.input_buffer.c_str());
                     } else if (state.active_input == INPUT_DIRECTION) {
-                        state.sprite.direction = std::atoi(state.input_buffer.c_str());
-                    } else if (state.active_input == INPUT_SIZE) { // <--- ADD THIS
-                        int s = std::atoi(state.input_buffer.c_str());
-                        if (s < 0) s = 0;
-                        if (s > 100) s = 100;
-                        state.sprite.size = s;
+                        if (!state.input_buffer.empty() && state.input_buffer != "-")
+                            state.sprite.direction = std::atoi(state.input_buffer.c_str());
+                    } else if (state.active_input == INPUT_SIZE) { 
+                        if (!state.input_buffer.empty()) {
+                            int s = std::atoi(state.input_buffer.c_str());
+                            if (s < 0) s = 0;
+                            if (s > 999) s = 999;
+                            state.sprite.size = s;
+                        }
                     }
                     else if (state.active_input == INPUT_BLOCK_FIELD) {
                         workspace_commit_active_input(state);
