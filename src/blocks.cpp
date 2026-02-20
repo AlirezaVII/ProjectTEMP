@@ -8,6 +8,38 @@ static const char *CAT_NAMES[] = {
 static const Color CAT_COLORS[] = {
     {76, 151, 255}, {153, 102, 255}, {207, 99, 207}, {255, 191, 38}, {255, 171, 25}, {90, 188, 216}, {89, 192, 89}, {255, 140, 26}, {255, 102, 128}};
 
+static BlockDef make_c_shape(BlockKind kind, int subtype, Color col, int w, int h, const char *label)
+{
+    BlockDef b;
+    b.label = label;
+    b.color = col;
+    b.width = w;
+    b.height = h;
+    b.is_stack_block = true;
+    b.is_boolean_block = false;
+    b.is_c_shape = true;
+    b.is_e_shape = false;
+    b.kind = kind;
+    b.subtype = subtype;
+    return b;
+}
+
+static BlockDef make_e_shape(BlockKind kind, int subtype, Color col, int w, int h, const char *label)
+{
+    BlockDef b;
+    b.label = label;
+    b.color = col;
+    b.width = w;
+    b.height = h;
+    b.is_stack_block = true;
+    b.is_boolean_block = false;
+    b.is_c_shape = true;
+    b.is_e_shape = true;
+    b.kind = kind;
+    b.subtype = subtype;
+    return b;
+}
+
 const char *blocks_category_name(int cat)
 {
     if (cat < 0 || cat > 8)
@@ -145,38 +177,32 @@ int blocks_get_for_category(int cat, BlockDef *out, int max_out)
         if (n < max_out)
             out[n++] = make_stack(BK_EVENTS, (int)EB_BROADCAST, c, 260, 40, "broadcast");
         break;
-        // در تابع blocks_get_for_category، بعد از case 4 (Events):
-    case 5: // Sensing
+    case 4: /* Control */
     {
-        BlockDef s;
-        s.is_stack_block = true;
-        s.kind = BK_SENSING;
-        s.color = {74, 189, 211}; // آبی فیروزه‌ای Sensing
-
-        int n = 0;
-
-        s.subtype = SENSB_TOUCHING;
-        s.width = 280;
-        s.height = 40;
-        out[n++] = s;
-        s.subtype = SENSB_ASK_AND_WAIT;
-        s.width = 320;
-        s.height = 40;
-        out[n++] = s;
-        s.subtype = SENSB_KEY_PRESSED;
-        s.width = 280;
-        s.height = 40;
-        out[n++] = s;
-        s.subtype = SENSB_MOUSE_DOWN;
-        s.width = 220;
-        s.height = 40;
-        out[n++] = s;
-        s.subtype = SENSB_SET_DRAG_MODE;
-        s.width = 300;
-        s.height = 40;
-        out[n++] = s;
-
-        return n;
+        Color cc = CAT_COLORS[4]; // Orange
+        if (n < max_out)
+            out[n++] = make_stack(BK_CONTROL, (int)CB_WAIT, cc, 200, 40, "wait");
+        if (n < max_out)
+            out[n++] = make_c_shape(BK_CONTROL, (int)CB_REPEAT, cc, 220, 80, "repeat");
+        if (n < max_out)
+            out[n++] = make_c_shape(BK_CONTROL, (int)CB_FOREVER, cc, 180, 70, "forever");
+        if (n < max_out)
+            out[n++] = make_c_shape(BK_CONTROL, (int)CB_IF, cc, 240, 80, "if");
+        if (n < max_out)
+            out[n++] = make_e_shape(BK_CONTROL, (int)CB_IF_ELSE, cc, 240, 130, "if else");
+        if (n < max_out)
+            out[n++] = make_stack(BK_CONTROL, (int)CB_WAIT_UNTIL, cc, 240, 40, "wait until");
+        break;
+    }
+    case 5: /* Sensing */
+    {
+        Color c = {90, 188, 216}; // Sensing color
+        if (n < max_out) out[n++] = make_boolean(BK_SENSING, (int)SENSB_TOUCHING, c, 280, 36, "touching");
+        if (n < max_out) out[n++] = make_stack(BK_SENSING, (int)SENSB_ASK_AND_WAIT, c, 320, 40, "ask and wait");
+        if (n < max_out) out[n++] = make_boolean(BK_SENSING, (int)SENSB_KEY_PRESSED, c, 280, 36, "key pressed");
+        if (n < max_out) out[n++] = make_boolean(BK_SENSING, (int)SENSB_MOUSE_DOWN, c, 220, 36, "mouse down");
+        if (n < max_out) out[n++] = make_stack(BK_SENSING, (int)SENSB_SET_DRAG_MODE, c, 300, 40, "set drag mode");
+        break;
     }
 
     default:

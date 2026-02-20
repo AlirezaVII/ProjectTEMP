@@ -11,22 +11,18 @@ struct BlockDef {
     int width;
     int height;
 
-    /* Palette items: only stack blocks (Motion/Looks) */
     bool is_stack_block;
-    bool is_boolean_block;  // شش‌ضلعی (sensing boolean shape)
+    bool is_boolean_block;
+    bool is_c_shape;       // <--- ADD THIS
+    bool is_e_shape;       // <--- ADD THIS (for if/else)
 
-    /* For stack blocks */
-    BlockKind kind; /* BK_MOTION / BK_LOOKS */
-    int subtype;    /* MotionBlockType / LooksBlockType */
+    BlockKind kind; 
+    int subtype;    
 
-    BlockDef()
-        : label(""),
-          color({128,128,128}),
-          width(0),
-          height(0),
-          is_stack_block(false),
-          kind(BK_MOTION),
-          subtype(0) {}
+    BlockDef() : label(""), color({128,128,128}), width(0), height(0),
+                 is_stack_block(false), is_boolean_block(false), 
+                 is_c_shape(false), is_e_shape(false), // <--- ADD INITIALIZERS
+                 kind(BK_MOTION), subtype(0) {}
 };
 
 /* Get blocks for a category index (0-8). Returns count. */

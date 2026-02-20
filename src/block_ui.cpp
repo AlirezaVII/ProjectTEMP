@@ -1918,3 +1918,196 @@ int sensing_stack_block_hittest_field(TTF_Font *font,
             return -1;
     }
 }
+
+
+/* ================================================================ */
+/* ================        C O N T R O L        =================== */
+/* ================================================================ */
+
+static void draw_c_shape_native(SDL_Renderer *r, int x, int y, int w, int top_h, int inner_h, int bottom_h, Color col, Color bg, bool ghost, bool has_top_notch, bool has_bottom_notch) {
+    float gk = ghost ? 0.75f : 1.0f;
+    Color border = shade(col, 0.80f * gk);
+    Color fill   = shade(col, 1.00f * gk);
+    int spine_w = 16;
+    MotionBlockMetrics m = motion_block_metrics();
+
+    // Top arm
+    SDL_Rect top = {x, y, w, top_h};
+    renderer_fill_rounded_rect(r, &top, 4, border.r, border.g, border.b);
+    SDL_Rect topF = {x+1, y+1, w-2, top_h-2};
+    renderer_fill_rounded_rect(r, &topF, 4, fill.r, fill.g, fill.b);
+
+    // Spine
+    SDL_Rect spine = {x, y + top_h - 4, spine_w, inner_h + 8};
+    SDL_SetRenderDrawColor(r, fill.r, fill.g, fill.b, 255);
+    SDL_RenderFillRect(r, &spine);
+    SDL_SetRenderDrawColor(r, border.r, border.g, border.b, 255);
+    SDL_RenderDrawLine(r, x, spine.y, x, spine.y + spine.h);
+
+    // Bottom arm
+    SDL_Rect bot = {x, y + top_h + inner_h, w, bottom_h};
+    renderer_fill_rounded_rect(r, &bot, 4, border.r, border.g, border.b);
+    SDL_Rect botF = {x+1, y + top_h + inner_h + 1, w-2, bottom_h-2};
+    renderer_fill_rounded_rect(r, &botF, 4, fill.r, fill.g, fill.b);
+
+    // Top Notch
+    if (has_top_notch) {
+        SDL_Rect tc = {x + m.notch_x, y, m.notch_w, m.notch_h};
+        renderer_fill_rounded_rect(r, &tc, m.notch_h/2, bg.r, bg.g, bg.b);
+    }
+    
+    // Bottom Notch (outside)
+    if (has_bottom_notch) {
+        SDL_Rect bc = {x + m.notch_x, bot.y + bot.h - m.notch_h, m.notch_w, m.notch_h};
+        renderer_fill_rounded_rect(r, &bc, m.notch_h/2, bg.r, bg.g, bg.b);
+    }
+
+    // Inner Notch (where children snap)
+    SDL_Rect ic = {x + spine_w + m.notch_x, y + top_h - m.notch_h, m.notch_w, m.notch_h};
+    renderer_fill_rounded_rect(r, &ic, m.notch_h/2, fill.r, fill.g, fill.b); // Color of the block
+}
+
+int control_block_width(ControlBlockType type) {
+    switch (type) {
+        case CB_WAIT: return 200;
+        case CB_REPEAT: return 220;
+        case CB_FOREVER: return 180;
+        case CB_IF: return 240;
+        case CB_IF_ELSE: return 240;
+        case CB_WAIT_UNTIL: return 240;
+        default: return 200;
+    }
+}
+
+SDL_Rect control_block_rect(ControlBlockType type, int x, int y, int inner1_h, int inner2_h) {
+    int w = control_block_width(type);
+    int h = 40; // Default stack
+    
+    if (type == CB_REPEAT || type == CB_IF) {
+        h = 40 + std::max(24, inner1_h) + 24; // Top + Inner + Bottom
+    } else if (type == CB_FOREVER) {
+        h = 40 + std::max(24, inner1_h) + 20; // Forever has no bottom notch
+    } else if (type == CB_IF_ELSE) {
+        h = 40 + std::max(24, inner1_h) + 32 + std::max(24, inner2_h) + 24; // Top + Inner1 + Mid + Inner2 + Bot
+    }
+    
+    return {x, y, w, h};
+}
+
+static void draw_hex_slot(SDL_Renderer *r, int cx, int cy, Color base_col, bool filled) {
+    if (filled) return; // If a block is inside, don't draw the empty hole
+    
+    int w = 50, h = 24;
+    SDL_Rect br = {cx, cy - h/2, w, h};
+    
+    // Create a darker shade of the block's base color for the "hole"
+    Color hole_col = shade(base_col, 0.70f); 
+    
+    int arrow = br.h / 2;
+    
+    // Middle rect
+    SDL_Rect mid = { br.x + arrow, br.y, br.w - 2 * arrow, br.h };
+    SDL_SetRenderDrawColor(r, hole_col.r, hole_col.g, hole_col.b, 255);
+    SDL_RenderFillRect(r, &mid);
+    
+    // Left triangle
+    int cx_l = br.x + arrow;
+    for (int row = 0; row < br.h; ++row) {
+        int y = br.y + row;
+        int half = (row <= br.h/2) ? row : (br.h - 1 - row);
+        int x0 = cx_l - half;
+        SDL_RenderDrawLine(r, x0, y, cx_l, y);
+    }
+    
+    // Right triangle
+    int cx_r = br.x + br.w - arrow;
+    for (int row = 0; row < br.h; ++row) {
+        int y = br.y + row;
+        int half = (row <= br.h/2) ? row : (br.h - 1 - row);
+        int x1 = cx_r + half;
+        SDL_RenderDrawLine(r, cx_r, y, x1, y);
+    }
+    
+    // Inner shadow line (top) to give a 3D depth effect
+    SDL_SetRenderDrawColor(r, 0, 0, 0, 40);
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+    SDL_RenderDrawLine(r, mid.x - 5, mid.y, mid.x + mid.w + 5, mid.y);
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_NONE);
+}
+
+void control_block_draw(SDL_Renderer *r, TTF_Font *font, ControlBlockType type, int x, int y, int inner1_h, int inner2_h, int a, bool has_condition, bool ghost, Color panel_bg, int selected_field, const char *override_field0_text) {
+    Color col = {255, 171, 25}; // Control Orange
+    SDL_Rect br = control_block_rect(type, x, y, inner1_h, inner2_h);
+    
+    int min_inner = 24;
+    int h1 = std::max(min_inner, inner1_h);
+    int h2 = std::max(min_inner, inner2_h);
+
+    if (type == CB_WAIT || type == CB_WAIT_UNTIL) {
+        draw_stack_shape_custom(r, br, col, panel_bg, ghost, true, true);
+    } else if (type == CB_REPEAT || type == CB_IF) {
+        draw_c_shape_native(r, x, y, br.w, 40, h1, 24, col, panel_bg, ghost, true, true);
+    } else if (type == CB_FOREVER) {
+        draw_c_shape_native(r, x, y, br.w, 40, h1, 20, col, panel_bg, ghost, true, false);
+    } else if (type == CB_IF_ELSE) {
+        draw_c_shape_native(r, x, y, br.w, 40, h1, 32, col, panel_bg, ghost, true, false);
+        draw_c_shape_native(r, x, y + 40 + h1, br.w, 32, h2, 24, col, panel_bg, ghost, false, true);
+    }
+
+    // --- DRAW TEXT AND INPUTS ---
+    int cur_x = br.x + 12;
+    int cy = br.y + (40 - 16) / 2;
+    Color txt_col = {255, 255, 255};
+    char bufA[32]; std::snprintf(bufA, sizeof(bufA), "%d", a);
+
+    auto draw_word = [&](const char *w, int y_pos) {
+        draw_text(r, font, w, cur_x, y_pos, txt_col);
+        cur_x += text_w(font, w) + 6;
+    };
+
+    auto draw_num = [&](const char *txt) {
+        SDL_Rect cap = input_capsule_rect(cur_x, br.y + 9, 40, 22);
+        draw_input_capsule(r, cap, selected_field == 0);
+        draw_text(r, font, override_field0_text ? override_field0_text : txt, cap.x + 6, cap.y + 3, {40,40,40});
+        cur_x += 46;
+    };
+
+    if (type == CB_WAIT) {
+        draw_word("wait", cy); draw_num(bufA); draw_word("seconds", cy);
+    } else if (type == CB_REPEAT) {
+        draw_word("repeat", cy); draw_num(bufA);
+    } else if (type == CB_FOREVER) {
+        draw_word("forever", cy);
+    } else if (type == CB_IF) {
+        draw_word("if", cy);
+        draw_hex_slot(r, cur_x, cy + 8, col, has_condition); cur_x += 56;
+        draw_word("then", cy);
+    } else if (type == CB_IF_ELSE) {
+        draw_word("if", cy);
+        draw_hex_slot(r, cur_x, cy + 8, col, has_condition); cur_x += 56;
+        draw_word("then", cy);
+        cur_x = br.x + 12;
+        draw_word("else", br.y + 40 + h1 + 8);
+    } else if (type == CB_WAIT_UNTIL) {
+        draw_word("wait", cy); draw_word("until", cy);
+        draw_hex_slot(r, cur_x, cy + 8, col, has_condition);
+    }
+}
+
+int control_block_hittest_field(TTF_Font *font, ControlBlockType type, int x, int y, int inner1_h, int inner2_h, int a, int px, int py) {
+    (void)font; (void)a;
+    SDL_Rect br = control_block_rect(type, x, y, inner1_h, inner2_h);
+    if (!(px >= br.x && px < br.x+br.w && py >= br.y && py < br.y+br.h)) return -1;
+    
+    int padding_x = 12;
+    int cur_x = br.x + padding_x;
+    
+    if (type == CB_WAIT || type == CB_REPEAT) {
+        cur_x += text_w(font, type == CB_WAIT ? "wait" : "repeat") + 6;
+        if (px >= cur_x && px < cur_x + 40 && py >= br.y + 9 && py < br.y + 31) return 0; // Number input
+    } else if (type == CB_IF || type == CB_IF_ELSE || type == CB_WAIT_UNTIL) {
+        cur_x += text_w(font, type == CB_WAIT_UNTIL ? "wait until" : "if") + 12;
+        if (px >= cur_x && px < cur_x + 50 && py >= br.y + 8 && py < br.y + 32) return -3; // Hex slot
+    }
+    return -1;
+}

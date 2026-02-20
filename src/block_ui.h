@@ -191,4 +191,23 @@ int  sensing_stack_block_hittest_field(TTF_Font *font,
                                        const std::string &text, int opt,
                                        int px, int py);
 
+/* ---------------- Control UI ---------------- */
+int control_block_width(ControlBlockType type);
+
+// Note: Control blocks heights are dynamic based on children!
+SDL_Rect control_block_rect(ControlBlockType type, int x, int y, int inner1_h, int inner2_h);
+
+void control_block_draw(SDL_Renderer *r, TTF_Font *font,
+                        ControlBlockType type,
+                        int x, int y, int inner1_h, int inner2_h,
+                        int a, bool has_condition,
+                        bool ghost, Color panel_bg,
+                        int selected_field,
+                        const char *override_field0_text);
+
+int control_block_hittest_field(TTF_Font *font,
+                                ControlBlockType type,
+                                int x, int y, int inner1_h, int inner2_h,
+                                int a, int px, int py);
+
 #endif

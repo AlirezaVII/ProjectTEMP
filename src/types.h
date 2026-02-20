@@ -58,10 +58,11 @@ enum GoToTarget { TARGET_RANDOM_POSITION = 0, TARGET_MOUSE_POINTER = 1 };
 enum LooksBlockType { LB_SAY_FOR = 0, LB_SAY, LB_THINK_FOR, LB_THINK, LB_SWITCH_COSTUME_TO, LB_NEXT_COSTUME, LB_SWITCH_BACKDROP_TO, LB_NEXT_BACKDROP, LB_CHANGE_SIZE_BY, LB_SET_SIZE_TO, LB_SHOW, LB_HIDE, LB_GO_TO_LAYER, LB_GO_LAYERS };
 enum SoundBlockType { SB_CHANGE_VOLUME_BY = 0, SB_SET_VOLUME_TO, SB_STOP_ALL_SOUNDS, SB_START_SOUND, SB_PLAY_SOUND_UNTIL_DONE };
 enum EventsBlockType { EB_WHEN_FLAG_CLICKED = 0, EB_WHEN_KEY_PRESSED, EB_WHEN_SPRITE_CLICKED, EB_WHEN_I_RECEIVE, EB_BROADCAST };
+enum ControlBlockType { CB_WAIT = 0, CB_REPEAT, CB_FOREVER, CB_IF, CB_WAIT_UNTIL, CB_IF_ELSE }; // <--- ADD THIS
 enum SensingBlockType { SENSB_TOUCHING = 0, SENSB_ASK_AND_WAIT, SENSB_KEY_PRESSED, SENSB_MOUSE_DOWN, SENSB_SET_DRAG_MODE, SENSB_COUNT };
 enum TouchingTarget { TOUCHING_MOUSE_POINTER = 0, TOUCHING_EDGE = 1, TOUCHING_SPRITE = 2 };
 enum DragMode { DRAG_DRAGGABLE = 0, DRAG_NOT_DRAGGABLE = 1 };
-enum BlockKind { BK_MOTION = 0, BK_LOOKS = 1, BK_SOUND = 2, BK_EVENTS = 3, BK_SENSING = 5 };
+enum BlockKind { BK_MOTION = 0, BK_LOOKS = 1, BK_SOUND = 2, BK_EVENTS = 3, BK_CONTROL = 4, BK_SENSING = 5 }; // <--- UPDATED
 enum BlockFieldType { BFT_INT = 0, BFT_TEXT = 1 };
 
 struct BlockInstance {
@@ -73,8 +74,21 @@ struct BlockInstance {
     int c = 0, d = 0, e = 0, f = 0; 
     int opt = 0;
     std::string text;
+    
+    /* AST Pointers */
     int next_id = -1;
     int parent_id = -1;
+    int child_id = -1;      // First block inside C-shape (or IF)
+    int child2_id = -1;     // First block inside ELSE shape
+    int condition_id = -1;  // Hexagonal boolean block attached here
+};
+enum SnapType {
+    SNAP_NONE = 0,
+    SNAP_AFTER,       // Bottom notch
+    SNAP_BEFORE,      // Top notch
+    SNAP_INSIDE_1,    // Inside first C-shape mouth
+    SNAP_INSIDE_2,    // Inside ELSE mouth
+    SNAP_CONDITION    // Hex slot
 };
 
 struct DragState {
@@ -90,8 +104,9 @@ struct DragState {
     bool snap_above; 
     int snap_x; int snap_y;
     int snap_target_id;
+    SnapType snap_type; // <--- ADD THIS
 
-    DragState() : active(false), from_palette(false), palette_kind(BK_MOTION), palette_subtype(0), dragged_block_id(-1), off_x(0), off_y(0), ghost_x(0), ghost_y(0), mouse_x(0), mouse_y(0), snap_valid(false), snap_above(false), snap_x(0), snap_y(0), snap_target_id(-1) {}
+    DragState() : active(false), from_palette(false), palette_kind(BK_MOTION), palette_subtype(0), dragged_block_id(-1), off_x(0), off_y(0), ghost_x(0), ghost_y(0), mouse_x(0), mouse_y(0), snap_valid(false), snap_above(false), snap_x(0), snap_y(0), snap_target_id(-1), snap_type(SNAP_NONE) {}
 };
 
 struct BlockInputState {
