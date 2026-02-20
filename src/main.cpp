@@ -19,6 +19,7 @@
 #include "sounds_tab.h"
 #include "sprite_panel.h"
 #include "renderer.h"
+#include "interpreter.h"
 
 #include <cstdio>
 #include <cstring>
@@ -187,6 +188,12 @@ int main(int /*argc*/, char* /*argv*/[])
                 continue; // IMPORTANT: BLOCKS ALL BACKGROUND CLICKS!
             }
             // ---------------------------------------------
+
+            // ---> INTERCEPT GLOBAL KEY PRESSES FOR EVENTS <---
+            if (e.type == SDL_KEYDOWN && state.active_input == INPUT_NONE && !state.file_menu_open && !state.var_modal_active) {
+                interpreter_trigger_key(state, e.key.keysym.sym);
+            }
+            // -------------------------------------------------------
 
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE &&
                 state.active_input == INPUT_NONE && !state.file_menu_open) {

@@ -1,6 +1,7 @@
 #include "stage.h"
 #include "config.h"
 #include "renderer.h"
+#include "interpreter.h" // <--- ADDED!
 
 static bool point_in_rect(int px, int py, const SDL_Rect &r) {
     return px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h;
@@ -47,10 +48,9 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state,
             SDL_QueryTexture(tex.scratch_cat, NULL, NULL, &tex_w, &tex_h);
         }
 
-        /* --- NEW FIX: Normalize base size so 100% looks correct --- */
         int base_w = tex_w;
         int base_h = tex_h;
-        int MAX_DEFAULT = 120; // Default size of Scratch cat at 100%
+        int MAX_DEFAULT = 120; 
         
         if (base_w > MAX_DEFAULT || base_h > MAX_DEFAULT) {
             if (base_w > base_h) {
@@ -62,20 +62,17 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state,
             }
         }
 
-        /* Apply Size scaling */
         int w = (base_w * state.sprite.size) / 100;
         int h = (base_h * state.sprite.size) / 100;
 
         SDL_Rect dest = { cx - w / 2, cy - h / 2, w, h };
 
-        /* Clip inside stage so sprite doesn't bleed out */
         SDL_RenderSetClipRect(r, const_cast<SDL_Rect*>(&rects.stage_area));
         
         if (tex.scratch_cat) {
             double angle = state.sprite.direction - 90.0;
             SDL_RenderCopyEx(r, tex.scratch_cat, NULL, &dest, angle, NULL, SDL_FLIP_NONE);
         } else {
-            /* Fallback orange box if image is missing */
             SDL_SetRenderDrawColor(r, 255, 165, 0, 255);
             SDL_RenderFillRect(r, &dest);
         }
@@ -90,7 +87,6 @@ bool stage_handle_event(const SDL_Event &e, AppState &state,
         SDL_QueryTexture(tex.scratch_cat, NULL, NULL, &tex_w, &tex_h);
     }
     
-    /* --- NEW FIX: Apply the exact same normalization for mouse dragging --- */
     int base_w = tex_w;
     int base_h = tex_h;
     int MAX_DEFAULT = 120;
@@ -120,6 +116,10 @@ bool stage_handle_event(const SDL_Event &e, AppState &state,
                     state.stage_drag_active = true;
                     state.stage_drag_off_x = mx - cx;
                     state.stage_drag_off_y = my - cy;
+                    
+                    // ---> NEW FIX: TRIGGERS "WHEN SPRITE CLICKED" EVENT! <---
+                    interpreter_trigger_sprite_click(state);
+
                     return true;
                 }
             }
@@ -129,7 +129,7 @@ bool stage_handle_event(const SDL_Event &e, AppState &state,
             int cx = e.motion.x - state.stage_drag_off_x;
             int cy = e.motion.y - state.stage_drag_off_y;
             state.sprite.x = cx - (rects.stage_area.x + rects.stage_area.w / 2);
-            state.sprite.y = (rects.stage_area.y + rects.stage_area.h / 2) - cy; // Y is inverted visually
+            state.sprite.y = (rects.stage_area.y + rects.stage_area.h / 2) - cy; 
             return true;
         }
     } else if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT) {
