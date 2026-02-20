@@ -127,7 +127,7 @@ void sprite_panel_layout(SpritePanelRects &rects)
     rects.backdrop_menu.h = menu_h;
     rects.backdrop_menu.x = rects.backdrop_btn.x +
                             (rects.backdrop_btn.w - MENU_W) / 2;
-    rects.backdrop_menu.y = rects.backdrop_btn.y - menu_h - 4;
+    rects.backdrop_menu.y = rects.backdrop_btn.y - menu_h;
 
     for (int i = 0; i < 3; i++) {
         rects.backdrop_menu_items[i].x = rects.backdrop_menu.x + MENU_PAD;
@@ -162,7 +162,7 @@ void sprite_panel_layout(SpritePanelRects &rects)
     rects.sprite_menu.h = menu_h;
     rects.sprite_menu.x = rects.sprite_btn.x +
                           (rects.sprite_btn.w - MENU_W) / 2;
-    rects.sprite_menu.y = rects.sprite_btn.y - menu_h - 4;
+    rects.sprite_menu.y = rects.sprite_btn.y - menu_h;
 
     for (int i = 0; i < 3; i++) {
         rects.sprite_menu_items[i].x = rects.sprite_menu.x + MENU_PAD;
@@ -178,11 +178,9 @@ void sprite_panel_layout(SpritePanelRects &rects)
 void sprite_panel_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state,
                        const Textures &tex, const SpritePanelRects &rects)
 {
-    /* ════════════ SPRITE LIST ════════════ */
-
-    /* background */
-    sp_fill_rect(r, rects.sprite_list_area, 244, 246, 248, 255);
-
+/* ════════════ SPRITE LIST ════════════ */
+    /* background: Light Blue matching Scratch UI */
+    sp_fill_rect(r, rects.sprite_list_area, 233, 238, 242, 255); // <--- Changed to light blue
     /* separator line between sprite list and backdrop panel */
     SDL_SetRenderDrawColor(r, 220, 220, 220, 255);
     SDL_RenderDrawLine(r,
@@ -286,8 +284,7 @@ void sprite_panel_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state,
     /* ════════════ BACKDROP PANEL ════════════ */
 
     /* background */
-    sp_fill_rect(r, rects.backdrop_area, 244, 246, 248, 255);
-
+        sp_fill_rect(r, rects.backdrop_area, 255, 255, 255, 255);    // <--- Changed to pure white
     /* "Stage" label at top */
     {
         int lx = rects.backdrop_area.x + rects.backdrop_area.w / 2;

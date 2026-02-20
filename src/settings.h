@@ -8,14 +8,24 @@
 
 struct SettingsRects {
     SDL_Rect panel;
+    
+    SDL_Rect sprite_name_label;
     SDL_Rect sprite_name_input;
+    
     SDL_Rect x_icon;
     SDL_Rect x_input;
     SDL_Rect y_icon;
     SDL_Rect y_input;
+    
+    SDL_Rect show_label;
+    SDL_Rect vis_on_btn;
+    SDL_Rect vis_off_btn;
+    
+    SDL_Rect size_label;
+    SDL_Rect size_input;
+    
     SDL_Rect dir_label_pos;
     SDL_Rect dir_input;
-    SDL_Rect vis_icon;
 };
 
 void settings_layout(SettingsRects &rects);

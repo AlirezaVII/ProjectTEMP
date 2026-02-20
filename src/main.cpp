@@ -119,14 +119,16 @@ int main(int /*argc*/, char* /*argv*/[])
                 break;
             }
 
-            /* --- always-active UI (regardless of tab) --- */
+/* --- always-active UI (regardless of tab) --- */
             if (filemenu_handle_event(e, state, filemenu_rects)) continue;
             if (navbar_handle_event(e, state, navbar_rects)) continue;
             if (tab_bar_handle_event(e, state, tab_bar_rects)) continue;
             if (settings_handle_event(e, state, settings_rects)) continue;
-            if (stage_handle_event(e, state, stage_rects)) continue;
+            
+            // Pass tex into stage_handle_event!
+            if (stage_handle_event(e, state, stage_rects, tex)) continue;
+            
             if (sprite_panel_handle_event(e, state, sprite_panel_rects)) continue;
-
             /* --- tab-specific event handling --- */
             if (state.current_tab == TAB_CODE)
             {
@@ -161,7 +163,13 @@ int main(int /*argc*/, char* /*argv*/[])
                         state.sprite.y = std::atoi(state.input_buffer.c_str());
                     } else if (state.active_input == INPUT_DIRECTION) {
                         state.sprite.direction = std::atoi(state.input_buffer.c_str());
-                    } else if (state.active_input == INPUT_BLOCK_FIELD) {
+                    } else if (state.active_input == INPUT_SIZE) { // <--- ADD THIS
+                        int s = std::atoi(state.input_buffer.c_str());
+                        if (s < 0) s = 0;
+                        if (s > 100) s = 100;
+                        state.sprite.size = s;
+                    }
+                    else if (state.active_input == INPUT_BLOCK_FIELD) {
                         workspace_commit_active_input(state);
                     }
 
@@ -193,13 +201,13 @@ int main(int /*argc*/, char* /*argv*/[])
         }
 
         /* --- always-visible UI (right column + top bars) --- */
-        stage_draw(renderer, font, state, stage_rects);
+    stage_draw(renderer, font, state, stage_rects, tex);
+        
         settings_draw(renderer, font, state, settings_rects, tex);
         sprite_panel_draw(renderer, font, state, tex, sprite_panel_rects);
         tab_bar_draw(renderer, font, state, tab_bar_rects, tex);
         navbar_draw(renderer, font, state, navbar_rects, tex);
         filemenu_draw(renderer, font, state, filemenu_rects);
-
         SDL_RenderPresent(renderer);
     }
 
