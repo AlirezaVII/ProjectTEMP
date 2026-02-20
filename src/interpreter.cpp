@@ -1,14 +1,18 @@
 #include "interpreter.h"
 #include "workspace.h"
-#include "audio.h" // <--- INCLUDED AUDIO MANAGER
+#include "audio.h" 
 #include "SDL.h" 
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 void interpreter_trigger_message(AppState &state, int msg_opt);
+
+// ---> NEW: MEMORY BANK FOR VARIABLES <---
+static std::unordered_map<std::string, float> global_vars;
 
 static void commit_active_typing(AppState& state) {
     if (state.active_input == INPUT_BLOCK_FIELD) {
@@ -18,9 +22,15 @@ static void commit_active_typing(AppState& state) {
     }
 }
 
-// ---> ADDED "WAITING_FOR_SOUND" FLAG TO THREADS <---
-struct ScriptThread {
+// ---> NEW: CALL STACK ENGINE FOR NESTED LOOPS AND IF-STATEMENTS <---
+struct StackFrame {
     int cur_node;
+    int loop_block_id;
+    int loop_count; 
+};
+
+struct ScriptThread {
+    std::vector<StackFrame> stack;
     unsigned int wait_until;
     bool waiting_for_sound; 
 };
@@ -37,6 +47,9 @@ static float eval_value(AppState& state, int block_id, float default_val, const 
             if (b->subtype == OP_MUL) return a * b_val;
             if (b->subtype == OP_DIV) return (b_val != 0) ? (a / b_val) : 0;
         }
+        if (b && b->kind == BK_VARIABLES && b->subtype == VB_VARIABLE) {
+            return global_vars[b->text]; // Reads variables instantly!
+        }
     }
     if (!text_val.empty()) return std::atof(text_val.c_str());
     return default_val;
@@ -45,6 +58,9 @@ static float eval_value(AppState& state, int block_id, float default_val, const 
 static std::string eval_string(AppState& state, int block_id, const std::string& text_val) {
     if (block_id != -1) {
         BlockInstance* b = workspace_find(state, block_id);
+        if (b && b->kind == BK_VARIABLES && b->subtype == VB_VARIABLE) {
+            char buf[32]; std::snprintf(buf, sizeof(buf), "%g", global_vars[b->text]); return std::string(buf);
+        }
         if (b && b->kind == BK_OPERATORS) {
             if (b->subtype == OP_JOIN) return eval_string(state, b->arg0_id, b->text) + eval_string(state, b->arg1_id, b->text2);
             if (b->subtype == OP_LETTER_OF) {
@@ -62,6 +78,46 @@ static std::string eval_string(AppState& state, int block_id, const std::string&
     return text_val;
 }
 
+// ---> NEW: BOOLEAN SENSOR ENGINE <---
+static bool eval_bool(AppState& state, int block_id) {
+    if (block_id == -1) return false;
+    BlockInstance* b = workspace_find(state, block_id);
+    if (!b) return false;
+    
+    if (b->kind == BK_OPERATORS) {
+        if (b->subtype == OP_GT) return eval_value(state, b->arg0_id, b->a, b->text) > eval_value(state, b->arg1_id, b->b, b->text2);
+        if (b->subtype == OP_LT) return eval_value(state, b->arg0_id, b->a, b->text) < eval_value(state, b->arg1_id, b->b, b->text2);
+        if (b->subtype == OP_EQ) return std::abs(eval_value(state, b->arg0_id, b->a, b->text) - eval_value(state, b->arg1_id, b->b, b->text2)) < 0.001f;
+        if (b->subtype == OP_AND) return eval_bool(state, b->arg0_id) && eval_bool(state, b->arg1_id);
+        if (b->subtype == OP_OR) return eval_bool(state, b->arg0_id) || eval_bool(state, b->arg1_id);
+        if (b->subtype == OP_NOT) return !eval_bool(state, b->arg0_id);
+    }
+    if (b->kind == BK_SENSING) {
+        if (b->subtype == SENSB_KEY_PRESSED) {
+            const Uint8* keys = SDL_GetKeyboardState(NULL);
+            int opt = b->opt;
+            if (opt == 0) return keys[SDL_SCANCODE_SPACE];
+            if (opt == 1) return keys[SDL_SCANCODE_UP];
+            if (opt == 2) return keys[SDL_SCANCODE_DOWN];
+            if (opt == 3) return keys[SDL_SCANCODE_LEFT];
+            if (opt == 4) return keys[SDL_SCANCODE_RIGHT];
+            if (opt >= 5 && opt <= 30) return keys[SDL_SCANCODE_A + (opt - 5)];
+            if (opt >= 31 && opt <= 39) return keys[SDL_SCANCODE_1 + (opt - 31)];
+            if (opt == 40) return keys[SDL_SCANCODE_0];
+        }
+        if (b->subtype == SENSB_MOUSE_DOWN) {
+            return (SDL_GetMouseState(NULL, NULL) & SDL_BUTTON(SDL_BUTTON_LEFT)) != 0;
+        }
+        if (b->subtype == SENSB_TOUCHING && b->opt == TOUCHING_MOUSE_POINTER) {
+            int mx, my; SDL_GetMouseState(&mx, &my);
+            int dx = (mx - (1280 - 240)) - state.sprite.x;
+            int dy = (180 - my + 60) - state.sprite.y;
+            return (dx*dx + dy*dy) < 2500; // Checks if mouse is touching cat!
+        }
+    }
+    return false;
+}
+
 void interpreter_tick(AppState &state) {
     if (!state.running) return;
 
@@ -70,21 +126,39 @@ void interpreter_tick(AppState &state) {
             i++; continue; 
         }
 
-        // ---> CHECK IF WE ARE BLOCKED BY A SOUND PLAYING <---
         if (g_threads[i].waiting_for_sound) {
             if (audio_is_playing()) {
-                i++; continue; // Still playing! Yield thread.
+                i++; continue; 
             } else {
-                g_threads[i].waiting_for_sound = false; // Finished!
+                g_threads[i].waiting_for_sound = false; 
             }
         }
 
-        int cur = g_threads[i].cur_node;
         bool yielded = false; 
 
-        while (cur != -1 && !yielded) {
+        while (!g_threads[i].stack.empty() && !yielded) {
+            StackFrame &frame = g_threads[i].stack.back();
+            int cur = frame.cur_node;
+
+            // ---> LOOPS AND BRANCHING RETURN LOGIC <---
+            if (cur == -1) {
+                if (frame.loop_block_id != -1) {
+                    BlockInstance *loop_b = workspace_find(state, frame.loop_block_id);
+                    if (loop_b) {
+                        if (frame.loop_count > 0 || frame.loop_count == -1) {
+                            if (frame.loop_count > 0) frame.loop_count--;
+                            frame.cur_node = loop_b->child_id; // Loop back up!
+                            yielded = true; // YIELD FOR SMOOTH ANIMATION
+                            break;
+                        }
+                    }
+                }
+                g_threads[i].stack.pop_back(); // Dead end, go back to parent
+                continue;
+            }
+
             BlockInstance* b = workspace_find(state, cur);
-            if (!b) { cur = -1; break; }
+            if (!b) { frame.cur_node = -1; continue; }
 
             if (b->kind == BK_MOTION) {
                 if (b->subtype == MB_MOVE_STEPS) {
@@ -113,83 +187,134 @@ void interpreter_tick(AppState &state) {
                         state.sprite.x = mx - (1280 - 240); state.sprite.y = 180 - my + 60;
                     }
                 }
-                cur = b->next_id;
+                frame.cur_node = b->next_id;
             } 
             else if (b->kind == BK_LOOKS) {
                 if (b->subtype == LB_SAY) {
                     state.sprite.say_text = eval_string(state, b->arg0_id, b->text);
                     state.sprite.is_thinking = false; state.sprite.say_end_time = 0;
-                    cur = b->next_id;
+                    frame.cur_node = b->next_id;
                 } else if (b->subtype == LB_THINK) {
                     state.sprite.say_text = eval_string(state, b->arg0_id, b->text);
                     state.sprite.is_thinking = true; state.sprite.say_end_time = 0;
-                    cur = b->next_id;
+                    frame.cur_node = b->next_id;
                 } else if (b->subtype == LB_SAY_FOR) {
                     state.sprite.say_text = eval_string(state, b->arg0_id, b->text);
                     state.sprite.is_thinking = false;
                     float sec = eval_value(state, b->arg1_id, b->a, b->text2);
                     state.sprite.say_end_time = SDL_GetTicks() + (unsigned int)(sec * 1000);
                     g_threads[i].wait_until = state.sprite.say_end_time;
-                    cur = b->next_id; yielded = true; 
+                    frame.cur_node = b->next_id; yielded = true; 
                 } else if (b->subtype == LB_THINK_FOR) {
                     state.sprite.say_text = eval_string(state, b->arg0_id, b->text);
                     state.sprite.is_thinking = true;
                     float sec = eval_value(state, b->arg1_id, b->a, b->text2);
                     state.sprite.say_end_time = SDL_GetTicks() + (unsigned int)(sec * 1000);
                     g_threads[i].wait_until = state.sprite.say_end_time;
-                    cur = b->next_id; yielded = true;
+                    frame.cur_node = b->next_id; yielded = true;
                 } else if (b->subtype == LB_CHANGE_SIZE_BY) {
-                    state.sprite.size += (int)eval_value(state, b->arg0_id, b->a, b->text); cur = b->next_id;
+                    state.sprite.size += (int)eval_value(state, b->arg0_id, b->a, b->text); frame.cur_node = b->next_id;
                 } else if (b->subtype == LB_SET_SIZE_TO) {
-                    state.sprite.size = (int)eval_value(state, b->arg0_id, b->a, b->text); cur = b->next_id;
+                    state.sprite.size = (int)eval_value(state, b->arg0_id, b->a, b->text); frame.cur_node = b->next_id;
                 } else if (b->subtype == LB_SHOW) {
-                    state.sprite.visible = true; cur = b->next_id;
+                    state.sprite.visible = true; frame.cur_node = b->next_id;
                 } else if (b->subtype == LB_HIDE) {
-                    state.sprite.visible = false; cur = b->next_id;
+                    state.sprite.visible = false; frame.cur_node = b->next_id;
                 }
             }
-            // ---> NEW: ALL SOUND EXECUTION LOGIC <---
             else if (b->kind == BK_SOUND) {
                 if (b->subtype == SB_CHANGE_VOLUME_BY) {
                     state.sprite.volume += (int)eval_value(state, b->arg0_id, b->a, b->text);
                     audio_set_volume(state.sprite.volume);
-                    cur = b->next_id;
+                    frame.cur_node = b->next_id;
                 } else if (b->subtype == SB_SET_VOLUME_TO) {
                     state.sprite.volume = (int)eval_value(state, b->arg0_id, b->a, b->text);
                     audio_set_volume(state.sprite.volume);
-                    cur = b->next_id;
+                    frame.cur_node = b->next_id;
                 } else if (b->subtype == SB_STOP_ALL_SOUNDS) {
                     audio_stop_all();
-                    cur = b->next_id;
+                    frame.cur_node = b->next_id;
                 } else if (b->subtype == SB_START_SOUND) {
                     audio_play_meow();
-                    cur = b->next_id;
+                    frame.cur_node = b->next_id;
                 } else if (b->subtype == SB_PLAY_SOUND_UNTIL_DONE) {
                     audio_play_meow();
-                    g_threads[i].waiting_for_sound = true; // YIELD UNTIL SOUND FINISHES
-                    cur = b->next_id; yielded = true;
+                    g_threads[i].waiting_for_sound = true; 
+                    frame.cur_node = b->next_id; yielded = true; 
                 }
             }
+            // ---> THE CONTROL BLOCKS! <---
             else if (b->kind == BK_CONTROL) {
                 if (b->subtype == CB_WAIT) {
                     float sec = eval_value(state, b->arg0_id, b->a, b->text);
                     g_threads[i].wait_until = SDL_GetTicks() + (unsigned int)(sec * 1000);
-                    cur = b->next_id; yielded = true; 
-                } else {
-                    cur = b->next_id;
+                    frame.cur_node = b->next_id; yielded = true; 
+                } 
+                else if (b->subtype == CB_REPEAT) {
+                    int count = (int)eval_value(state, b->arg0_id, b->a, b->text);
+                    frame.cur_node = b->next_id; // Set fallback for when loop finishes
+                    if (count > 0 && b->child_id != -1) {
+                        g_threads[i].stack.push_back({b->child_id, b->id, count - 1});
+                    }
                 }
+                else if (b->subtype == CB_FOREVER) {
+                    frame.cur_node = b->next_id; 
+                    if (b->child_id != -1) {
+                        g_threads[i].stack.push_back({b->child_id, b->id, -1});
+                    } else {
+                        yielded = true; // Protects against empty forever loop crashing PC!
+                    }
+                }
+                else if (b->subtype == CB_IF) {
+                    bool cond = eval_bool(state, b->condition_id);
+                    frame.cur_node = b->next_id;
+                    if (cond && b->child_id != -1) {
+                        g_threads[i].stack.push_back({b->child_id, -1, 0});
+                    }
+                }
+                else if (b->subtype == CB_IF_ELSE) {
+                    bool cond = eval_bool(state, b->condition_id);
+                    frame.cur_node = b->next_id;
+                    if (cond && b->child_id != -1) {
+                        g_threads[i].stack.push_back({b->child_id, -1, 0});
+                    } else if (!cond && b->child2_id != -1) {
+                        g_threads[i].stack.push_back({b->child2_id, -1, 0});
+                    }
+                }
+                else if (b->subtype == CB_WAIT_UNTIL) {
+                    bool cond = eval_bool(state, b->condition_id);
+                    if (!cond) {
+                        yielded = true; // Wait and check again next frame!
+                    } else {
+                        frame.cur_node = b->next_id;
+                    }
+                }
+            }
+            // ---> THE VARIABLES BLOCKS! <---
+            else if (b->kind == BK_VARIABLES) {
+                if (b->subtype == VB_SET && b->opt >= 0 && b->opt < (int)state.variables.size()) {
+                    std::string var_name = state.variables[b->opt];
+                    global_vars[var_name] = eval_value(state, b->arg0_id, b->a, b->text);
+                }
+                if (b->subtype == VB_CHANGE && b->opt >= 0 && b->opt < (int)state.variables.size()) {
+                    std::string var_name = state.variables[b->opt];
+                    global_vars[var_name] += eval_value(state, b->arg0_id, b->a, b->text);
+                }
+                frame.cur_node = b->next_id;
             }
             else if (b->kind == BK_EVENTS) {
                 if (b->subtype == EB_BROADCAST) interpreter_trigger_message(state, b->opt);
-                cur = b->next_id;
+                frame.cur_node = b->next_id;
             } else {
-                cur = b->next_id;
+                frame.cur_node = b->next_id;
             }
         }
 
-        g_threads[i].cur_node = cur;
-        if (cur == -1) g_threads.erase(g_threads.begin() + i); 
-        else i++;
+        if (g_threads[i].stack.empty()) {
+            g_threads.erase(g_threads.begin() + i); 
+        } else {
+            i++;
+        }
     }
 }
 
@@ -200,7 +325,7 @@ void interpreter_trigger_flag(AppState &state) {
     for (int root_id : state.top_level_blocks) {
         BlockInstance* b = workspace_find(state, root_id);
         if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_FLAG_CLICKED) {
-            g_threads.push_back({b->next_id, 0, false});
+            g_threads.push_back({ {{b->next_id, -1, 0}}, 0, false });
         }
     }
 }
@@ -214,7 +339,7 @@ void interpreter_trigger_key(AppState &state, SDL_Keycode sym) {
     for (int root_id : state.top_level_blocks) {
         BlockInstance* b = workspace_find(state, root_id);
         if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_KEY_PRESSED && b->opt == opt) {
-            g_threads.push_back({b->next_id, 0, false});
+            g_threads.push_back({ {{b->next_id, -1, 0}}, 0, false });
         }
     }
 }
@@ -224,7 +349,7 @@ void interpreter_trigger_sprite_click(AppState &state) {
     for (int root_id : state.top_level_blocks) {
         BlockInstance* b = workspace_find(state, root_id);
         if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_SPRITE_CLICKED) {
-            g_threads.push_back({b->next_id, 0, false});
+            g_threads.push_back({ {{b->next_id, -1, 0}}, 0, false });
         }
     }
 }
@@ -234,7 +359,7 @@ void interpreter_trigger_message(AppState &state, int msg_opt) {
     for (int root_id : state.top_level_blocks) {
         BlockInstance* b = workspace_find(state, root_id);
         if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_I_RECEIVE && b->opt == msg_opt) {
-            g_threads.push_back({b->next_id, 0, false});
+            g_threads.push_back({ {{b->next_id, -1, 0}}, 0, false });
         }
     }
 }
@@ -245,5 +370,5 @@ void interpreter_stop_all(AppState &state) {
     g_threads.clear();
     state.sprite.say_text = "";
     state.sprite.say_end_time = 0;
-    audio_stop_all(); // KILLS SOUNDS IMMEDIATELY
+    audio_stop_all(); 
 }
