@@ -1,0 +1,6 @@
+.vscode
+.DS_STORE
+*.zip
+*.o
+assets/icons
+assets/fonts
