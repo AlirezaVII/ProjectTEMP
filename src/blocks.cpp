@@ -228,7 +228,6 @@ int blocks_get_for_category(int cat, BlockDef *out, int max_out)
         if (n < max_out) out[n++] = make_reporter(BK_OPERATORS, (int)OP_SUB, c, 120, 40, "-");
         if (n < max_out) out[n++] = make_reporter(BK_OPERATORS, (int)OP_MUL, c, 120, 40, "*");
         if (n < max_out) out[n++] = make_reporter(BK_OPERATORS, (int)OP_DIV, c, 120, 40, "/");
-        if (n < max_out) out[n++] = make_reporter(BK_OPERATORS, (int)OP_RANDOM, c, 190, 40, "pick random");
         // Booleans
         if (n < max_out) out[n++] = make_boolean(BK_OPERATORS, (int)OP_GT, c, 140, 40, ">");
         if (n < max_out) out[n++] = make_boolean(BK_OPERATORS, (int)OP_LT, c, 140, 40, "<");
@@ -240,7 +239,6 @@ int blocks_get_for_category(int cat, BlockDef *out, int max_out)
         if (n < max_out) out[n++] = make_reporter(BK_OPERATORS, (int)OP_JOIN, c, 180, 40, "join");
         if (n < max_out) out[n++] = make_reporter(BK_OPERATORS, (int)OP_LETTER_OF, c, 180, 40, "letter of");
         if (n < max_out) out[n++] = make_reporter(BK_OPERATORS, (int)OP_LENGTH_OF, c, 140, 40, "length of");
-        if (n < max_out) out[n++] = make_boolean(BK_OPERATORS, (int)OP_CONTAINS, c, 200, 40, "contains");
         break;
     }
 

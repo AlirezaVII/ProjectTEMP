@@ -63,10 +63,9 @@ enum SensingBlockType { SENSB_TOUCHING = 0, SENSB_ASK_AND_WAIT, SENSB_KEY_PRESSE
 // ADD THIS ENUM (Right after SensingBlockType is fine)
 enum OperatorsBlockType {
     OP_ADD = 0, OP_SUB, OP_MUL, OP_DIV,
-    OP_RANDOM,
     OP_GT, OP_LT, OP_EQ,
     OP_AND, OP_OR, OP_NOT,
-    OP_JOIN, OP_LETTER_OF, OP_LENGTH_OF, OP_CONTAINS
+    OP_JOIN, OP_LETTER_OF, OP_LENGTH_OF
 };
 // --- ADDED OPERATORS HERE ---
 enum OperatorBlockType { OB_ADD = 0, OB_SUB, OB_MUL, OB_DIV, OB_GT, OB_LT, OB_EQ, OB_AND, OB_OR, OB_NOT, OB_JOIN, OB_LETTER_OF, OB_LENGTH_OF };

@@ -98,17 +98,17 @@ void palette_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state,
                 int def_a = (defs[i].subtype == CB_WAIT) ? 1 : 10;
                 control_block_draw(r, font, (ControlBlockType)defs[i].subtype, bx, by, 24, 24, def_a, false, false, bg, -1, nullptr);
             }
-            // ---> ADD THIS ENTIRE BLOCK FOR OPERATORS <---
-            else if (defs[i].kind == BK_OPERATORS)
-            {
-                int def_a = (defs[i].subtype == OP_RANDOM) ? 1 : 0;
-                int def_b = 0;
-                if (defs[i].subtype == OP_RANDOM)
-                    def_b = 10;
-                if (defs[i].subtype == OP_GT || defs[i].subtype == OP_LT || defs[i].subtype == OP_EQ)
-                    def_b = 50;
-
-                operators_block_draw(r, font, (OperatorsBlockType)defs[i].subtype, bx, by, "", "", def_a, def_b, false, bg, -1, nullptr, nullptr);
+        }
+        else if (defs[i].is_reporter_block) 
+        {
+            if (defs[i].kind == BK_OPERATORS) {
+                std::string def_a = "";
+                std::string def_b = "";
+                if (defs[i].subtype == OP_JOIN) { def_a = "apple"; def_b = "banana"; }
+                if (defs[i].subtype == OP_LETTER_OF) { def_a = "1"; def_b = "apple"; }
+                if (defs[i].subtype == OP_LENGTH_OF) { def_a = "apple"; }
+                
+                operators_block_draw(r, font, (OperatorsBlockType)defs[i].subtype, bx, by, def_a, def_b, 0, 0, false, bg, -1, nullptr, nullptr);
             }
         }
         else if (defs[i].is_boolean_block)
@@ -117,6 +117,13 @@ void palette_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state,
             {
                 BlockInstance def = workspace_make_default_sensing((SensingBlockType)defs[i].subtype);
                 sensing_boolean_block_draw(r, font, (SensingBlockType)defs[i].subtype, bx, by, def.opt, def.a, def.b, def.c, def.d, def.e, def.f, false, bg, -1, nullptr);
+            }
+            else if (defs[i].kind == BK_OPERATORS) {
+                std::string def_a = "";
+                std::string def_b = "";
+                if (defs[i].subtype == OP_GT || defs[i].subtype == OP_LT || defs[i].subtype == OP_EQ) def_b = "50";
+                
+                operators_block_draw(r, font, (OperatorsBlockType)defs[i].subtype, bx, by, def_a, def_b, 0, 0, false, bg, -1, nullptr, nullptr);
             }
         }
         else
@@ -149,7 +156,7 @@ bool palette_handle_event(const SDL_Event &e, AppState &state,
             int n = blocks_get_for_category(state.selected_category, defs, 32);
 
             int bx = rects.panel.x + 12;
-            int by = rects.panel.y + 60; // <-- Kept your beautiful 45 spacing!
+            int by = rects.panel.y + 60; // <-- Kept your beautiful spacing!
 
             for (int i = 0; i < n; i++)
             {
