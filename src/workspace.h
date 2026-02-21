@@ -22,6 +22,10 @@ BlockInstance workspace_make_default_events(EventsBlockType type);
 /* Sensing defaults */
 BlockInstance workspace_make_default_sensing(SensingBlockType type);
 
+/* Operators defaults */
+BlockInstance workspace_make_default_operators(OperatorsBlockType type);
+
+
 /* Add a new top-level block to workspace, returns its id */
 int workspace_add_top_level(AppState &state, const BlockInstance &b);
 

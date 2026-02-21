@@ -5,6 +5,8 @@
 #include <cstdio>
 #include <cstring>
 
+static void draw_reporter_shape(SDL_Renderer *r, const SDL_Rect &br, Color col, bool ghost);
+
 /* ---------- small text helpers ---------- */
 
 static int text_w(TTF_Font *f, const char *txt)
@@ -528,6 +530,12 @@ int looks_block_width(LooksBlockType type)
         return 260;
     case LB_GO_LAYERS:
         return 310;
+    case LB_SIZE:
+        return 80;
+    case LB_BACKDROP_NUM_NAME:
+        return 170;
+    case LB_COSTUME_NUM_NAME:
+        return 170;
     default:
         return 260;
     }
@@ -540,164 +548,88 @@ SDL_Rect looks_block_rect(LooksBlockType type, int x, int y)
     return r;
 }
 
-void looks_block_draw(SDL_Renderer *r, TTF_Font *font,
-                      LooksBlockType type,
-                      int x, int y,
-                      const std::string &text,
-                      int a, int b, int opt,
-                      bool ghost, Color panel_bg,
-                      int selected_field,
-                      const char *override_field0_text,
-                      const char *override_field1_text)
+void looks_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, LooksBlockType type, int x, int y, const std::string &text, int a, int b, int opt, bool ghost, Color panel_bg, int selected_field, const char *override_field0_text, const char *override_field1_text)
 {
     (void)b;
-
     Color looks_col = {153, 102, 255};
     SDL_Rect br = looks_block_rect(type, x, y);
-    draw_stack_shape(r, br, looks_col, panel_bg, ghost);
+    bool is_reporter = (type == LB_SIZE || type == LB_BACKDROP_NUM_NAME || type == LB_COSTUME_NUM_NAME);
+    if (is_reporter)
+        draw_reporter_shape(r, br, looks_col, ghost);
+    else
+        draw_stack_shape(r, br, looks_col, panel_bg, ghost);
 
     int padding_x = 12;
     int cy = br.y + (br.h - 16) / 2;
-
     Color txt_col = {255, 255, 255};
-
     char bufA[32];
     std::snprintf(bufA, sizeof(bufA), "%d", a);
-
     int cap_h = 22;
     int cap_y = br.y + (br.h - cap_h) / 2;
-
     int cur_x = br.x + padding_x;
-
     auto draw_word = [&](const char *w)
-    {
-        draw_text(r, font, w, cur_x, cy, txt_col);
-        cur_x += text_w(font, w) + 6;
-    };
-
-    auto draw_text_caps = [&](const char *default_txt,
-                              const char *override_txt,
-                              int field_index,
-                              int cap_w)
-    {
-        const char *show = default_txt;
-        if (override_txt)
-            show = override_txt;
-
-        SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cap_w, cap_h);
-        draw_input_capsule(r, cap, selected_field == field_index);
-
-        int tw = text_w(font, show);
-        int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6);
-        int ty = cap.y + (cap.h - 16) / 2;
-        draw_text(r, font, show, tx, ty, (Color){40, 40, 40});
-
-        cur_x += cap.w + 6;
-    };
-
-    auto draw_num_caps = [&](const char *num_default,
-                             const char *override_txt,
-                             int field_index,
-                             int cap_w)
-    {
-        draw_text_caps(num_default, override_txt, field_index, cap_w);
-    };
+    { draw_text(r, font, w, cur_x, cy, txt_col); cur_x += text_w(font, w) + 6; };
+    auto draw_text_caps = [&](const char *default_txt, const char *override_txt, int field_index, int cap_w)
+    { const char *show = default_txt; if (override_txt && selected_field == field_index) show = override_txt; SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cap_w, cap_h); draw_input_capsule(r, cap, selected_field == field_index); int tw = text_w(font, show); int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6); int ty = cap.y + (cap.h - 16) / 2; draw_text(r, font, show, tx, ty, (Color){40, 40, 40}); cur_x += cap.w + 6; };
+    auto draw_num_caps = [&](const char *num_default, const char *override_txt, int field_index, int cap_w)
+    { draw_text_caps(num_default, override_txt, field_index, cap_w); };
+    auto draw_dd = [&](const char *txt)
+    { int tw = text_w(font, txt); int cap_w = std::max(90, tw + 26); SDL_Rect dd{cur_x, cap_y, cap_w, cap_h}; draw_dropdown_capsule(r, dd, (Color){120, 70, 220}); int tx = dd.x + 10; int ty = dd.y + (dd.h - 16) / 2; draw_text(r, font, txt, tx, ty, (Color){255, 255, 255}); draw_caret(r, dd.x + dd.w - 12, dd.y + dd.h / 2, (Color){255, 255, 255}); cur_x += cap_w + 6; };
 
     switch (type)
     {
     case LB_SAY_FOR:
-    {
         draw_word("say");
         draw_text_caps(text.c_str(), override_field0_text, 0, 110);
         draw_word("for");
         draw_num_caps(bufA, override_field1_text, 1, 48);
         draw_word("seconds");
-    }
-    break;
-
+        break;
     case LB_SAY:
-    {
         draw_word("say");
         draw_text_caps(text.c_str(), override_field0_text, 0, 120);
-    }
-    break;
-
+        break;
     case LB_THINK_FOR:
-    {
         draw_word("think");
         draw_text_caps(text.c_str(), override_field0_text, 0, 120);
         draw_word("for");
         draw_num_caps(bufA, override_field1_text, 1, 48);
         draw_word("seconds");
-    }
-    break;
-
+        break;
     case LB_THINK:
-    {
         draw_word("think");
         draw_text_caps(text.c_str(), override_field0_text, 0, 140);
-    }
-    break;
-
+        break;
     case LB_SWITCH_COSTUME_TO:
-    {
         draw_word("switch");
         draw_word("costume");
         draw_word("to");
-
-        const char *opt_txt = (opt == 0) ? "costume1" : (opt == 1) ? "costume2"
-                                                                   : "costume3";
-        int opt_w = text_w(font, opt_txt);
-        int cap_w = std::max(110, opt_w + 24);
-
-        SDL_Rect dd{cur_x, cap_y, cap_w, cap_h};
-        draw_dropdown_capsule(r, dd, (Color){120, 70, 220});
-
-        int tx = dd.x + 10;
-        int ty = dd.y + (dd.h - 16) / 2;
-        draw_text(r, font, opt_txt, tx, ty, (Color){255, 255, 255});
-        draw_caret(r, dd.x + dd.w - 12, dd.y + dd.h / 2, (Color){255, 255, 255});
-    }
-    break;
-
+        draw_dd((opt == 0) ? "costume1" : (opt == 1) ? "costume2"
+                                                     : "costume3");
+        break;
     case LB_NEXT_COSTUME:
         draw_word("next");
         draw_word("costume");
         break;
-
     case LB_SWITCH_BACKDROP_TO:
     {
         draw_word("switch");
         draw_word("backdrop");
         draw_word("to");
-
-        const char *opt_txt = (opt == 0) ? "backdrop1" : (opt == 1) ? "backdrop2"
-                                                                    : "backdrop3";
-        int opt_w = text_w(font, opt_txt);
-        int cap_w = std::max(120, opt_w + 24);
-
-        SDL_Rect dd{cur_x, cap_y, cap_w, cap_h};
-        draw_dropdown_capsule(r, dd, (Color){120, 70, 220});
-
-        int tx = dd.x + 10;
-        int ty = dd.y + (dd.h - 16) / 2;
-        draw_text(r, font, opt_txt, tx, ty, (Color){255, 255, 255});
-        draw_caret(r, dd.x + dd.w - 12, dd.y + dd.h / 2, (Color){255, 255, 255});
+        std::string b_txt = (opt >= 0 && opt < (int)state.backdrops.size()) ? state.backdrops[opt].name : "backdrop1";
+        draw_dd(b_txt.c_str());
     }
     break;
-
     case LB_NEXT_BACKDROP:
         draw_word("next");
         draw_word("backdrop");
         break;
-
     case LB_CHANGE_SIZE_BY:
         draw_word("change");
         draw_word("size");
         draw_word("by");
         draw_num_caps(bufA, override_field0_text, 0, 48);
         break;
-
     case LB_SET_SIZE_TO:
         draw_word("set");
         draw_word("size");
@@ -705,95 +637,62 @@ void looks_block_draw(SDL_Renderer *r, TTF_Font *font,
         draw_num_caps(bufA, override_field0_text, 0, 48);
         draw_word("%");
         break;
-
     case LB_SHOW:
         draw_word("show");
         break;
-
     case LB_HIDE:
         draw_word("hide");
         break;
-
     case LB_GO_TO_LAYER:
-    {
         draw_word("go");
         draw_word("to");
+        draw_dd(opt == 0 ? "front" : "back");
         draw_word("layer");
-
-        const char *opt_txt = (opt == 0) ? "front" : "back";
-        int opt_w = text_w(font, opt_txt);
-        int cap_w = std::max(90, opt_w + 24);
-
-        SDL_Rect dd{cur_x, cap_y, cap_w, cap_h};
-        draw_dropdown_capsule(r, dd, (Color){120, 70, 220});
-
-        int tx = dd.x + 10;
-        int ty = dd.y + (dd.h - 16) / 2;
-        draw_text(r, font, opt_txt, tx, ty, (Color){255, 255, 255});
-        draw_caret(r, dd.x + dd.w - 12, dd.y + dd.h / 2, (Color){255, 255, 255});
-    }
-    break;
-
+        break;
     case LB_GO_LAYERS:
-    {
         draw_word("go");
-        const char *opt_txt = (opt == 0) ? "forward" : "backward";
-        int opt_w = text_w(font, opt_txt);
-        int cap_w = std::max(110, opt_w + 24);
-
-        SDL_Rect dd{cur_x, cap_y, cap_w, cap_h};
-        draw_dropdown_capsule(r, dd, (Color){120, 70, 220});
-        int tx = dd.x + 10;
-        int ty = dd.y + (dd.h - 16) / 2;
-        draw_text(r, font, opt_txt, tx, ty, (Color){255, 255, 255});
-        draw_caret(r, dd.x + dd.w - 12, dd.y + dd.h / 2, (Color){255, 255, 255});
-
-        cur_x += cap_w + 6;
-        draw_word("layers");
+        draw_dd(opt == 0 ? "forward" : "backward");
         draw_num_caps(bufA, override_field0_text, 0, 48);
-    }
-    break;
-
+        draw_word("layers");
+        break;
+    case LB_SIZE:
+        draw_word("size");
+        break;
+    case LB_BACKDROP_NUM_NAME:
+        draw_word("backdrop");
+        draw_dd(opt == 0 ? "number" : "name");
+        break;
+    case LB_COSTUME_NUM_NAME:
+        draw_word("costume");
+        draw_dd(opt == 0 ? "number" : "name");
+        break;
     default:
         draw_word("looks");
         break;
     }
 }
 
-int looks_block_hittest_field(TTF_Font *font,
-                              LooksBlockType type,
-                              int x, int y,
-                              const std::string &text,
-                              int a, int b, int opt,
-                              int px, int py)
+int looks_block_hittest_field(TTF_Font *font, const AppState &state, LooksBlockType type, int x, int y, const std::string &text, int a, int b, int opt, int px, int py)
 {
     (void)text;
     (void)a;
     (void)b;
     (void)opt;
-
     SDL_Rect br = looks_block_rect(type, x, y);
     if (!(px >= br.x && px < br.x + br.w && py >= br.y && py < br.y + br.h))
         return -1;
-
     int padding_x = 12;
     int cap_h = 22;
     int cap_y = br.y + (br.h - cap_h) / 2;
     int cur_x = br.x + padding_x;
-
     auto adv_word = [&](const char *w)
     { cur_x += text_w(font, w) + 6; };
     auto cap_rect = [&](int w)
-    {
-        SDL_Rect rc{cur_x, cap_y, w, cap_h};
-        cur_x += w + 6;
-        return rc;
-    };
+    { SDL_Rect rc{cur_x, cap_y, w, cap_h}; cur_x += w + 6; return rc; };
     auto in = [&](const SDL_Rect &rc)
-    {
-        return px >= rc.x && px < rc.x + rc.w && py >= rc.y && py < rc.y + rc.h;
-    };
-
+    { return px >= rc.x && px < rc.x + rc.w && py >= rc.y && py < rc.y + rc.h; };
+    auto dd_w = [&](const char *txt)
+    { return std::max(90, text_w(font, txt) + 26); };
     switch (type)
     {
     case LB_SAY_FOR:
@@ -804,13 +703,11 @@ int looks_block_hittest_field(TTF_Font *font,
         if (in(cap_rect(48)))
             return 1;
         return -1;
-
     case LB_SAY:
         adv_word("say");
         if (in(cap_rect(120)))
             return 0;
         return -1;
-
     case LB_THINK_FOR:
         adv_word("think");
         if (in(cap_rect(120)))
@@ -819,13 +716,11 @@ int looks_block_hittest_field(TTF_Font *font,
         if (in(cap_rect(48)))
             return 1;
         return -1;
-
     case LB_THINK:
         adv_word("think");
         if (in(cap_rect(140)))
             return 0;
         return -1;
-
     case LB_SWITCH_COSTUME_TO:
         adv_word("switch");
         adv_word("costume");
@@ -833,21 +728,20 @@ int looks_block_hittest_field(TTF_Font *font,
         if (in(cap_rect(120)))
             return -2;
         return -1;
-
     case LB_NEXT_COSTUME:
         return -1;
-
     case LB_SWITCH_BACKDROP_TO:
+    {
         adv_word("switch");
         adv_word("backdrop");
         adv_word("to");
-        if (in(cap_rect(130)))
+        std::string b_txt = (opt >= 0 && opt < (int)state.backdrops.size()) ? state.backdrops[opt].name : "backdrop1";
+        if (in(cap_rect(dd_w(b_txt.c_str()))))
             return -2;
+    }
         return -1;
-
     case LB_NEXT_BACKDROP:
         return -1;
-
     case LB_CHANGE_SIZE_BY:
         adv_word("change");
         adv_word("size");
@@ -855,7 +749,6 @@ int looks_block_hittest_field(TTF_Font *font,
         if (in(cap_rect(48)))
             return 0;
         return -1;
-
     case LB_SET_SIZE_TO:
         adv_word("set");
         adv_word("size");
@@ -863,28 +756,34 @@ int looks_block_hittest_field(TTF_Font *font,
         if (in(cap_rect(48)))
             return 0;
         return -1;
-
     case LB_SHOW:
     case LB_HIDE:
         return -1;
-
     case LB_GO_TO_LAYER:
         adv_word("go");
         adv_word("to");
-        adv_word("layer");
-        if (in(cap_rect(100)))
+        if (in(cap_rect(dd_w(opt == 0 ? "front" : "back"))))
             return -2;
         return -1;
-
     case LB_GO_LAYERS:
         adv_word("go");
-        if (in(cap_rect(120)))
+        if (in(cap_rect(dd_w(opt == 0 ? "forward" : "backward"))))
             return -2;
-        adv_word("layers");
         if (in(cap_rect(48)))
             return 0;
         return -1;
-
+    case LB_SIZE:
+        return -1;
+    case LB_BACKDROP_NUM_NAME:
+        adv_word("backdrop");
+        if (in(cap_rect(dd_w(opt == 0 ? "number" : "name"))))
+            return -2;
+        return -1;
+    case LB_COSTUME_NUM_NAME:
+        adv_word("costume");
+        if (in(cap_rect(dd_w(opt == 0 ? "number" : "name"))))
+            return -2;
+        return -1;
     default:
         return -1;
     }
@@ -1399,11 +1298,16 @@ static const char *sensing_key_label(int opt)
 {
     static char buf[8];
 
-    if (opt == 0) return "space";
-    if (opt == 1) return "up arrow";
-    if (opt == 2) return "down arrow";
-    if (opt == 3) return "left arrow";
-    if (opt == 4) return "right arrow";
+    if (opt == 0)
+        return "space";
+    if (opt == 1)
+        return "up arrow";
+    if (opt == 2)
+        return "down arrow";
+    if (opt == 3)
+        return "left arrow";
+    if (opt == 4)
+        return "right arrow";
 
     if (opt >= 5 && opt <= 30)
     {

@@ -2,6 +2,7 @@
 #include "config.h"
 #include "renderer.h"
 #include "interpreter.h"
+#include <algorithm>
 
 static bool point_in_rect(int px, int py, const SDL_Rect &r) { return px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h; }
 static void set_color(SDL_Renderer *r, Color c) { SDL_SetRenderDrawColor(r, c.r, c.g, c.b, 255); }
@@ -27,7 +28,7 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const St
     set_color(r, COL_STAGE_BG);
     SDL_RenderFillRect(r, &rects.panel);
 
-    // ---> NEW: DRAW ACTIVE BACKDROP BEHIND SPRITES <---
+    // ---> DRAW ACTIVE BACKDROP BEHIND EVERYTHING <---
     if (state.selected_backdrop >= 0 && state.selected_backdrop < (int)state.backdrops.size())
     {
         SDL_Texture *bg_tex = state.backdrops[state.selected_backdrop].texture;
@@ -51,9 +52,16 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const St
     SDL_RenderDrawRect(r, &rects.stage_area);
     SDL_RenderSetClipRect(r, const_cast<SDL_Rect *>(&rects.stage_area));
 
-    // ---> 1. DRAW ALL SPRITES <---
-    for (const auto &spr : state.sprites)
+    // ---> DRAW ALL SPRITES (SORTED BY LAYER ORDER) <---
+    std::vector<const Sprite *> sorted_sprites;
+    for (const auto &s : state.sprites)
+        sorted_sprites.push_back(&s);
+    std::stable_sort(sorted_sprites.begin(), sorted_sprites.end(), [](const Sprite *a, const Sprite *b)
+                     { return a->layer_order < b->layer_order; });
+
+    for (const Sprite *spr_ptr : sorted_sprites)
     {
+        const Sprite &spr = *spr_ptr;
         if (spr.visible)
         {
             int cx = rects.stage_area.x + rects.stage_area.w / 2 + spr.x;
@@ -109,6 +117,7 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const St
                         bub_x = dest.x - bub_w + 10;
                     if (bub_y < rects.stage_area.y)
                         bub_y = dest.y + dest.h;
+
                     if (spr.is_thinking && tex.cloud)
                     {
                         SDL_Rect cloud_r = {bub_x - 10, bub_y - 10, bub_w + 20, bub_h + 30};
@@ -148,7 +157,7 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const St
         }
     }
 
-    // ---> 2. DRAW ASK & WAIT BOX <---
+    // ---> DRAW ASK & WAIT BOX <---
     if (state.ask_active)
     {
         int ask_h = 60;
@@ -189,20 +198,17 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const St
         }
     }
 
-    // ---> 3. DRAW VARIABLES (RESTORED) <---
+    // ---> DRAW VARIABLES ON TOP <---
     int var_y = rects.stage_area.y + 10;
     for (const std::string &vname : state.variables)
     {
         if (state.variable_visible.count(vname) && state.variable_visible.at(vname))
         {
-
             std::string s_val = state.variable_values.count(vname) ? state.variable_values.at(vname) : "0";
-
             int tw1 = 0, th1 = 0;
             TTF_SizeUTF8(font, vname.c_str(), &tw1, &th1);
             int tw2 = 0, th2 = 0;
             TTF_SizeUTF8(font, s_val.c_str(), &tw2, &th2);
-
             int box_w = tw1 + tw2 + 24;
             SDL_Rect mon = {rects.stage_area.x + 10, var_y, box_w, 24};
 
@@ -223,7 +229,6 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const St
 
             SDL_Rect val_bg = {mon.x + tw1 + 12, mon.y + 3, tw2 + 8, 18};
             renderer_fill_rounded_rect(r, &val_bg, 4, 255, 140, 26);
-
             SDL_Color tcv = {255, 255, 255, 255};
             SDL_Surface *s2 = TTF_RenderUTF8_Blended(font, s_val.c_str(), tcv);
             if (s2)
@@ -237,7 +242,6 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const St
             var_y += 30;
         }
     }
-
     SDL_RenderSetClipRect(r, NULL);
 }
 
@@ -248,17 +252,26 @@ bool stage_handle_event(const SDL_Event &e, AppState &state, const StageRects &r
         int mx = e.button.x, my = e.button.y;
         if (point_in_rect(mx, my, rects.stage_area))
         {
-            // Hit test backwards (top to bottom)
-            for (int i = (int)state.sprites.size() - 1; i >= 0; i--)
+            // ---> HIT TEST BACKWARDS (BASED ON LAYER ORDER) <---
+            std::vector<int> sorted_indices;
+            for (int i = 0; i < (int)state.sprites.size(); i++)
+                sorted_indices.push_back(i);
+            std::stable_sort(sorted_indices.begin(), sorted_indices.end(), [&](int a, int b)
+                             { return state.sprites[a].layer_order < state.sprites[b].layer_order; });
+
+            for (int i = (int)sorted_indices.size() - 1; i >= 0; i--)
             {
-                auto &spr = state.sprites[i];
+                int idx = sorted_indices[i];
+                auto &spr = state.sprites[idx];
                 if (!spr.visible)
                     continue;
+
                 int cx = rects.stage_area.x + rects.stage_area.w / 2 + spr.x;
                 int cy = rects.stage_area.y + rects.stage_area.h / 2 - spr.y;
                 int tex_w = 100, tex_h = 100;
                 if (spr.texture)
                     SDL_QueryTexture(spr.texture, NULL, NULL, &tex_w, &tex_h);
+
                 int base_w = tex_w;
                 int base_h = tex_h;
                 int MAX_DEFAULT = 120;
@@ -278,9 +291,10 @@ bool stage_handle_event(const SDL_Event &e, AppState &state, const StageRects &r
                 int w = (base_w * spr.size) / 100;
                 int h = (base_h * spr.size) / 100;
                 SDL_Rect sprite_rect = {cx - w / 2, cy - h / 2, w, h};
+
                 if (point_in_rect(mx, my, sprite_rect))
                 {
-                    state.selected_sprite = i;
+                    state.selected_sprite = idx; // Set correct array index!
                     if (spr.draggable)
                     {
                         state.stage_drag_active = true;

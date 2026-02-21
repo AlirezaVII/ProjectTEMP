@@ -68,14 +68,14 @@ void sprite_panel_layout(SpritePanelRects &rects)
     rects.backdrop_area.w = BACKDROP_W;
     rects.backdrop_area.h = panel_h;
 
-    // ---> FIXED: PUSHED THUMBNAIL DOWN TO FIX SPACING <---
+    // ---> FIXED SPACING HERE <---
     rects.backdrop_thumb.w = 64;
     rects.backdrop_thumb.h = 48;
     rects.backdrop_thumb.x = rects.backdrop_area.x + (rects.backdrop_area.w - rects.backdrop_thumb.w) / 2;
-    rects.backdrop_thumb.y = rects.backdrop_area.y + 28;
+    rects.backdrop_thumb.y = rects.backdrop_area.y + 30; // Move thumb down to fit "Stage" above it
 
     rects.backdrop_label.x = rects.backdrop_area.x;
-    rects.backdrop_label.y = rects.backdrop_thumb.y + rects.backdrop_thumb.h + 5;
+    rects.backdrop_label.y = rects.backdrop_thumb.y + rects.backdrop_thumb.h;
     rects.backdrop_label.w = rects.backdrop_area.w;
     rects.backdrop_label.h = 30;
 
@@ -183,8 +183,6 @@ void sprite_panel_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, c
     if (state.sprite_menu_open)
     {
         sp_fill_rect(r, rects.sprite_menu, 77, 151, 255, 255);
-
-        // FIXED ICON ORDER: [0]=Top(Upload), [1]=Middle(Surprise), [2]=Bottom(Search)
         SDL_Texture *icons[3] = {tex.upload_icon, tex.surprise_icon, tex.search_icon};
         for (int i = 0; i < 3; i++)
         {
@@ -200,9 +198,10 @@ void sprite_panel_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, c
     }
 
     sp_fill_rect(r, rects.backdrop_area, 255, 255, 255, 255);
-    sp_draw_text_centered(r, font, "Stage", rects.backdrop_area.x + rects.backdrop_area.w / 2, rects.backdrop_area.y + 12, 80, 80, 80);
 
-    // ---> FIXED: BACKDROP THUMBNAIL DRAWING <---
+    // ---> FIXED SPACING: TEXT OVERLAPS ELIMINATED <---
+    sp_draw_text_centered(r, font, "Stage", rects.backdrop_area.x + rects.backdrop_area.w / 2, rects.backdrop_area.y + 16, 80, 80, 80);
+
     SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
     SDL_RenderFillRect(r, const_cast<SDL_Rect *>(&rects.backdrop_thumb));
 
@@ -215,14 +214,14 @@ void sprite_panel_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, c
         }
         std::string bg_name = state.backdrops[state.selected_backdrop].name;
 
-        // Spread the texts out so they don't overlap!
-        sp_draw_text_centered(r, font, "Backdrops", rects.backdrop_area.x + rects.backdrop_area.w / 2, rects.backdrop_label.y + 10, 100, 100, 100);
-        sp_draw_text_centered(r, font, bg_name.c_str(), rects.backdrop_area.x + rects.backdrop_area.w / 2, rects.backdrop_label.y + 26, 140, 140, 140);
+        // Beautifully spaced labels below the image
+        sp_draw_text_centered(r, font, "Backdrops", rects.backdrop_area.x + rects.backdrop_area.w / 2, rects.backdrop_label.y + 12, 100, 100, 100);
+        sp_draw_text_centered(r, font, bg_name.c_str(), rects.backdrop_area.x + rects.backdrop_area.w / 2, rects.backdrop_label.y + 30, 140, 140, 140);
     }
     else
     {
-        sp_draw_text_centered(r, font, "Backdrops", rects.backdrop_area.x + rects.backdrop_area.w / 2, rects.backdrop_label.y + 10, 100, 100, 100);
-        sp_draw_text_centered(r, font, "1", rects.backdrop_area.x + rects.backdrop_area.w / 2, rects.backdrop_label.y + 26, 140, 140, 140);
+        sp_draw_text_centered(r, font, "Backdrops", rects.backdrop_area.x + rects.backdrop_area.w / 2, rects.backdrop_label.y + 12, 100, 100, 100);
+        sp_draw_text_centered(r, font, "1", rects.backdrop_area.x + rects.backdrop_area.w / 2, rects.backdrop_label.y + 30, 140, 140, 140);
     }
 
     SDL_SetRenderDrawColor(r, 200, 200, 200, 255);
@@ -241,7 +240,6 @@ void sprite_panel_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, c
         sp_draw_text_centered(r, font, "+", cx, cy, 255, 255, 255);
     }
 
-    // ---> FIXED: BACKDROP MENU DRAWING <---
     if (state.backdrop_menu_open)
     {
         sp_fill_rect(r, rects.backdrop_menu, 77, 151, 255, 255);

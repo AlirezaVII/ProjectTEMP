@@ -123,6 +123,21 @@ static float eval_value(AppState &state, Sprite &spr, int block_id, float defaul
         }
         if (b->kind == BK_VARIABLES && b->subtype == VB_VARIABLE)
             return std::atof(state.variable_values[b->text].c_str());
+        if (b->kind == BK_LOOKS)
+        {
+            if (b->subtype == LB_SIZE)
+                return spr.size;
+            if (b->subtype == LB_BACKDROP_NUM_NAME)
+            {
+                if (b->opt == 0)
+                    return state.selected_backdrop + 1;
+                if (state.selected_backdrop >= 0 && state.selected_backdrop < (int)state.backdrops.size())
+                    return std::atof(state.backdrops[state.selected_backdrop].name.c_str());
+                return 0.0f;
+            }
+            if (b->subtype == LB_COSTUME_NUM_NAME)
+                return 1.0f;
+        }
         if (b->kind == BK_SENSING)
         {
             if (b->subtype == SENSB_ANSWER)
@@ -155,6 +170,21 @@ static std::string eval_string(AppState &state, Sprite &spr, int block_id, const
             return text_val;
         if (b->kind == BK_VARIABLES && b->subtype == VB_VARIABLE)
             return state.variable_values[b->text];
+        if (b->kind == BK_LOOKS)
+        {
+            if (b->subtype == LB_SIZE)
+                return std::to_string(spr.size);
+            if (b->subtype == LB_BACKDROP_NUM_NAME)
+            {
+                if (b->opt == 0)
+                    return std::to_string(state.selected_backdrop + 1);
+                if (state.selected_backdrop >= 0 && state.selected_backdrop < (int)state.backdrops.size())
+                    return state.backdrops[state.selected_backdrop].name;
+                return "";
+            }
+            if (b->subtype == LB_COSTUME_NUM_NAME)
+                return "costume1";
+        }
         if (b->kind == BK_SENSING)
         {
             if (b->subtype == SENSB_ANSWER)
@@ -473,6 +503,74 @@ void interpreter_tick(AppState &state)
                     spr.visible = false;
                     frame.cur_node = b->next_id;
                 }
+                else if (b->subtype == LB_SWITCH_BACKDROP_TO)
+                {
+                    if (b->opt >= 0 && b->opt < (int)state.backdrops.size())
+                        state.selected_backdrop = b->opt;
+                    frame.cur_node = b->next_id;
+                }
+                else if (b->subtype == LB_NEXT_BACKDROP)
+                {
+                    if (!state.backdrops.empty())
+                        state.selected_backdrop = (state.selected_backdrop + 1) % state.backdrops.size();
+                    frame.cur_node = b->next_id;
+                }
+                else if (b->subtype == LB_GO_TO_LAYER)
+                {
+                    if (b->opt == 0)
+                    {
+                        int max_l = -999999;
+                        for (auto &s : state.sprites)
+                            if (s.layer_order > max_l)
+                                max_l = s.layer_order;
+                        spr.layer_order = max_l + 10;
+                    }
+                    else
+                    {
+                        int min_l = 999999;
+                        for (auto &s : state.sprites)
+                            if (s.layer_order < min_l)
+                                min_l = s.layer_order;
+                        spr.layer_order = min_l - 10;
+                    }
+                    frame.cur_node = b->next_id;
+                }
+                else if (b->subtype == LB_GO_LAYERS)
+                {
+                    int steps = (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
+                    std::vector<int> sorted_indices;
+                    for (int j = 0; j < (int)state.sprites.size(); j++)
+                        sorted_indices.push_back(j);
+                    std::stable_sort(sorted_indices.begin(), sorted_indices.end(), [&](int p1, int p2)
+                                     { return state.sprites[p1].layer_order < state.sprites[p2].layer_order; });
+                    int current_rank = 0, spr_idx = -1;
+                    for (size_t j = 0; j < state.sprites.size(); j++)
+                        if (&state.sprites[j] == &spr)
+                            spr_idx = j;
+                    for (size_t j = 0; j < sorted_indices.size(); j++)
+                        if (sorted_indices[j] == spr_idx)
+                        {
+                            current_rank = j;
+                            break;
+                        }
+                    int new_rank = current_rank + ((b->opt == 0) ? steps : -steps);
+                    if (new_rank < 0)
+                        new_rank = 0;
+                    if (new_rank >= (int)sorted_indices.size())
+                        new_rank = sorted_indices.size() - 1;
+                    if (new_rank != current_rank)
+                    {
+                        for (size_t j = 0; j < sorted_indices.size(); j++)
+                            state.sprites[sorted_indices[j]].layer_order = j * 10;
+                        if (b->opt == 0)
+                            spr.layer_order = new_rank * 10 + 5;
+                        else
+                            spr.layer_order = new_rank * 10 - 5;
+                    }
+                    frame.cur_node = b->next_id;
+                }
+                else
+                    frame.cur_node = b->next_id;
             }
             else if (b->kind == BK_SOUND)
             {

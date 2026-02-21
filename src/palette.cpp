@@ -93,10 +93,7 @@ void palette_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const 
                 motion_block_draw(r, font, tex, (MotionBlockType)defs[i].subtype, bx, by, def.a, def.b, (GoToTarget)def.opt, false, bg, -1);
             }
             else if (defs[i].kind == BK_LOOKS)
-            {
-                def = workspace_make_default_looks((LooksBlockType)defs[i].subtype);
-                looks_block_draw(r, font, (LooksBlockType)defs[i].subtype, bx, by, def.text, def.a, def.b, def.opt, false, bg, -1, nullptr, nullptr);
-            }
+                looks_block_draw(r, font, state, (LooksBlockType)defs[i].subtype, bx, by, def.text, def.a, def.b, def.opt, false, bg, -1, nullptr, nullptr);
             else if (defs[i].kind == BK_SOUND)
             {
                 def = workspace_make_default_sound((SoundBlockType)defs[i].subtype);
@@ -126,7 +123,8 @@ void palette_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const 
         {
             if (defs[i].kind == BK_OPERATORS)
             {
-                operators_block_draw(r, font, (OperatorsBlockType)defs[i].subtype, bx, by, "", "", 0, 0, false, bg, -1, nullptr, nullptr);
+                BlockInstance def = workspace_make_default_operators((OperatorsBlockType)defs[i].subtype);
+                operators_block_draw(r, font, (OperatorsBlockType)defs[i].subtype, bx, by, def.text, def.text2, def.a, def.b, false, bg, -1, nullptr, nullptr);
             }
             else if (defs[i].kind == BK_VARIABLES)
             {
@@ -135,7 +133,11 @@ void palette_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const 
             else if (defs[i].kind == BK_SENSING)
             {
                 sensing_reporter_block_draw(r, font, (SensingBlockType)defs[i].subtype, bx, by, false);
-            } // NEW ROUTING
+            }
+            else if (defs[i].kind == BK_LOOKS) // ---> FIXED: ROUTE LOOKS REPORTERS HERE <---
+            {
+                looks_block_draw(r, font, state, (LooksBlockType)defs[i].subtype, bx, by, defs[i].label, 0, 0, 0, false, bg, -1, nullptr, nullptr);
+            }
         }
         else if (defs[i].is_boolean_block)
         {

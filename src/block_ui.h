@@ -64,27 +64,14 @@ SDL_Rect looks_block_rect(LooksBlockType type, int x, int y);
   - a used by seconds/size/layers
   - opt used by dropdowns (costume/backdrop/front-back/forward-backward)
 */
-void looks_block_draw(SDL_Renderer *r, TTF_Font *font,
-                      LooksBlockType type,
-                      int x, int y,
-                      const std::string &text,
-                      int a, int b, int opt,
-                      bool ghost, Color panel_bg,
-                      int selected_field,
-                      const char *override_field0_text,
-                      const char *override_field1_text);
+void looks_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, LooksBlockType type, int x, int y, const std::string &text, int a, int b, int opt, bool ghost, Color panel_bg, int selected_field, const char *override_field0_text, const char *override_field1_text);
 
 /* returns:
    0/1 => click on input capsule (field0/field1)
    -2  => click on dropdown (costume/backdrop/front/back/forward/backward)
    -1  => body / none
 */
-int looks_block_hittest_field(TTF_Font *font,
-                              LooksBlockType type,
-                              int x, int y,
-                              const std::string &text,
-                              int a, int b, int opt,
-                              int px, int py);
+int looks_block_hittest_field(TTF_Font *font, const AppState &state, LooksBlockType type, int x, int y, const std::string &text, int a, int b, int opt, int px, int py);
 
 /* ---------------- Sound UI ---------------- */
 

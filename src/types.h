@@ -63,7 +63,10 @@ enum LooksBlockType
     LB_SHOW,
     LB_HIDE,
     LB_GO_TO_LAYER,
-    LB_GO_LAYERS
+    LB_GO_LAYERS,
+    LB_SIZE,               // NEW
+    LB_BACKDROP_NUM_NAME,  // NEW
+    LB_COSTUME_NUM_NAME    // NEW
 };
 enum SoundBlockType
 {
@@ -204,6 +207,7 @@ struct Sprite
     unsigned int say_end_time;
     int volume;
     bool draggable;
+    int layer_order; // ---> NEW: TRACKS Z-INDEX LAYER <---
     SDL_Texture *texture;
     std::vector<BlockInstance> blocks;
     std::vector<int> top_level_blocks;

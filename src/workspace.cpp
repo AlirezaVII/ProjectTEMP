@@ -222,7 +222,7 @@ static SDL_Rect get_capsule_rect(TTF_Font *font, const AppState &state, const Bl
         if (b.kind == BK_MOTION)
             field = motion_block_hittest_field(font, (MotionBlockType)b.subtype, b.x, b.y, b.a, b.b, (GoToTarget)b.opt, px, cy);
         else if (b.kind == BK_LOOKS)
-            field = looks_block_hittest_field(font, (LooksBlockType)b.subtype, b.x, b.y, b.text, b.a, b.b, b.opt, px, cy);
+            field = looks_block_hittest_field(font, state, (LooksBlockType)b.subtype, b.x, b.y, b.text, b.a, b.b, b.opt, px, cy);
         else if (b.kind == BK_SOUND)
             field = sound_block_hittest_field(font, (SoundBlockType)b.subtype, b.x, b.y, b.a, b.opt, px, cy);
         else if (b.kind == BK_EVENTS)
@@ -614,7 +614,7 @@ static void compute_snap(AppState &state, TTF_Font *font)
     if (state.drag.from_palette)
     {
         dragging_bool = is_bool(state.drag.palette_kind, state.drag.palette_subtype);
-        dragging_reporter = (state.drag.palette_kind == BK_OPERATORS) || (state.drag.palette_kind == BK_VARIABLES && state.drag.palette_subtype == VB_VARIABLE) || dragging_bool || (state.drag.palette_kind == BK_SENSING && (state.drag.palette_subtype == SENSB_ANSWER || state.drag.palette_subtype == SENSB_DISTANCE_TO));
+        dragging_reporter = (state.drag.palette_kind == BK_OPERATORS) || (state.drag.palette_kind == BK_VARIABLES && state.drag.palette_subtype == VB_VARIABLE) || dragging_bool || (state.drag.palette_kind == BK_SENSING && (state.drag.palette_subtype == SENSB_ANSWER || state.drag.palette_subtype == SENSB_DISTANCE_TO)) || (state.drag.palette_kind == BK_LOOKS && (state.drag.palette_subtype == LB_SIZE || state.drag.palette_subtype == LB_BACKDROP_NUM_NAME || state.drag.palette_subtype == LB_COSTUME_NUM_NAME));
     }
     else
     {
@@ -625,7 +625,7 @@ static void compute_snap(AppState &state, TTF_Font *font)
             dr.x = state.drag.ghost_x;
             dr.y = state.drag.ghost_y;
             dragging_bool = is_bool(rb->kind, rb->subtype);
-            dragging_reporter = (rb->kind == BK_OPERATORS) || (rb->kind == BK_VARIABLES && rb->subtype == VB_VARIABLE) || dragging_bool || (rb->kind == BK_SENSING && (rb->subtype == SENSB_ANSWER || rb->subtype == SENSB_DISTANCE_TO));
+            dragging_reporter = (rb->kind == BK_OPERATORS) || (rb->kind == BK_VARIABLES && rb->subtype == VB_VARIABLE) || dragging_bool || (rb->kind == BK_SENSING && (rb->subtype == SENSB_ANSWER || rb->subtype == SENSB_DISTANCE_TO)) || (rb->kind == BK_LOOKS && (rb->subtype == LB_SIZE || rb->subtype == LB_BACKDROP_NUM_NAME || rb->subtype == LB_COSTUME_NUM_NAME));
         }
     }
 
@@ -663,7 +663,8 @@ static void compute_snap(AppState &state, TTF_Font *font)
                 if (b->kind == BK_MOTION)
                     field = motion_block_hittest_field(font, (MotionBlockType)b->subtype, b->x, b->y, b->a, b->b, (GoToTarget)b->opt, px, py);
                 else if (b->kind == BK_LOOKS)
-                    field = looks_block_hittest_field(font, (LooksBlockType)b->subtype, b->x, b->y, b->text, b->a, b->b, b->opt, px, py);
+                    // ---> FIXED: THIS LINE WAS MISSING THE STATE PARAMETER! <---
+                    field = looks_block_hittest_field(font, state, (LooksBlockType)b->subtype, b->x, b->y, b->text, b->a, b->b, b->opt, px, py);
                 else if (b->kind == BK_SOUND)
                     field = sound_block_hittest_field(font, (SoundBlockType)b->subtype, b->x, b->y, b->a, b->opt, px, py);
                 else if (b->kind == BK_EVENTS)
@@ -776,8 +777,9 @@ static void draw_chain(SDL_Renderer *r, TTF_Font *font, const Textures &tex, con
         int bx = b->x + off_x;
         int by = b->y + off_y;
         int sel = -1;
-        const char *ov0 = (b->arg0_id != -1) ? "" : nullptr;
-        const char *ov1 = (b->arg1_id != -1) ? "" : nullptr;
+        // ---> FIXED: Pass the saved text buffer as the override so it renders! <---
+        const char *ov0 = (b->arg0_id != -1) ? "" : (b->text.empty() ? nullptr : b->text.c_str());
+        const char *ov1 = (b->arg1_id != -1) ? "" : (b->text2.empty() ? nullptr : b->text2.c_str());
         if (!ghost && state.active_input == INPUT_BLOCK_FIELD && state.block_input.block_id == b->id)
         {
             sel = state.block_input.field_index;
@@ -799,7 +801,7 @@ static void draw_chain(SDL_Renderer *r, TTF_Font *font, const Textures &tex, con
         if (b->kind == BK_MOTION)
             motion_block_draw(r, font, tex, (MotionBlockType)b->subtype, bx, by, b->a, b->b, (GoToTarget)b->opt, ghost, bg, sel, ov0, ov1);
         else if (b->kind == BK_LOOKS)
-            looks_block_draw(r, font, (LooksBlockType)b->subtype, bx, by, b->text, b->a, b->b, b->opt, ghost, bg, sel, ov0, ov1);
+            looks_block_draw(r, font, state, (LooksBlockType)b->subtype, bx, by, b->text, b->a, b->b, b->opt, ghost, bg, sel, ov0, ov1);
         else if (b->kind == BK_SOUND)
             sound_block_draw(r, font, (SoundBlockType)b->subtype, bx, by, b->a, b->opt, ghost, bg, sel, ov0);
         else if (b->kind == BK_EVENTS)
@@ -1143,24 +1145,26 @@ void workspace_commit_active_input(AppState &state)
     BlockInstance *b = workspace_find(state, state.block_input.block_id);
     if (!b)
         return;
+
+    // ---> FIXED: Ensure we always save the raw text first for ALL block types! <---
+    if (state.block_input.field_index == 0)
+        b->text = state.input_buffer;
+    else if (state.block_input.field_index == 1)
+        b->text2 = state.input_buffer;
+
+    // Then, if it's supposed to be an integer, also parse it to the math fields
     if (state.block_input.type == BFT_INT)
     {
         int val = 0;
         if (!state.input_buffer.empty() && state.input_buffer != "-")
             val = std::atoi(state.input_buffer.c_str());
+
         if (state.block_input.field_index == 0)
             b->a = val;
         else if (state.block_input.field_index == 1)
             b->b = val;
         else if (state.block_input.field_index == 2)
             b->c = val;
-    }
-    else
-    {
-        if (state.block_input.field_index == 0)
-            b->text = state.input_buffer;
-        else if (state.block_input.field_index == 1)
-            b->text2 = state.input_buffer;
     }
 }
 
@@ -1313,7 +1317,7 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
         if (b->kind == BK_MOTION)
             field = motion_block_hittest_field(font, (MotionBlockType)b->subtype, b->x, b->y, b->a, b->b, (GoToTarget)b->opt, e.button.x, e.button.y);
         else if (b->kind == BK_LOOKS)
-            field = looks_block_hittest_field(font, (LooksBlockType)b->subtype, b->x, b->y, b->text, b->a, b->b, b->opt, e.button.x, e.button.y);
+            field = looks_block_hittest_field(font, state, (LooksBlockType)b->subtype, b->x, b->y, b->text, b->a, b->b, b->opt, e.button.x, e.button.y);
         else if (b->kind == BK_EVENTS)
             field = events_block_hittest_field(font, (EventsBlockType)b->subtype, b->x, b->y, b->opt, e.button.x, e.button.y);
         else if (b->kind == BK_SOUND)
@@ -1357,8 +1361,18 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
                 max_opt = 41;
             else if (b->kind == BK_EVENTS && b->subtype == EB_WHEN_KEY_PRESSED)
                 max_opt = 41;
-            else if (b->kind == BK_LOOKS && (b->subtype == LB_SWITCH_COSTUME_TO || b->subtype == LB_SWITCH_BACKDROP_TO))
+            else if (b->kind == BK_LOOKS && b->subtype == LB_SWITCH_COSTUME_TO)
                 max_opt = 3;
+            else if (b->kind == BK_LOOKS && b->subtype == LB_SWITCH_BACKDROP_TO)
+                max_opt = state.backdrops.size();
+            else if (b->kind == BK_LOOKS && b->subtype == LB_GO_TO_LAYER)
+                max_opt = 2;
+            else if (b->kind == BK_LOOKS && b->subtype == LB_GO_LAYERS)
+                max_opt = 2;
+            else if (b->kind == BK_LOOKS && b->subtype == LB_BACKDROP_NUM_NAME)
+                max_opt = 2;
+            else if (b->kind == BK_LOOKS && b->subtype == LB_COSTUME_NUM_NAME)
+                max_opt = 2;
             else if (b->kind == BK_VARIABLES && (b->subtype == VB_SET || b->subtype == VB_CHANGE))
                 max_opt = state.variables.size();
             else if (b->kind == BK_MOTION && b->subtype == MB_GO_TO_TARGET)

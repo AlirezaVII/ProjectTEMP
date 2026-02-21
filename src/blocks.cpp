@@ -62,6 +62,9 @@ int blocks_get_for_category(const AppState& state, int cat, BlockDef *out, int m
         if (n < max_out) out[n++] = make_stack(BK_LOOKS, (int)LB_HIDE, c, 160, 40, "hide");
         if (n < max_out) out[n++] = make_stack(BK_LOOKS, (int)LB_GO_TO_LAYER, c, 260, 40, "go to layer");
         if (n < max_out) out[n++] = make_stack(BK_LOOKS, (int)LB_GO_LAYERS, c, 310, 40, "go layers");
+        if (n < max_out) out[n++] = make_reporter(BK_LOOKS, (int)LB_SIZE, c, 80, 40, "size");
+        if (n < max_out) out[n++] = make_reporter(BK_LOOKS, (int)LB_BACKDROP_NUM_NAME, c, 170, 40, "backdrop");
+        if (n < max_out) out[n++] = make_reporter(BK_LOOKS, (int)LB_COSTUME_NUM_NAME, c, 170, 40, "costume");
         break;
     case 2: /* Sound */
         if (n < max_out) out[n++] = make_stack(BK_SOUND, (int)SB_CHANGE_VOLUME_BY, c, 300, 40, "change volume by");
