@@ -84,6 +84,7 @@ struct StackFrame
     int loop_block_id;
     int loop_count;
 };
+
 struct ScriptThread
 {
     std::vector<StackFrame> stack;
@@ -91,6 +92,7 @@ struct ScriptThread
     bool waiting_for_sound;
     bool waiting_for_ask;
     std::string sprite_name;
+    int root_node; // Added to track which hat block spawned this thread
 };
 static std::vector<ScriptThread> g_threads;
 
@@ -382,6 +384,7 @@ void interpreter_tick(AppState &state)
 {
     if (!state.running)
         return;
+
     for (size_t i = 0; i < g_threads.size();)
     {
         if (!state.running)
@@ -414,11 +417,13 @@ void interpreter_tick(AppState &state)
 
         Sprite *spr_ptr = nullptr;
         for (auto &s : state.sprites)
+        {
             if (s.name == g_threads[i].sprite_name)
             {
                 spr_ptr = &s;
                 break;
             }
+        }
         if (!spr_ptr)
         {
             g_threads.erase(g_threads.begin() + i);
@@ -504,42 +509,26 @@ void interpreter_tick(AppState &state)
                     }
                 }
 
-                // ---> NEW: PEN DRAWING INTERCEPTOR <---
                 if (spr.pen_down && (spr.x != old_x || spr.y != old_y))
                 {
                     renderer_draw_line_on_pen_layer(old_x, old_y, spr.x, spr.y, spr.pen_size, spr.pen_color);
                 }
-
                 frame.cur_node = b->next_id;
             }
-            // ---> NEW: PEN CATEGORY LOGIC <---
             else if (b->kind == BK_PEN)
             {
                 if (b->subtype == PB_ERASE_ALL)
-                {
                     renderer_clear_pen_layer();
-                }
                 else if (b->subtype == PB_STAMP)
-                {
                     renderer_stamp_on_pen_layer(spr);
-                }
                 else if (b->subtype == PB_PEN_DOWN)
-                {
                     spr.pen_down = true;
-                }
                 else if (b->subtype == PB_PEN_UP)
-                {
                     spr.pen_down = false;
-                }
-                else if (b->subtype == PB_SET_COLOR_TO_PICKER)
-                {
-                    // Handled automatically by UI clicking
-                }
                 else if (b->subtype == PB_CHANGE_ATTRIB_BY)
                 {
                     float val = eval_value(state, spr, b->arg0_id, b->a, b->text);
-                    spr.pen_color_val += (int)val;
-                    spr.pen_color_val = spr.pen_color_val % 100;
+                    spr.pen_color_val = (spr.pen_color_val + (int)val) % 100;
                     if (spr.pen_color_val < 0)
                         spr.pen_color_val += 100;
                     update_pen_rgb(spr);
@@ -547,8 +536,7 @@ void interpreter_tick(AppState &state)
                 else if (b->subtype == PB_SET_ATTRIB_TO)
                 {
                     float val = eval_value(state, spr, b->arg0_id, b->a, b->text);
-                    spr.pen_color_val = (int)val;
-                    spr.pen_color_val = spr.pen_color_val % 100;
+                    spr.pen_color_val = ((int)val) % 100;
                     if (spr.pen_color_val < 0)
                         spr.pen_color_val += 100;
                     update_pen_rgb(spr);
@@ -714,9 +702,7 @@ void interpreter_tick(AppState &state)
                 else if (b->subtype == SB_START_SOUND || b->subtype == SB_PLAY_SOUND_UNTIL_DONE)
                 {
                     if (b->opt >= 0 && b->opt < (int)spr.sounds.size())
-                    {
                         audio_play_chunk(spr.sounds[b->opt].chunk, spr.sounds[b->opt].volume);
-                    }
                     if (b->subtype == SB_PLAY_SOUND_UNTIL_DONE)
                     {
                         g_threads[i].waiting_for_sound = true;
@@ -829,6 +815,7 @@ void interpreter_tick(AppState &state)
             else
                 frame.cur_node = b->next_id;
         }
+
         if (i < g_threads.size())
         {
             if (g_threads[i].stack.empty())
@@ -841,6 +828,11 @@ void interpreter_tick(AppState &state)
 
 void interpreter_trigger_flag(AppState &state)
 {
+    static Uint32 last_flag_trigger = 0;
+    if (SDL_GetTicks() - last_flag_trigger < 100)
+        return; // Prevent double execution bounce
+    last_flag_trigger = SDL_GetTicks();
+
     commit_active_typing(state);
     state.running = true;
     g_threads.clear();
@@ -850,13 +842,18 @@ void interpreter_trigger_flag(AppState &state)
         {
             BlockInstance *b = interpreter_find_block(spr, root_id);
             if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_FLAG_CLICKED)
-                g_threads.push_back({{{{b->next_id, -1, 0}}}, 0, false, false, spr.name});
+                g_threads.push_back({{{{b->next_id, -1, 0}}}, 0, false, false, spr.name, root_id});
         }
     }
 }
 
 void interpreter_trigger_key(AppState &state, SDL_Keycode sym)
 {
+    static std::unordered_map<SDL_Keycode, Uint32> last_key_trigger;
+    if (SDL_GetTicks() - last_key_trigger[sym] < 100)
+        return; // Prevent double execution bounce from key repeat
+    last_key_trigger[sym] = SDL_GetTicks();
+
     commit_active_typing(state);
     int opt = -1;
     if (sym == SDLK_SPACE)
@@ -873,21 +870,35 @@ void interpreter_trigger_key(AppState &state, SDL_Keycode sym)
         opt = 5 + (sym - SDLK_a);
     else if (sym >= SDLK_0 && sym <= SDLK_9)
         opt = 31 + (sym - SDLK_0);
+
     if (opt == -1)
         return;
+
     for (auto &spr : state.sprites)
     {
         for (int root_id : spr.top_level_blocks)
         {
             BlockInstance *b = interpreter_find_block(spr, root_id);
             if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_KEY_PRESSED && b->opt == opt)
-                g_threads.push_back({{{{b->next_id, -1, 0}}}, 0, false, false, spr.name});
+            {
+                // Kill identical thread if already running (Standard Scratch behavior)
+                g_threads.erase(std::remove_if(g_threads.begin(), g_threads.end(), [&](const ScriptThread &th)
+                                               { return th.sprite_name == spr.name && th.root_node == root_id; }),
+                                g_threads.end());
+
+                g_threads.push_back({{{{b->next_id, -1, 0}}}, 0, false, false, spr.name, root_id});
+            }
         }
     }
 }
 
 void interpreter_trigger_sprite_click(AppState &state)
 {
+    static Uint32 last_click_trigger = 0;
+    if (SDL_GetTicks() - last_click_trigger < 100)
+        return; // Prevent double execution bounce
+    last_click_trigger = SDL_GetTicks();
+
     commit_active_typing(state);
     if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
     {
@@ -896,7 +907,13 @@ void interpreter_trigger_sprite_click(AppState &state)
         {
             BlockInstance *b = interpreter_find_block(spr, root_id);
             if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_SPRITE_CLICKED)
-                g_threads.push_back({{{{b->next_id, -1, 0}}}, 0, false, false, spr.name});
+            {
+                g_threads.erase(std::remove_if(g_threads.begin(), g_threads.end(), [&](const ScriptThread &th)
+                                               { return th.sprite_name == spr.name && th.root_node == root_id; }),
+                                g_threads.end());
+
+                g_threads.push_back({{{{b->next_id, -1, 0}}}, 0, false, false, spr.name, root_id});
+            }
         }
     }
 }
@@ -910,7 +927,13 @@ void interpreter_trigger_message(AppState &state, int msg_opt)
         {
             BlockInstance *b = interpreter_find_block(spr, root_id);
             if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_I_RECEIVE && b->opt == msg_opt)
-                g_threads.push_back({{{{b->next_id, -1, 0}}}, 0, false, false, spr.name});
+            {
+                g_threads.erase(std::remove_if(g_threads.begin(), g_threads.end(), [&](const ScriptThread &th)
+                                               { return th.sprite_name == spr.name && th.root_node == root_id; }),
+                                g_threads.end());
+
+                g_threads.push_back({{{{b->next_id, -1, 0}}}, 0, false, false, spr.name, root_id});
+            }
         }
     }
 }
