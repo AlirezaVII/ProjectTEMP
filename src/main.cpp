@@ -199,8 +199,15 @@ int main(int /*argc*/, char * /*argv*/[])
                                 unique = false;
                                 break;
                             }
+
+                        // ---> FIXED: INITIALIZE VALUE AND VISIBILITY! <---
                         if (unique && !state.input_buffer.empty())
+                        {
                             state.variables.push_back(state.input_buffer);
+                            state.variable_values[state.input_buffer] = "0";
+                            state.variable_visible[state.input_buffer] = true;
+                        }
+
                         state.var_modal_active = false;
                         state.active_input = INPUT_NONE;
                         state.input_buffer.clear();
@@ -222,6 +229,7 @@ int main(int /*argc*/, char * /*argv*/[])
                     SDL_Rect cancel_btn = {mx + mw - 220, my + mh - 60, 90, 40};
                     auto in_rect = [](int px, int py, const SDL_Rect &r)
                     { return px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h; };
+
                     if (in_rect(e.button.x, e.button.y, submit_btn))
                     {
                         bool unique = true;
@@ -231,8 +239,15 @@ int main(int /*argc*/, char * /*argv*/[])
                                 unique = false;
                                 break;
                             }
+
+                        // ---> FIXED: INITIALIZE VALUE AND VISIBILITY! <---
                         if (unique && !state.input_buffer.empty())
+                        {
                             state.variables.push_back(state.input_buffer);
+                            state.variable_values[state.input_buffer] = "0";
+                            state.variable_visible[state.input_buffer] = true;
+                        }
+
                         state.var_modal_active = false;
                         state.active_input = INPUT_NONE;
                         state.input_buffer.clear();
