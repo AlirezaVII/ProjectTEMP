@@ -66,12 +66,14 @@ void palette_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const 
             br = sound_block_rect((SoundBlockType)defs[i].subtype, bx, by, 0, 0);
         else if (defs[i].kind == BK_EVENTS)
             br = events_block_rect((EventsBlockType)defs[i].subtype, bx, by, 0);
+        else if (defs[i].kind == BK_PEN) // ---> ADDED MISSING PEN RECT ROUTING <---
+            br = pen_block_rect((PenBlockType)defs[i].subtype, bx, by);
         else if (defs[i].kind == BK_SENSING)
         {
             if (defs[i].is_boolean_block)
                 br = sensing_boolean_block_rect((SensingBlockType)defs[i].subtype, bx, by, 0);
             else if (defs[i].is_reporter_block)
-                br = sensing_reporter_block_rect((SensingBlockType)defs[i].subtype, bx, by); // NEW ROUTING
+                br = sensing_reporter_block_rect((SensingBlockType)defs[i].subtype, bx, by);
             else
                 br = sensing_stack_block_rect((SensingBlockType)defs[i].subtype, bx, by, 0);
         }
@@ -94,19 +96,23 @@ void palette_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const 
             }
             else if (defs[i].kind == BK_LOOKS)
             {
-                // ---> FIXED: Grab the default texts and numbers before drawing! <---
                 def = workspace_make_default_looks((LooksBlockType)defs[i].subtype);
                 looks_block_draw(r, font, state, (LooksBlockType)defs[i].subtype, bx, by, def.text, def.a, def.b, def.opt, false, bg, -1, nullptr, nullptr);
             }
             else if (defs[i].kind == BK_SOUND)
             {
                 def = workspace_make_default_sound((SoundBlockType)defs[i].subtype);
-                sound_block_draw(r, font,state, (SoundBlockType)defs[i].subtype, bx, by, def.a, def.opt, false, bg, -1, nullptr);
+                sound_block_draw(r, font, state, (SoundBlockType)defs[i].subtype, bx, by, def.a, def.opt, false, bg, -1, nullptr);
             }
             else if (defs[i].kind == BK_EVENTS)
             {
                 def = workspace_make_default_events((EventsBlockType)defs[i].subtype);
                 events_block_draw(r, font, tex, (EventsBlockType)defs[i].subtype, bx, by, def.opt, false, bg, -1);
+            }
+            else if (defs[i].kind == BK_PEN) // ---> ADDED MISSING PEN DRAW ROUTING <---
+            {
+                def = workspace_make_default_pen((PenBlockType)defs[i].subtype);
+                pen_block_draw(r, font, state, (PenBlockType)defs[i].subtype, bx, by, def.a, def.opt, false, bg, -1, nullptr);
             }
             else if (defs[i].kind == BK_SENSING)
             {
@@ -138,7 +144,7 @@ void palette_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const 
             {
                 sensing_reporter_block_draw(r, font, (SensingBlockType)defs[i].subtype, bx, by, false);
             }
-            else if (defs[i].kind == BK_LOOKS) // ---> FIXED: ROUTE LOOKS REPORTERS HERE <---
+            else if (defs[i].kind == BK_LOOKS)
             {
                 looks_block_draw(r, font, state, (LooksBlockType)defs[i].subtype, bx, by, defs[i].label, 0, 0, 0, false, bg, -1, nullptr, nullptr);
             }
@@ -205,12 +211,14 @@ bool palette_handle_event(const SDL_Event &e, AppState &state, const PaletteRect
                     br = sound_block_rect((SoundBlockType)defs[i].subtype, bx, by, 0, 0);
                 else if (defs[i].kind == BK_EVENTS)
                     br = events_block_rect((EventsBlockType)defs[i].subtype, bx, by, 0);
+                else if (defs[i].kind == BK_PEN) // ---> ADDED MISSING PEN HITTEST ROUTING <---
+                    br = pen_block_rect((PenBlockType)defs[i].subtype, bx, by);
                 else if (defs[i].kind == BK_SENSING)
                 {
                     if (defs[i].is_boolean_block)
                         br = sensing_boolean_block_rect((SensingBlockType)defs[i].subtype, bx, by, 0);
                     else if (defs[i].is_reporter_block)
-                        br = sensing_reporter_block_rect((SensingBlockType)defs[i].subtype, bx, by); // NEW ROUTING
+                        br = sensing_reporter_block_rect((SensingBlockType)defs[i].subtype, bx, by);
                     else
                         br = sensing_stack_block_rect((SensingBlockType)defs[i].subtype, bx, by, 0);
                 }

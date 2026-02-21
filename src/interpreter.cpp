@@ -1,6 +1,7 @@
 #include "interpreter.h"
 #include "workspace.h"
 #include "audio.h"
+#include "renderer.h"
 #include "SDL.h"
 #include "config.h"
 #include <cmath>
@@ -21,6 +22,60 @@ static void commit_active_typing(AppState &state)
         state.active_input = INPUT_NONE;
         state.input_buffer.clear();
     }
+}
+
+// ---> Helper: Convert Scratch Hue value to RGB <---
+static void update_pen_rgb(Sprite &spr)
+{
+    float h = spr.pen_color_val / 100.0f * 360.0f;
+    float s = spr.pen_saturation / 100.0f;
+    float v = spr.pen_brightness / 100.0f;
+
+    float c = v * s;
+    float x = c * (1 - std::abs(std::fmod(h / 60.0, 2) - 1));
+    float m = v - c;
+
+    float r = 0, g = 0, b = 0;
+    if (h >= 0 && h < 60)
+    {
+        r = c;
+        g = x;
+        b = 0;
+    }
+    else if (h >= 60 && h < 120)
+    {
+        r = x;
+        g = c;
+        b = 0;
+    }
+    else if (h >= 120 && h < 180)
+    {
+        r = 0;
+        g = c;
+        b = x;
+    }
+    else if (h >= 180 && h < 240)
+    {
+        r = 0;
+        g = x;
+        b = c;
+    }
+    else if (h >= 240 && h < 300)
+    {
+        r = x;
+        g = 0;
+        b = c;
+    }
+    else
+    {
+        r = c;
+        g = 0;
+        b = x;
+    }
+
+    spr.pen_color.r = (Uint8)((r + m) * 255);
+    spr.pen_color.g = (Uint8)((g + m) * 255);
+    spr.pen_color.b = (Uint8)((b + m) * 255);
 }
 
 struct StackFrame
@@ -406,6 +461,9 @@ void interpreter_tick(AppState &state)
 
             if (b->kind == BK_MOTION)
             {
+                int old_x = spr.x;
+                int old_y = spr.y;
+
                 if (b->subtype == MB_MOVE_STEPS)
                 {
                     float steps = eval_value(state, spr, b->arg0_id, b->a, b->text);
@@ -445,6 +503,68 @@ void interpreter_tick(AppState &state)
                         spr.y += (cy - my);
                     }
                 }
+
+                // ---> NEW: PEN DRAWING INTERCEPTOR <---
+                if (spr.pen_down && (spr.x != old_x || spr.y != old_y))
+                {
+                    renderer_draw_line_on_pen_layer(old_x, old_y, spr.x, spr.y, spr.pen_size, spr.pen_color);
+                }
+
+                frame.cur_node = b->next_id;
+            }
+            // ---> NEW: PEN CATEGORY LOGIC <---
+            else if (b->kind == BK_PEN)
+            {
+                if (b->subtype == PB_ERASE_ALL)
+                {
+                    renderer_clear_pen_layer();
+                }
+                else if (b->subtype == PB_STAMP)
+                {
+                    renderer_stamp_on_pen_layer(spr);
+                }
+                else if (b->subtype == PB_PEN_DOWN)
+                {
+                    spr.pen_down = true;
+                }
+                else if (b->subtype == PB_PEN_UP)
+                {
+                    spr.pen_down = false;
+                }
+                else if (b->subtype == PB_SET_COLOR_TO_PICKER)
+                {
+                    // Handled automatically by UI clicking
+                }
+                else if (b->subtype == PB_CHANGE_ATTRIB_BY)
+                {
+                    float val = eval_value(state, spr, b->arg0_id, b->a, b->text);
+                    spr.pen_color_val += (int)val;
+                    spr.pen_color_val = spr.pen_color_val % 100;
+                    if (spr.pen_color_val < 0)
+                        spr.pen_color_val += 100;
+                    update_pen_rgb(spr);
+                }
+                else if (b->subtype == PB_SET_ATTRIB_TO)
+                {
+                    float val = eval_value(state, spr, b->arg0_id, b->a, b->text);
+                    spr.pen_color_val = (int)val;
+                    spr.pen_color_val = spr.pen_color_val % 100;
+                    if (spr.pen_color_val < 0)
+                        spr.pen_color_val += 100;
+                    update_pen_rgb(spr);
+                }
+                else if (b->subtype == PB_CHANGE_SIZE_BY)
+                {
+                    spr.pen_size += (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
+                    if (spr.pen_size < 1)
+                        spr.pen_size = 1;
+                }
+                else if (b->subtype == PB_SET_SIZE_TO)
+                {
+                    spr.pen_size = (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
+                    if (spr.pen_size < 1)
+                        spr.pen_size = 1;
+                }
                 frame.cur_node = b->next_id;
             }
             else if (b->kind == BK_LOOKS)
@@ -467,7 +587,7 @@ void interpreter_tick(AppState &state)
                 {
                     spr.say_text = eval_string(state, spr, b->arg0_id, b->text);
                     spr.is_thinking = false;
-                    float sec = eval_value(state, spr, b->arg1_id, b->b, b->text2); // <--- FIXED: read b->b
+                    float sec = eval_value(state, spr, b->arg1_id, b->b, b->text2);
                     spr.say_end_time = SDL_GetTicks() + (unsigned int)(sec * 1000);
                     g_threads[i].wait_until = spr.say_end_time;
                     frame.cur_node = b->next_id;
@@ -477,7 +597,7 @@ void interpreter_tick(AppState &state)
                 {
                     spr.say_text = eval_string(state, spr, b->arg0_id, b->text);
                     spr.is_thinking = true;
-                    float sec = eval_value(state, spr, b->arg1_id, b->b, b->text2); // <--- FIXED: read b->b
+                    float sec = eval_value(state, spr, b->arg1_id, b->b, b->text2);
                     spr.say_end_time = SDL_GetTicks() + (unsigned int)(sec * 1000);
                     g_threads[i].wait_until = spr.say_end_time;
                     frame.cur_node = b->next_id;

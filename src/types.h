@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <SDL.h>
 
-struct Mix_Chunk; // ---> NEW: Forward declaration for audio chunks
+struct Mix_Chunk;
 
 enum Tab
 {
@@ -18,7 +18,8 @@ enum AppMode
 {
     MODE_EDITOR = 0,
     MODE_SPRITE_LIBRARY,
-    MODE_BACKDROP_LIBRARY
+    MODE_BACKDROP_LIBRARY,
+    MODE_EXTENSION_LIBRARY
 };
 
 enum ActiveInput
@@ -33,7 +34,8 @@ enum ActiveInput
     INPUT_BLOCK_FIELD,
     INPUT_VAR_MODAL,
     INPUT_SOUND_NAME,
-    INPUT_SOUND_VOLUME // ---> NEW
+    INPUT_SOUND_VOLUME,
+    INPUT_PEN_COLOR_PICKER
 };
 
 enum MotionBlockType
@@ -143,6 +145,21 @@ enum DragMode
     DRAG_DRAGGABLE = 0,
     DRAG_NOT_DRAGGABLE = 1
 };
+
+// ---> NEW: PEN BLOCKS <---
+enum PenBlockType
+{
+    PB_ERASE_ALL = 0,
+    PB_STAMP,
+    PB_PEN_DOWN,
+    PB_PEN_UP,
+    PB_SET_COLOR_TO_PICKER,
+    PB_CHANGE_ATTRIB_BY,
+    PB_SET_ATTRIB_TO,
+    PB_CHANGE_SIZE_BY,
+    PB_SET_SIZE_TO
+};
+
 enum BlockKind
 {
     BK_MOTION = 0,
@@ -152,7 +169,8 @@ enum BlockKind
     BK_CONTROL = 4,
     BK_SENSING = 5,
     BK_OPERATORS = 6,
-    BK_VARIABLES = 7
+    BK_VARIABLES = 7,
+    BK_PEN = 8
 };
 enum BlockFieldType
 {
@@ -197,7 +215,6 @@ struct BlockInputState
     BlockInputState() : block_id(-1), field_index(0), type(BFT_INT) {}
 };
 
-// ---> NEW: SOUND MEMORY STRUCT <---
 struct SoundData
 {
     std::string name;
@@ -221,12 +238,20 @@ struct Sprite
     int layer_order;
     SDL_Texture *texture;
 
-    std::vector<SoundData> sounds; // ---> NEW
-    int selected_sound;            // ---> NEW
+    std::vector<SoundData> sounds;
+    int selected_sound;
+
+    // ---> NEW: PEN MEMORY <---
+    bool pen_down;
+    int pen_size;
+    SDL_Color pen_color;
+    int pen_color_val;
+    int pen_saturation;
+    int pen_brightness;
 
     std::vector<BlockInstance> blocks;
     std::vector<int> top_level_blocks;
-    Sprite(std::string n, SDL_Texture *tex) : name(n), x(0), y(0), direction(90), visible(true), size(100), say_text(""), is_thinking(false), say_end_time(0), volume(100), draggable(true), layer_order(get_next_layer()), texture(tex), selected_sound(0) {}
+    Sprite(std::string n, SDL_Texture *tex) : name(n), x(0), y(0), direction(90), visible(true), size(100), say_text(""), is_thinking(false), say_end_time(0), volume(100), draggable(true), layer_order(get_next_layer()), texture(tex), selected_sound(0), pen_down(false), pen_size(1), pen_color({15, 189, 140, 255}), pen_color_val(50), pen_saturation(100), pen_brightness(100) {}
     static int get_next_layer()
     {
         static int l = 0;
@@ -271,7 +296,11 @@ struct AppState
     std::string ask_msg;
     std::string ask_reply;
     std::string global_answer;
-    AppState() : file_menu_open(false), file_menu_hover(-1), sprite_menu_open(false), backdrop_menu_open(false), current_tab(TAB_CODE), start_hover(false), stop_hover(false), running(false), mode(MODE_EDITOR), selected_sprite(0), add_sprite_hover(false), selected_backdrop(0), selected_tab(TAB_CODE), selected_category(0), project_name("Untitled"), drag(), next_block_id(1), active_input(INPUT_NONE), input_buffer(""), block_input(), variables({"my variable"}), variable_values({{"my variable", "0"}}), variable_visible({{"my variable", true}}), var_modal_active(false), stage_drag_active(false), stage_drag_off_x(0), stage_drag_off_y(0), ask_active(false), ask_msg(""), ask_reply(""), global_answer("") {}
+
+    // ---> NEW: EXTENSION TOGGLE <---
+    bool pen_extension_enabled;
+
+    AppState() : file_menu_open(false), file_menu_hover(-1), sprite_menu_open(false), backdrop_menu_open(false), current_tab(TAB_CODE), start_hover(false), stop_hover(false), running(false), mode(MODE_EDITOR), selected_sprite(0), add_sprite_hover(false), selected_backdrop(0), selected_tab(TAB_CODE), selected_category(0), project_name("Untitled"), drag(), next_block_id(1), active_input(INPUT_NONE), input_buffer(""), block_input(), variables({"my variable"}), variable_values({{"my variable", "0"}}), variable_visible({{"my variable", true}}), var_modal_active(false), stage_drag_active(false), stage_drag_off_x(0), stage_drag_off_y(0), ask_active(false), ask_msg(""), ask_reply(""), global_answer(""), pen_extension_enabled(false) {}
 };
 
 #endif

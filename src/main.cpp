@@ -117,11 +117,11 @@ int main(int /*argc*/, char * /*argv*/[])
     if (!font)
         return 1;
 
-    TTF_Font *font_large = TTF_OpenFont("assets/fonts/NotoSans-Regular.ttf", 24);
+    TTF_Font *font_large = TTF_OpenFont("assets/fonts/NotoSans-Regular.ttf", 20);
     if (!font_large)
-        font_large = TTF_OpenFont("/System/Library/Fonts/Helvetica.ttc", 24);
+        font_large = TTF_OpenFont("/System/Library/Fonts/Helvetica.ttc", 20);
     if (!font_large)
-        font_large = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24);
+        font_large = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20);
     if (!font_large)
         return 1;
 
@@ -132,6 +132,12 @@ int main(int /*argc*/, char * /*argv*/[])
 
     load_library_sprites(renderer);
     load_library_backdrops(renderer);
+
+    // Initialize the Pen drawing layer
+    renderer_init_pen_layer(renderer);
+
+    // Load Pen Extension Poster
+    SDL_Texture* pen_poster = IMG_LoadTexture(renderer, "assets/extensions/pencil.png");
 
     NavbarRects navbar_rects;
     navbar_layout(navbar_rects);
@@ -274,7 +280,40 @@ int main(int /*argc*/, char * /*argv*/[])
                 continue;
             }
 
-            // ---> FIXED: 100% BULLETPROOF LIVE SAVING FOR NAME AND VOLUME! <---
+            // PEN COLOR PICKER LOGIC
+            if (state.active_input == INPUT_PEN_COLOR_PICKER) {
+                if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
+                    int mx = e.button.x, my = e.button.y;
+                    int mw = 300, mh = 250;
+                    int mod_x = WINDOW_WIDTH / 2 - mw / 2;
+                    int mod_y = WINDOW_HEIGHT / 2 - mh / 2;
+                    
+                    bool clicked_color = false;
+                    Color palette[9] = { 
+                        {255,0,0}, {0,255,0}, {0,0,255}, 
+                        {255,255,0}, {0,255,255}, {255,0,255}, 
+                        {0,0,0}, {128,128,128}, {255,255,255} 
+                    };
+                    
+                    for (int i = 0; i < 9; i++) {
+                        SDL_Rect c_rect = {mod_x + 30 + (i % 3) * 80, mod_y + 80 + (i / 3) * 50, 70, 40};
+                        if (mx >= c_rect.x && mx < c_rect.x + c_rect.w && my >= c_rect.y && my < c_rect.y + c_rect.h) {
+                            if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size()) {
+                                state.sprites[state.selected_sprite].pen_color = { (Uint8)palette[i].r, (Uint8)palette[i].g, (Uint8)palette[i].b, 255 };
+                            }
+                            state.active_input = INPUT_NONE;
+                            clicked_color = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!clicked_color && (mx < mod_x || mx > mod_x + mw || my < mod_y || my > mod_y + mh)) {
+                        state.active_input = INPUT_NONE;
+                    }
+                }
+                continue;
+            }
+
             if (state.active_input == INPUT_SOUND_NAME || state.active_input == INPUT_SOUND_VOLUME)
             {
                 if (e.type == SDL_KEYDOWN)
@@ -284,7 +323,6 @@ int main(int /*argc*/, char * /*argv*/[])
                         if (!state.input_buffer.empty())
                             state.input_buffer.pop_back();
 
-                        // Save instantly!
                         if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
                         {
                             Sprite &spr = state.sprites[state.selected_sprite];
@@ -314,7 +352,6 @@ int main(int /*argc*/, char * /*argv*/[])
                 else if (e.type == SDL_TEXTINPUT)
                 {
                     state.input_buffer += e.text.text;
-                    // Save instantly!
                     if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
                     {
                         Sprite &spr = state.sprites[state.selected_sprite];
@@ -334,6 +371,33 @@ int main(int /*argc*/, char * /*argv*/[])
                     }
                     continue; 
                 }
+            }
+
+            // EXTENSION LIBRARY CLICK EVENTS (Refined Layout)
+            if (state.mode == MODE_EXTENSION_LIBRARY)
+            {
+                if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
+                {
+                    int mx = e.button.x;
+                    int my = e.button.y;
+                    
+                    if (my < NAVBAR_HEIGHT) { 
+                        state.mode = MODE_EDITOR; // Clicked the Back nav bar
+                    }
+                    
+                    // Card click detection - Updated for larger size
+                    int box_w = WINDOW_WIDTH / 3;
+                    int box_h = 320;
+                    int box_x = 60;
+                    int box_y = NAVBAR_HEIGHT + 40;
+                    if (mx >= box_x && mx < box_x + box_w && my >= box_y && my < box_y + box_h)
+                    {
+                        state.pen_extension_enabled = true;
+                        state.selected_category = 9; // Switch to the newly created Pen category index
+                        state.mode = MODE_EDITOR;
+                    }
+                }
+                continue;
             }
 
             if (state.mode == MODE_SPRITE_LIBRARY)
@@ -408,7 +472,6 @@ int main(int /*argc*/, char * /*argv*/[])
                 break;
             }
 
-            // SPRITE HOVER MENU INTERCEPTOR
             if (state.sprite_menu_open && e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
             {
                 int mx = e.button.x, my = e.button.y;
@@ -646,7 +709,62 @@ int main(int /*argc*/, char * /*argv*/[])
         SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
         SDL_RenderClear(renderer);
 
-        if (state.mode == MODE_SPRITE_LIBRARY)
+        // ---> REDESIGNED: EXTENSION LIBRARY UI <---
+        if (state.mode == MODE_EXTENSION_LIBRARY)
+        {
+            // 1. Clear background
+            SDL_SetRenderDrawColor(renderer, 245, 245, 245, 255);
+            SDL_RenderFillRect(renderer, NULL);
+            
+            // 2. Draw Top Navigation Bar
+            SDL_Rect nav_bg = {0, 0, WINDOW_WIDTH, NAVBAR_HEIGHT};
+            SDL_SetRenderDrawColor(renderer, 76, 151, 255, 255); // Scratch blue
+            SDL_RenderFillRect(renderer, &nav_bg);
+            
+            // Back button and Main Title
+            render_simple_text(renderer, font_large, "< Back", 30, (NAVBAR_HEIGHT - 24) / 2, {255, 255, 255});
+            
+            int tw = 0; 
+            TTF_SizeUTF8(font_large, "Choose an Extension", &tw, NULL);
+            render_simple_text(renderer, font_large, "Choose an Extension", (WINDOW_WIDTH - tw) / 2, (NAVBAR_HEIGHT - 24) / 2, {255, 255, 255});
+
+            // 3. Draw The Extension Card (Larger Size: 1/3 WINDOW WIDTH)
+            int box_w = WINDOW_WIDTH / 3;
+            int box_h = 320;
+            int box_x = 60;
+            int box_y = NAVBAR_HEIGHT + 40;
+            SDL_Rect box_rect = { box_x, box_y, box_w, box_h };
+            
+            // Card base
+            renderer_fill_rounded_rect(renderer, &box_rect, 10, 255, 255, 255);
+            SDL_SetRenderDrawColor(renderer, 210, 210, 210, 255);
+            SDL_RenderDrawRect(renderer, &box_rect);
+
+            // Poster Image (100% width fit, fixed height)
+            int img_h = 210;
+            if (pen_poster)
+            {
+                SDL_Rect img_r = { box_x + 1, box_y + 1, box_w - 2, img_h };
+                SDL_RenderCopy(renderer, pen_poster, NULL, &img_r);
+                
+                // Light gray line dividing the image and the text
+                SDL_SetRenderDrawColor(renderer, 230, 230, 230, 255);
+                SDL_RenderDrawLine(renderer, box_x, box_y + img_h + 2, box_x + box_w, box_y + img_h + 2);
+            }
+
+            // Title ("Pen") - CENTERED
+            int title_w = 0;
+            TTF_SizeUTF8(font_large, "Pen", &title_w, NULL);
+            int title_x = box_x + (box_w - title_w) / 2;
+            render_simple_text(renderer, font_large, "Pen", title_x, box_y + img_h + 20, {80, 80, 80});
+
+            // Description - CENTERED
+            int desc_w = 0;
+            TTF_SizeUTF8(font, "Draw with your sprites.", &desc_w, NULL);
+            int desc_x = box_x + (box_w - desc_w) / 2;
+            render_simple_text(renderer, font, "Draw with your sprites.", desc_x, box_y + img_h + 60, {120, 120, 120});
+        }
+        else if (state.mode == MODE_SPRITE_LIBRARY)
         {
             SDL_SetRenderDrawColor(renderer, 245, 245, 245, 255);
             SDL_RenderFillRect(renderer, NULL);
@@ -759,9 +877,39 @@ int main(int /*argc*/, char * /*argv*/[])
             renderer_fill_rounded_rect(renderer, &cancel_btn, 4, 220, 220, 220);
             render_simple_text(renderer, font, "Cancel", cancel_btn.x + 22, cancel_btn.y + 12, (Color){40, 40, 40});
         }
+        
+        if (state.active_input == INPUT_PEN_COLOR_PICKER) {
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 150);
+            SDL_Rect screen_rect = {0, 0, WINDOW_WIDTH, WINDOW_HEIGHT};
+            SDL_RenderFillRect(renderer, &screen_rect);
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+
+            int mw = 300, mh = 250, mx = WINDOW_WIDTH / 2 - mw / 2, my = WINDOW_HEIGHT / 2 - mh / 2;
+            SDL_Rect modal_rect = {mx, my, mw, mh};
+            renderer_fill_rounded_rect(renderer, &modal_rect, 8, 255, 255, 255);
+            SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
+            SDL_RenderDrawRect(renderer, &modal_rect);
+
+            render_simple_text(renderer, font_large, "Pick Pen Color", modal_rect.x + 60, modal_rect.y + 20, {40, 40, 40});
+
+            Color palette[9] = {
+                {255,0,0}, {0,255,0}, {0,0,255},
+                {255,255,0}, {0,255,255}, {255,0,255},
+                {0,0,0}, {128,128,128}, {255,255,255}
+            };
+            for(int i=0; i<9; i++) {
+                SDL_Rect c_rect = {mx + 30 + (i % 3) * 80, my + 80 + (i / 3) * 50, 70, 40};
+                renderer_fill_rounded_rect(renderer, &c_rect, 4, palette[i].r, palette[i].g, palette[i].b);
+                SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
+                SDL_RenderDrawRect(renderer, &c_rect);
+            }
+        }
+
         SDL_RenderPresent(renderer);
     }
 
+    if (pen_poster) SDL_DestroyTexture(pen_poster);
     textures_free(tex);
     TTF_CloseFont(font);
     TTF_CloseFont(font_large);

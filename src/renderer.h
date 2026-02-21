@@ -2,6 +2,7 @@
 #define RENDERER_H
 
 #include "SDL.h"
+#include "types.h"
 
 /* Circle drawing */
 void renderer_fill_circle(SDL_Renderer *r, int cx, int cy, int radius,
@@ -21,5 +22,12 @@ void renderer_draw_texture(SDL_Renderer *r, SDL_Texture *tex, const SDL_Rect *ds
 
 /* Draw texture keeping aspect ratio, centered in dst rect */
 void renderer_draw_texture_fit(SDL_Renderer *r, SDL_Texture *tex, const SDL_Rect *dst);
+
+// ---> NEW: PEN LAYER EXPORTS <---
+extern SDL_Texture* g_pen_layer;
+void renderer_init_pen_layer(SDL_Renderer* r);
+void renderer_clear_pen_layer();
+void renderer_draw_line_on_pen_layer(int x1, int y1, int x2, int y2, int size, SDL_Color color);
+void renderer_stamp_on_pen_layer(const Sprite& spr);
 
 #endif

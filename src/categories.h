@@ -5,12 +5,15 @@
 #include "SDL_ttf.h"
 #include "types.h"
 
-static const int NUM_CATEGORIES = 9;
+// Increased to 10 to add Pen without overwriting "My Blocks"
+static const int NUM_CATEGORIES = 10;
 
-struct CategoriesRects {
+struct CategoriesRects
+{
     SDL_Rect panel;
     SDL_Rect items[NUM_CATEGORIES];
     SDL_Rect dots[NUM_CATEGORIES];
+    SDL_Rect ext_btn; // Added rect for the Extension Button
 };
 
 void categories_layout(CategoriesRects &rects);

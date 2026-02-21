@@ -111,20 +111,16 @@ static void draw_stack_shape(SDL_Renderer *r, const SDL_Rect &br,
 {
     MotionBlockMetrics m = motion_block_metrics();
 
-    // برای ghost فقط کمی رنگ را کم‌رنگ‌تر می‌کنیم (بدون alpha)
     float gk = ghost ? 0.75f : 1.0f;
 
     Color border = shade(col, 0.80f * gk);
     Color fill = shade(col, 1.00f * gk);
 
-    // 1) border (rounded) — این جایگزین outline مربعی می‌شود و glitch را می‌کشد
     renderer_fill_rounded_rect(r, &br, m.radius, border.r, border.g, border.b);
 
-    // 2) inner fill (rounded) با 1px inset
     SDL_Rect inner{br.x + 1, br.y + 1, br.w - 2, br.h - 2};
     renderer_fill_rounded_rect(r, &inner, std::max(0, m.radius - 1), fill.r, fill.g, fill.b);
 
-    // 3) notch cut-out بالا (با رنگ پس‌زمینه)
     SDL_Rect topCut{
         br.x + m.notch_x,
         br.y,
@@ -132,7 +128,6 @@ static void draw_stack_shape(SDL_Renderer *r, const SDL_Rect &br,
         m.notch_h};
     renderer_fill_rounded_rect(r, &topCut, m.notch_h / 2, panel_bg.r, panel_bg.g, panel_bg.b);
 
-    // 4) notch cut-out پایین (با رنگ پس‌زمینه)
     SDL_Rect botCut{
         br.x + m.notch_x,
         br.y + br.h - m.notch_h,
@@ -140,7 +135,6 @@ static void draw_stack_shape(SDL_Renderer *r, const SDL_Rect &br,
         m.notch_h};
     renderer_fill_rounded_rect(r, &botCut, m.notch_h / 2, panel_bg.r, panel_bg.g, panel_bg.b);
 
-    // 5) یک سایه‌ی خیلی ملایم زیر notch بالا برای حس depth (اختیاری)
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(r, 0, 0, 0, ghost ? 18 : 22);
     SDL_Rect sh{topCut.x, topCut.y + 1, topCut.w, 2};
@@ -226,8 +220,6 @@ SDL_Rect motion_block_rect(MotionBlockType type, int x, int y)
     return r;
 }
 
-/* OLD API wrapper */
-
 void motion_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex,
                        MotionBlockType type, int x, int y,
                        int a, int b, GoToTarget target,
@@ -239,7 +231,6 @@ void motion_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex,
                       selected_field, nullptr, nullptr);
 }
 
-/* NEW API */
 void motion_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex,
                        MotionBlockType type, int x, int y,
                        int a, int b, GoToTarget target,
@@ -280,7 +271,7 @@ void motion_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex,
     {
         const char *show = num_default;
         if (override_txt)
-            show = override_txt; /* show overlay when typing */
+            show = override_txt;
 
         SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cap_w, cap_h);
         draw_input_capsule(r, cap, selected_field == field_index);
@@ -564,8 +555,8 @@ void looks_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, Lo
     Color txt_col = {255, 255, 255};
     char bufA[32];
     std::snprintf(bufA, sizeof(bufA), "%d", a);
-    char bufB[32];                               // <--- FIXED: Add bufB
-    std::snprintf(bufB, sizeof(bufB), "%d", b);  // <--- FIXED: Add bufB
+    char bufB[32];
+    std::snprintf(bufB, sizeof(bufB), "%d", b);
     int cap_h = 22;
     int cap_y = br.y + (br.h - cap_h) / 2;
     int cur_x = br.x + padding_x;
@@ -584,7 +575,7 @@ void looks_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, Lo
         draw_word("say");
         draw_text_caps(text.c_str(), override_field0_text, 0, 110);
         draw_word("for");
-        draw_num_caps(bufB, override_field1_text, 1, 48); // <--- FIXED: Draw bufB!
+        draw_num_caps(bufB, override_field1_text, 1, 48);
         draw_word("seconds");
         break;
     case LB_SAY:
@@ -595,7 +586,7 @@ void looks_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, Lo
         draw_word("think");
         draw_text_caps(text.c_str(), override_field0_text, 0, 120);
         draw_word("for");
-        draw_num_caps(bufB, override_field1_text, 1, 48); // <--- FIXED: Draw bufB!
+        draw_num_caps(bufB, override_field1_text, 1, 48);
         draw_word("seconds");
         break;
     case LB_THINK:
@@ -793,98 +784,171 @@ int looks_block_hittest_field(TTF_Font *font, const AppState &state, LooksBlockT
 
 /* ---------------- Sound ---------------- */
 
-int sound_block_width(SoundBlockType type) {
-    switch (type) {
-        case SB_CHANGE_VOLUME_BY: return 300;
-        case SB_SET_VOLUME_TO: return 280;
-        case SB_STOP_ALL_SOUNDS: return 230;
-        case SB_START_SOUND: return 260;
-        case SB_PLAY_SOUND_UNTIL_DONE: return 330;
-        default: return 260;
+int sound_block_width(SoundBlockType type)
+{
+    switch (type)
+    {
+    case SB_CHANGE_VOLUME_BY:
+        return 300;
+    case SB_SET_VOLUME_TO:
+        return 280;
+    case SB_STOP_ALL_SOUNDS:
+        return 230;
+    case SB_START_SOUND:
+        return 260;
+    case SB_PLAY_SOUND_UNTIL_DONE:
+        return 330;
+    default:
+        return 260;
     }
 }
 
-SDL_Rect sound_block_rect(SoundBlockType type, int x, int y, int a, int opt) {
-    (void)a; (void)opt;
+SDL_Rect sound_block_rect(SoundBlockType type, int x, int y, int a, int opt)
+{
+    (void)a;
+    (void)opt;
     MotionBlockMetrics m = motion_block_metrics();
     return {x, y, sound_block_width(type), m.h};
 }
 
-void sound_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, SoundBlockType type, int x, int y, int a, int opt, bool ghost, Color panel_bg, int selected_field, const char *override_field0_text) {
-    Color sound_col = {207, 99, 207}; SDL_Rect br = sound_block_rect(type, x, y, a, opt);
+void sound_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, SoundBlockType type, int x, int y, int a, int opt, bool ghost, Color panel_bg, int selected_field, const char *override_field0_text)
+{
+    Color sound_col = {207, 99, 207};
+    SDL_Rect br = sound_block_rect(type, x, y, a, opt);
     draw_stack_shape(r, br, sound_col, panel_bg, ghost);
 
-    int padding_x = 12; int cy = br.y + (br.h - 16) / 2; Color txt_col = {255, 255, 255};
-    char bufA[32]; std::snprintf(bufA, sizeof(bufA), "%d", a); int cap_h = 22; int cap_y = br.y + (br.h - cap_h) / 2; int cur_x = br.x + padding_x;
-    
-    auto draw_word = [&](const char *w) { draw_text(r, font, w, cur_x, cy, txt_col); cur_x += text_w(font, w) + 6; };
-    auto draw_num_caps = [&](const char *num_default, int field_index, int cap_w) {
-        const char *show = num_default; if (override_field0_text && selected_field == field_index) show = override_field0_text;
-        SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cap_w, cap_h); draw_input_capsule(r, cap, selected_field == field_index);
-        int tw = text_w(font, show); int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6);
-        draw_text(r, font, show, tx, cap.y + (cap.h - 16) / 2, (Color){40, 40, 40}); cur_x += cap.w + 6;
+    int padding_x = 12;
+    int cy = br.y + (br.h - 16) / 2;
+    Color txt_col = {255, 255, 255};
+    char bufA[32];
+    std::snprintf(bufA, sizeof(bufA), "%d", a);
+    int cap_h = 22;
+    int cap_y = br.y + (br.h - cap_h) / 2;
+    int cur_x = br.x + padding_x;
+
+    auto draw_word = [&](const char *w)
+    { draw_text(r, font, w, cur_x, cy, txt_col); cur_x += text_w(font, w) + 6; };
+    auto draw_num_caps = [&](const char *num_default, int field_index, int cap_w)
+    {
+        const char *show = num_default;
+        if (override_field0_text && selected_field == field_index)
+            show = override_field0_text;
+        SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cap_w, cap_h);
+        draw_input_capsule(r, cap, selected_field == field_index);
+        int tw = text_w(font, show);
+        int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6);
+        draw_text(r, font, show, tx, cap.y + (cap.h - 16) / 2, (Color){40, 40, 40});
+        cur_x += cap.w + 6;
     };
-    auto draw_dd = [&](const char *txt) {
-        int cap_w = std::max(90, text_w(font, txt) + 26); SDL_Rect dd{cur_x, cap_y, cap_w, cap_h};
+    auto draw_dd = [&](const char *txt)
+    {
+        int cap_w = std::max(90, text_w(font, txt) + 26);
+        SDL_Rect dd{cur_x, cap_y, cap_w, cap_h};
         draw_dropdown_capsule(r, dd, (Color){165, 70, 165});
         draw_text(r, font, txt, dd.x + 10, dd.y + (dd.h - 16) / 2, (Color){255, 255, 255});
-        draw_caret(r, dd.x + dd.w - 12, dd.y + dd.h / 2, (Color){255, 255, 255}); cur_x += cap_w + 6;
+        draw_caret(r, dd.x + dd.w - 12, dd.y + dd.h / 2, (Color){255, 255, 255});
+        cur_x += cap_w + 6;
     };
 
-    switch (type) {
-        case SB_PLAY_SOUND_UNTIL_DONE:
-        case SB_START_SOUND: {
-            draw_word(type == SB_PLAY_SOUND_UNTIL_DONE ? "play" : "start"); draw_word("sound");
-            std::string s_txt = "Meow";
-            if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size()) {
-                const auto& spr = state.sprites[state.selected_sprite];
-                if (opt >= 0 && opt < (int)spr.sounds.size()) s_txt = spr.sounds[opt].name;
-            }
-            draw_dd(s_txt.c_str());
-            if (type == SB_PLAY_SOUND_UNTIL_DONE) { draw_word("until"); draw_word("done"); }
-            break;
+    switch (type)
+    {
+    case SB_PLAY_SOUND_UNTIL_DONE:
+    case SB_START_SOUND:
+    {
+        draw_word(type == SB_PLAY_SOUND_UNTIL_DONE ? "play" : "start");
+        draw_word("sound");
+        std::string s_txt = "Meow";
+        if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
+        {
+            const auto &spr = state.sprites[state.selected_sprite];
+            if (opt >= 0 && opt < (int)spr.sounds.size())
+                s_txt = spr.sounds[opt].name;
         }
-        case SB_STOP_ALL_SOUNDS: draw_word("stop"); draw_word("all"); draw_word("sounds"); break;
-        case SB_CHANGE_VOLUME_BY: draw_word("change"); draw_word("volume"); draw_word("by"); draw_num_caps(bufA, 0, 52); break;
-        case SB_SET_VOLUME_TO: draw_word("set"); draw_word("volume"); draw_word("to"); draw_num_caps(bufA, 0, 52); draw_word("%"); break;
+        draw_dd(s_txt.c_str());
+        if (type == SB_PLAY_SOUND_UNTIL_DONE)
+        {
+            draw_word("until");
+            draw_word("done");
+        }
+        break;
+    }
+    case SB_STOP_ALL_SOUNDS:
+        draw_word("stop");
+        draw_word("all");
+        draw_word("sounds");
+        break;
+    case SB_CHANGE_VOLUME_BY:
+        draw_word("change");
+        draw_word("volume");
+        draw_word("by");
+        draw_num_caps(bufA, 0, 52);
+        break;
+    case SB_SET_VOLUME_TO:
+        draw_word("set");
+        draw_word("volume");
+        draw_word("to");
+        draw_num_caps(bufA, 0, 52);
+        draw_word("%");
+        break;
     }
 }
 
-int sound_block_hittest_field(TTF_Font *font, const AppState &state, SoundBlockType type, int x, int y, int a, int opt, int px, int py) {
+int sound_block_hittest_field(TTF_Font *font, const AppState &state, SoundBlockType type, int x, int y, int a, int opt, int px, int py)
+{
     SDL_Rect br = sound_block_rect(type, x, y, a, opt);
-    if (!(px >= br.x && px < br.x + br.w && py >= br.y && py < br.y + br.h)) return -1;
-    int cur_x = br.x + 12; int cap_y = br.y + (br.h - 22) / 2;
-    auto adv_word = [&](const char *w) { cur_x += text_w(font, w) + 6; };
-    auto cap_rect = [&](int w) { SDL_Rect rc{cur_x, cap_y, w, 22}; cur_x += w + 6; return rc; };
-    auto in = [&](const SDL_Rect &rc) { return px >= rc.x && px < rc.x + rc.w && py >= rc.y && py < rc.y + rc.h; };
+    if (!(px >= br.x && px < br.x + br.w && py >= br.y && py < br.y + br.h))
+        return -1;
+    int cur_x = br.x + 12;
+    int cap_y = br.y + (br.h - 22) / 2;
+    auto adv_word = [&](const char *w)
+    { cur_x += text_w(font, w) + 6; };
+    auto cap_rect = [&](int w)
+    { SDL_Rect rc{cur_x, cap_y, w, 22}; cur_x += w + 6; return rc; };
+    auto in = [&](const SDL_Rect &rc)
+    { return px >= rc.x && px < rc.x + rc.w && py >= rc.y && py < rc.y + rc.h; };
 
-    switch (type) {
-        case SB_PLAY_SOUND_UNTIL_DONE:
-        case SB_START_SOUND: {
-            adv_word(type == SB_PLAY_SOUND_UNTIL_DONE ? "play" : "start"); adv_word("sound");
-            std::string s_txt = "Meow";
-            if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size()) {
-                const auto& spr = state.sprites[state.selected_sprite];
-                if (opt >= 0 && opt < (int)spr.sounds.size()) s_txt = spr.sounds[opt].name;
-            }
-            if (in(cap_rect(std::max(90, text_w(font, s_txt.c_str()) + 26)))) return -2;
-            return -1;
+    switch (type)
+    {
+    case SB_PLAY_SOUND_UNTIL_DONE:
+    case SB_START_SOUND:
+    {
+        adv_word(type == SB_PLAY_SOUND_UNTIL_DONE ? "play" : "start");
+        adv_word("sound");
+        std::string s_txt = "Meow";
+        if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
+        {
+            const auto &spr = state.sprites[state.selected_sprite];
+            if (opt >= 0 && opt < (int)spr.sounds.size())
+                s_txt = spr.sounds[opt].name;
         }
-        case SB_CHANGE_VOLUME_BY: adv_word("change"); adv_word("volume"); adv_word("by"); if (in(cap_rect(52))) return 0; return -1;
-        case SB_SET_VOLUME_TO: adv_word("set"); adv_word("volume"); adv_word("to"); if (in(cap_rect(52))) return 0; return -1;
-        default: return -1;
+        if (in(cap_rect(std::max(90, text_w(font, s_txt.c_str()) + 26))))
+            return -2;
+        return -1;
+    }
+    case SB_CHANGE_VOLUME_BY:
+        adv_word("change");
+        adv_word("volume");
+        adv_word("by");
+        if (in(cap_rect(52)))
+            return 0;
+        return -1;
+    case SB_SET_VOLUME_TO:
+        adv_word("set");
+        adv_word("volume");
+        adv_word("to");
+        if (in(cap_rect(52)))
+            return 0;
+        return -1;
+    default:
+        return -1;
     }
 }
+
 /* ---------------- Events ---------------- */
 
 static const char *events_key_label(int opt)
 {
-    // 0: space
-    // 1..4: up/down/left/right
-    // 5..30: a..z
-    // 31..40: 0..9
     static char buf[8];
-
     if (opt == 0)
         return "space";
     if (opt == 1)
@@ -915,7 +979,6 @@ static const char *events_key_label(int opt)
 
 static const char *events_message_label(int /*opt*/)
 {
-    // فعلاً فقط message1
     return "message1";
 }
 
@@ -946,15 +1009,12 @@ SDL_Rect events_block_rect(EventsBlockType type, int x, int y, int opt)
     return r;
 }
 
-static void draw_events_hat(SDL_Renderer *r, const SDL_Rect &br,
-                            Color col, Color panel_bg, bool ghost)
+static void draw_events_hat(SDL_Renderer *r, const SDL_Rect &br, Color col, Color panel_bg, bool ghost)
 {
-
     int cap_h = 22;
     int cap_w = std::min(170, br.w - 40);
     SDL_Rect cap{br.x, br.y - (cap_h / 2), cap_w, cap_h};
 
-    // hat: border+fill
     float gk = ghost ? 0.75f : 1.0f;
     Color border = shade(col, 0.80f * gk);
     Color fill = shade(col, 1.00f * gk);
@@ -962,56 +1022,40 @@ static void draw_events_hat(SDL_Renderer *r, const SDL_Rect &br,
     renderer_fill_rounded_rect(r, &cap, cap.h / 2, border.r, border.g, border.b);
     SDL_Rect inner{cap.x + 1, cap.y + 1, cap.w - 2, cap.h - 2};
     renderer_fill_rounded_rect(r, &inner, std::max(0, inner.h / 2), fill.r, fill.g, fill.b);
-
     (void)panel_bg;
 }
 
 void events_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex,
-                       EventsBlockType type,
-                       int x, int y,
-                       int opt,
-                       bool ghost, Color panel_bg,
-                       int selected_field)
+                       EventsBlockType type, int x, int y, int opt,
+                       bool ghost, Color panel_bg, int selected_field)
 {
     (void)selected_field;
 
-    Color events_col = {255, 191, 0}; // زرد Events
+    Color events_col = {255, 191, 0};
     SDL_Rect br = events_block_rect(type, x, y, opt);
 
-    // Events hat blocks: بدون notch بالا، ولی notch پایین داشته باشند
     draw_events_hat(r, br, events_col, panel_bg, ghost);
-    draw_stack_shape_custom(r, br, events_col, panel_bg, ghost,
-                            /*top_notch=*/false,
-                            /*bottom_notch=*/true);
+    draw_stack_shape_custom(r, br, events_col, panel_bg, ghost, false, true);
 
     int padding_x = 12;
     int cy = br.y + (br.h - 16) / 2;
     int cap_h = 22;
     int cap_y = br.y + (br.h - cap_h) / 2;
     int cur_x = br.x + padding_x;
-
     Color txt_col = {255, 255, 255};
 
     auto draw_word = [&](const char *w)
-    {
-        draw_text(r, font, w, cur_x, cy, txt_col);
-        cur_x += text_w(font, w) + 6;
-    };
-
+    { draw_text(r, font, w, cur_x, cy, txt_col); cur_x += text_w(font, w) + 6; };
     auto draw_dd = [&](const char *txt)
     {
         int tw = text_w(font, txt);
         int cap_w = std::max(90, tw + 26);
-
         SDL_Rect dd{cur_x, cap_y, cap_w, cap_h};
-        // کمی تیره‌تر از زرد برای dropdown
         draw_dropdown_capsule(r, dd, (Color){220, 160, 0});
-
         int tx = dd.x + 10;
         int ty = dd.y + (dd.h - 16) / 2;
         draw_text(r, font, txt, tx, ty, (Color){255, 255, 255});
         draw_caret(r, dd.x + dd.w - 12, dd.y + dd.h / 2, (Color){255, 255, 255});
-
         cur_x += cap_w + 6;
     };
 
@@ -1027,126 +1071,83 @@ void events_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex,
         draw_word("clicked");
     }
     break;
-
     case EB_WHEN_KEY_PRESSED:
-    {
         draw_word("when");
-        draw_dd(events_key_label(opt)); // opt = کلید انتخابی
+        draw_dd(events_key_label(opt));
         draw_word("key");
         draw_word("pressed");
-    }
-    break;
-
+        break;
     case EB_WHEN_SPRITE_CLICKED:
-    {
         draw_word("when");
         draw_word("this");
         draw_word("sprite");
         draw_word("clicked");
-    }
-    break;
-
+        break;
     case EB_WHEN_I_RECEIVE:
-    {
         draw_word("when");
         draw_word("I");
         draw_word("receive");
-        draw_dd(events_message_label(opt)); // فعلاً message1
-    }
-    break;
-
+        draw_dd(events_message_label(opt));
+        break;
     case EB_BROADCAST:
-    {
         draw_word("broadcast");
-        draw_dd(events_message_label(opt)); // فعلاً message1
-    }
-    break;
-
+        draw_dd(events_message_label(opt));
+        break;
     default:
         draw_word("events");
         break;
     }
 }
 
-int events_block_hittest_field(TTF_Font *font,
-                               EventsBlockType type,
-                               int x, int y, int opt,
-                               int px, int py)
+int events_block_hittest_field(TTF_Font *font, EventsBlockType type, int x, int y, int opt, int px, int py)
 {
     (void)opt;
-
     SDL_Rect br = events_block_rect(type, x, y, opt);
     if (!(px >= br.x && px < br.x + br.w && py >= br.y && py < br.y + br.h))
         return -1;
-
     int padding_x = 12;
     int cap_h = 22;
     int cap_y = br.y + (br.h - cap_h) / 2;
     int cur_x = br.x + padding_x;
-
     auto adv_word = [&](const char *w)
     { cur_x += text_w(font, w) + 6; };
     auto cap_rect = [&](int w)
-    {
-        SDL_Rect rc{cur_x, cap_y, w, cap_h};
-        cur_x += w + 6;
-        return rc;
-    };
+    { SDL_Rect rc{cur_x, cap_y, w, cap_h}; cur_x += w + 6; return rc; };
     auto in = [&](const SDL_Rect &rc)
-    {
-        return px >= rc.x && px < rc.x + rc.w && py >= rc.y && py < rc.y + rc.h;
-    };
-
+    { return px >= rc.x && px < rc.x + rc.w && py >= rc.y && py < rc.y + rc.h; };
     auto dd_w = [&](const char *txt)
-    {
-        int tw = text_w(font, txt);
-        return std::max(90, tw + 26);
-    };
+    { int tw = text_w(font, txt); return std::max(90, tw + 26); };
 
     switch (type)
     {
     case EB_WHEN_FLAG_CLICKED:
-        // when + icon + clicked (no dropdown)
         return -1;
-
     case EB_WHEN_KEY_PRESSED:
-    {
         adv_word("when");
-        int w = dd_w(events_key_label(opt));
-        if (in(cap_rect(w)))
+        if (in(cap_rect(dd_w(events_key_label(opt)))))
             return -2;
         adv_word("key");
         adv_word("pressed");
         return -1;
-    }
-
     case EB_WHEN_SPRITE_CLICKED:
         return -1;
-
     case EB_WHEN_I_RECEIVE:
-    {
         adv_word("when");
         adv_word("I");
         adv_word("receive");
-        int w = dd_w(events_message_label(opt));
-        if (in(cap_rect(w)))
+        if (in(cap_rect(dd_w(events_message_label(opt)))))
             return -2;
         return -1;
-    }
-
     case EB_BROADCAST:
-    {
         adv_word("broadcast");
-        int w = dd_w(events_message_label(opt));
-        if (in(cap_rect(w)))
+        if (in(cap_rect(dd_w(events_message_label(opt)))))
             return -2;
         return -1;
-    }
-
     default:
         return -1;
     }
 }
+
 /* ================================================================ */
 /* ================       S E N S I N G       ==================== */
 /* ================================================================ */
@@ -1169,7 +1170,6 @@ static const char *sensing_touching_label(int opt)
 static const char *sensing_key_label(int opt)
 {
     static char buf[8];
-
     if (opt == 0)
         return "space";
     if (opt == 1)
@@ -1180,7 +1180,6 @@ static const char *sensing_key_label(int opt)
         return "left arrow";
     if (opt == 4)
         return "right arrow";
-
     if (opt >= 5 && opt <= 30)
     {
         char c = (char)('a' + (opt - 5));
@@ -1198,12 +1197,8 @@ static const char *sensing_key_label(int opt)
     return "space";
 }
 
-static const char *sensing_drag_mode_label(int opt)
-{
-    return (opt == DRAG_NOT_DRAGGABLE) ? "not draggable" : "draggable";
-}
+static const char *sensing_drag_mode_label(int opt) { return (opt == DRAG_NOT_DRAGGABLE) ? "not draggable" : "draggable"; }
 
-/* --- clamp helper for color 0-255 --- */
 static int clamp_color(int v)
 {
     if (v < 0)
@@ -1213,77 +1208,52 @@ static int clamp_color(int v)
     return v;
 }
 
-/* --- شش‌ضلعی (boolean / hexagon shape) --- */
-
-static void draw_boolean_shape(SDL_Renderer *r, const SDL_Rect &br,
-                               Color col, bool ghost)
+static void draw_boolean_shape(SDL_Renderer *r, const SDL_Rect &br, Color col, bool ghost)
 {
     float gk = ghost ? 0.75f : 1.0f;
     Color border = shade(col, 0.80f * gk);
     Color fill = shade(col, 1.00f * gk);
-
-    int point_w = br.h / 2; // عرض نوک شش‌ضلعی
-
-    // بدنه مرکزی (مستطیل)
+    int point_w = br.h / 2;
     SDL_Rect center{br.x + point_w, br.y, br.w - 2 * point_w, br.h};
-
-    // border
     SDL_Rect center_b{center.x - 1, center.y, center.w + 2, center.h};
     SDL_SetRenderDrawColor(r, border.r, border.g, border.b, 255);
     SDL_RenderFillRect(r, &center_b);
-
-    // fill
     SDL_Rect center_f{center.x, center.y + 1, center.w, center.h - 2};
     SDL_SetRenderDrawColor(r, fill.r, fill.g, fill.b, 255);
     SDL_RenderFillRect(r, &center_f);
-
-    // مثلث چپ (نوک سمت چپ)
     int mid_y = br.y + br.h / 2;
     int left_x = br.x;
     int right_of_left = br.x + point_w;
-
     for (int row = 0; row < br.h; row++)
     {
         int y_pos = br.y + row;
         int dist = (row <= br.h / 2) ? row : (br.h - 1 - row);
         float ratio = (float)dist / (float)(br.h / 2);
         int x_start = right_of_left - (int)(ratio * point_w);
-
-        // border line
         SDL_SetRenderDrawColor(r, border.r, border.g, border.b, 255);
         SDL_RenderDrawLine(r, x_start, y_pos, right_of_left, y_pos);
-
-        // fill (1px inset)
         if (row > 0 && row < br.h - 1)
         {
             SDL_SetRenderDrawColor(r, fill.r, fill.g, fill.b, 255);
             SDL_RenderDrawLine(r, x_start + 1, y_pos, right_of_left, y_pos);
         }
     }
-
-    // مثلث راست (نوک سمت راست)
     int left_of_right = br.x + br.w - point_w;
     int right_x = br.x + br.w;
-
     for (int row = 0; row < br.h; row++)
     {
         int y_pos = br.y + row;
         int dist = (row <= br.h / 2) ? row : (br.h - 1 - row);
         float ratio = (float)dist / (float)(br.h / 2);
         int x_end = left_of_right + (int)(ratio * point_w);
-
-        // border line
         SDL_SetRenderDrawColor(r, border.r, border.g, border.b, 255);
         SDL_RenderDrawLine(r, left_of_right, y_pos, x_end, y_pos);
-
-        // fill (1px inset)
         if (row > 0 && row < br.h - 1)
         {
             SDL_SetRenderDrawColor(r, fill.r, fill.g, fill.b, 255);
             SDL_RenderDrawLine(r, left_of_right, y_pos, x_end - 1, y_pos);
         }
     }
-
     (void)mid_y;
     (void)left_x;
     (void)right_x;
@@ -1311,295 +1281,172 @@ int sensing_block_width(SensingBlockType type)
 SDL_Rect sensing_block_rect(SensingBlockType type, int x, int y)
 {
     MotionBlockMetrics m = motion_block_metrics();
-    SDL_Rect r{x, y, sensing_block_width(type), m.h};
-    return r;
+    return {x, y, sensing_block_width(type), m.h};
 }
 
 void sensing_block_draw(SDL_Renderer *r, TTF_Font *font,
-                        SensingBlockType type,
-                        int x, int y,
+                        SensingBlockType type, int x, int y,
                         int a, int b, int opt,
-                        int r1, int g1, int b1,
-                        int r2, int g2, int b2,
-                        const std::string &text,
-                        bool ghost, Color panel_bg,
-                        int selected_field,
-                        const char *override_field0_text)
+                        int r1, int g1, int b1, int r2, int g2, int b2,
+                        const std::string &text, bool ghost, Color panel_bg,
+                        int selected_field, const char *override_field0_text)
 {
     (void)b;
-
-    Color sens_col = {90, 188, 216}; // رنگ Sensing
+    Color sens_col = {90, 188, 216};
     SDL_Rect br = sensing_block_rect(type, x, y);
 
-    // تعیین شکل: شش‌ضلعی یا stack
-    bool is_hex = (type == SENSB_TOUCHING ||
-                   type == SENSB_KEY_PRESSED ||
-                   type == SENSB_MOUSE_DOWN);
-
+    bool is_hex = (type == SENSB_TOUCHING || type == SENSB_KEY_PRESSED || type == SENSB_MOUSE_DOWN);
     if (is_hex)
-    {
         draw_boolean_shape(r, br, sens_col, ghost);
-    }
     else
-    {
-        // stack shape مثل motion
         draw_stack_shape(r, br, sens_col, panel_bg, ghost);
-    }
 
-    int padding_x = is_hex ? (br.h / 2 + 6) : 12; // شش‌ضلعی padding بیشتر
+    int padding_x = is_hex ? (br.h / 2 + 6) : 12;
     int cy = br.y + (br.h - 16) / 2;
     int cap_h = 22;
     int cap_y = br.y + (br.h - cap_h) / 2;
     int cur_x = br.x + padding_x;
-
     Color txt_col = {255, 255, 255};
 
     auto draw_word = [&](const char *w)
-    {
-        draw_text(r, font, w, cur_x, cy, txt_col);
-        cur_x += text_w(font, w) + 6;
-    };
-
-    auto draw_num_caps = [&](const char *num_default,
-                             const char *override_txt,
-                             int field_index,
-                             int cap_w)
+    { draw_text(r, font, w, cur_x, cy, txt_col); cur_x += text_w(font, w) + 6; };
+    auto draw_num_caps = [&](const char *num_default, const char *override_txt, int field_index, int cap_w)
     {
         const char *show = num_default;
         if (override_txt && field_index == 0)
             show = override_txt;
-
         SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cap_w, cap_h);
         draw_input_capsule(r, cap, selected_field == field_index);
-
         int tw = text_w(font, show);
         int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6);
         int ty = cap.y + (cap.h - 16) / 2;
         draw_text(r, font, show, tx, ty, (Color){40, 40, 40});
-
         cur_x += cap.w + 6;
     };
-
     auto draw_dd = [&](const char *txt)
     {
         int tw = text_w(font, txt);
         int cap_w = std::max(90, tw + 26);
-
         SDL_Rect dd{cur_x, cap_y, cap_w, cap_h};
-        draw_dropdown_capsule(r, dd, (Color){60, 150, 180}); // تیره‌تر از sensing
-
+        draw_dropdown_capsule(r, dd, (Color){60, 150, 180});
         int tx = dd.x + 10;
         int ty = dd.y + (dd.h - 16) / 2;
         draw_text(r, font, txt, tx, ty, (Color){255, 255, 255});
         draw_caret(r, dd.x + dd.w - 12, dd.y + dd.h / 2, (Color){255, 255, 255});
-
         cur_x += cap_w + 6;
-    };
-
-    auto draw_color_inputs = [&](const char *prefix, int rv, int gv, int bv,
-                                 int field_r, int field_g, int field_b)
-    {
-        char buf[8];
-
-        // R
-        std::snprintf(buf, sizeof(buf), "%d", clamp_color(rv));
-        draw_word(prefix);
-        draw_word("R:");
-        draw_num_caps(buf, nullptr, field_r, 42);
-
-        // G
-        std::snprintf(buf, sizeof(buf), "%d", clamp_color(gv));
-        draw_word("G:");
-        draw_num_caps(buf, nullptr, field_g, 42);
-
-        // B
-        std::snprintf(buf, sizeof(buf), "%d", clamp_color(bv));
-        draw_word("B:");
-        draw_num_caps(buf, nullptr, field_b, 42);
     };
 
     switch (type)
     {
     case SENSB_TOUCHING:
-    {
         draw_word("touching");
         draw_dd(sensing_touching_label(opt));
         draw_word("?");
-    }
-    break;
-
+        break;
     case SENSB_ASK_AND_WAIT:
     {
         const char *show_text = text.empty() ? "What's your name?" : text.c_str();
         if (override_field0_text)
             show_text = override_field0_text;
-
         draw_word("ask");
-
-        // text input capsule
         int cap_w = 180;
         SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cap_w, cap_h);
         draw_input_capsule(r, cap, selected_field == 0);
-
         int tw = text_w(font, show_text);
         int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6);
         int ty = cap.y + (cap.h - 16) / 2;
         draw_text(r, font, show_text, tx, ty, (Color){40, 40, 40});
-
         cur_x += cap_w + 6;
         draw_word("and");
         draw_word("wait");
     }
     break;
-
     case SENSB_KEY_PRESSED:
-    {
         draw_word("key");
         draw_dd(sensing_key_label(opt));
         draw_word("pressed?");
-    }
-    break;
-
+        break;
     case SENSB_MOUSE_DOWN:
-    {
         draw_word("mouse");
         draw_word("down?");
-    }
-    break;
-
+        break;
     case SENSB_SET_DRAG_MODE:
-    {
         draw_word("set");
         draw_word("drag");
         draw_word("mode");
         draw_dd(sensing_drag_mode_label(opt));
-    }
-    break;
-
+        break;
     default:
         draw_word("sensing");
         break;
     }
 }
 
-int sensing_block_hittest_field(TTF_Font *font,
-                                SensingBlockType type,
-                                int x, int y,
-                                int opt,
-                                int px, int py)
+int sensing_block_hittest_field(TTF_Font *font, SensingBlockType type, int x, int y, int opt, int px, int py)
 {
     (void)opt;
-
     SDL_Rect br = sensing_block_rect(type, x, y);
     if (!(px >= br.x && px < br.x + br.w && py >= br.y && py < br.y + br.h))
         return -1;
-
-    bool is_hex = (type == SENSB_TOUCHING ||
-                   type == SENSB_KEY_PRESSED ||
-                   type == SENSB_MOUSE_DOWN);
-
+    bool is_hex = (type == SENSB_TOUCHING || type == SENSB_KEY_PRESSED || type == SENSB_MOUSE_DOWN);
     int padding_x = is_hex ? (br.h / 2 + 6) : 12;
     int cap_h = 22;
     int cap_y = br.y + (br.h - cap_h) / 2;
     int cur_x = br.x + padding_x;
-
     auto adv_word = [&](const char *w)
     { cur_x += text_w(font, w) + 6; };
     auto cap_rect = [&](int w)
-    {
-        SDL_Rect rc{cur_x, cap_y, w, cap_h};
-        cur_x += w + 6;
-        return rc;
-    };
+    { SDL_Rect rc{cur_x, cap_y, w, cap_h}; cur_x += w + 6; return rc; };
     auto in = [&](const SDL_Rect &rc)
-    {
-        return px >= rc.x && px < rc.x + rc.w && py >= rc.y && py < rc.y + rc.h;
-    };
+    { return px >= rc.x && px < rc.x + rc.w && py >= rc.y && py < rc.y + rc.h; };
     auto dd_w = [&](const char *txt)
-    {
-        int tw = text_w(font, txt);
-        return std::max(90, tw + 26);
-    };
+    { int tw = text_w(font, txt); return std::max(90, tw + 26); };
 
     switch (type)
     {
     case SENSB_TOUCHING:
-    {
         adv_word("touching");
-        int w = dd_w(sensing_touching_label(opt));
-        if (in(cap_rect(w)))
-            return -2; // dropdown
+        if (in(cap_rect(dd_w(sensing_touching_label(opt)))))
+            return -2;
         return -1;
-    }
-
     case SENSB_ASK_AND_WAIT:
-    {
         adv_word("ask");
         if (in(cap_rect(180)))
-            return 0; // text input
+            return 0;
         return -1;
-    }
-
     case SENSB_KEY_PRESSED:
-    {
         adv_word("key");
-        int w = dd_w(sensing_key_label(opt));
-        if (in(cap_rect(w)))
-            return -2; // dropdown
+        if (in(cap_rect(dd_w(sensing_key_label(opt)))))
+            return -2;
         return -1;
-    }
-
     case SENSB_MOUSE_DOWN:
-        return -1; // بدون فیلد قابل کلیک
-
+        return -1;
     case SENSB_SET_DRAG_MODE:
-    {
         adv_word("set");
         adv_word("drag");
         adv_word("mode");
-        int w = dd_w(sensing_drag_mode_label(opt));
-        if (in(cap_rect(w)))
-            return -2; // dropdown
+        if (in(cap_rect(dd_w(sensing_drag_mode_label(opt)))))
+            return -2;
         return -1;
-    }
-
     default:
         return -1;
     }
 }
-// اضافه کنید به انتهای block_ui.cpp:
 
-/* ============================================================ */
-/*                         SENSING                              */
-/* ============================================================ */
+static const char *sensing_drag_label(int opt) { return (opt == 0) ? "draggable" : "not draggable"; }
 
-// ----- helper: dropdown label for touching -----
-
-// ----- helper: drag mode label -----
-static const char *sensing_drag_label(int opt)
-{
-    return (opt == 0) ? "draggable" : "not draggable";
-}
-
-/* -------- Boolean (hexagonal) shape -------- */
-
-static void draw_boolean_shape(SDL_Renderer *r, const SDL_Rect &br,
-                               Color col, Color panel_bg, bool ghost)
+static void draw_boolean_shape(SDL_Renderer *r, const SDL_Rect &br, Color col, Color panel_bg, bool ghost)
 {
     (void)panel_bg;
     float gk = ghost ? 0.75f : 1.0f;
     Color border = shade(col, 0.80f * gk);
     Color fill = shade(col, 1.00f * gk);
+    int arrow = br.h / 2;
 
-    // شش‌ضلعی ساده: مستطیل وسط + دو مثلث در طرفین
-    int arrow = br.h / 2; // اندازه مثلث
-
-    // border (کمی بزرگتر)
     SDL_Rect mid_b = {br.x + arrow, br.y, br.w - 2 * arrow, br.h};
     SDL_SetRenderDrawColor(r, border.r, border.g, border.b, 255);
     SDL_RenderFillRect(r, &mid_b);
 
-    // مثلث چپ (border)
     int cx_l = br.x + arrow;
     int cy_m = br.y + br.h / 2;
     for (int row = 0; row < br.h; ++row)
@@ -1609,8 +1456,6 @@ static void draw_boolean_shape(SDL_Renderer *r, const SDL_Rect &br,
         int x0 = cx_l - half;
         SDL_RenderDrawLine(r, x0, y, cx_l, y);
     }
-
-    // مثلث راست (border)
     int cx_r = br.x + br.w - arrow;
     for (int row = 0; row < br.h; ++row)
     {
@@ -1620,12 +1465,10 @@ static void draw_boolean_shape(SDL_Renderer *r, const SDL_Rect &br,
         SDL_RenderDrawLine(r, cx_r, y, x1, y);
     }
 
-    // fill (1px inset)
     SDL_Rect mid_f = {br.x + arrow + 1, br.y + 1, br.w - 2 * arrow - 2, br.h - 2};
     SDL_SetRenderDrawColor(r, fill.r, fill.g, fill.b, 255);
     SDL_RenderFillRect(r, &mid_f);
 
-    // مثلث چپ (fill)
     for (int row = 1; row < br.h - 1; ++row)
     {
         int y = br.y + row;
@@ -1634,8 +1477,6 @@ static void draw_boolean_shape(SDL_Renderer *r, const SDL_Rect &br,
         SDL_SetRenderDrawColor(r, fill.r, fill.g, fill.b, 255);
         SDL_RenderDrawLine(r, x0, y, cx_l, y);
     }
-
-    // مثلث راست (fill)
     for (int row = 1; row < br.h - 1; ++row)
     {
         int y = br.y + row;
@@ -1645,8 +1486,6 @@ static void draw_boolean_shape(SDL_Renderer *r, const SDL_Rect &br,
         SDL_RenderDrawLine(r, cx_r, y, x1, y);
     }
 }
-
-/* -------- Sensing Boolean: width, rect, draw, hittest -------- */
 
 int sensing_boolean_block_width(SensingBlockType type)
 {
@@ -1666,18 +1505,13 @@ int sensing_boolean_block_width(SensingBlockType type)
 SDL_Rect sensing_boolean_block_rect(SensingBlockType type, int x, int y, int opt)
 {
     (void)opt;
-    SDL_Rect r = {x, y, sensing_boolean_block_width(type), 36};
-    return r;
+    return {x, y, sensing_boolean_block_width(type), 36};
 }
 
 void sensing_boolean_block_draw(SDL_Renderer *r, TTF_Font *font,
-                                SensingBlockType type,
-                                int x, int y,
-                                int opt, int a, int b, int c,
-                                int d, int e, int f,
-                                bool ghost, Color panel_bg,
-                                int selected_field,
-                                const char *override_field0_text)
+                                SensingBlockType type, int x, int y,
+                                int opt, int a, int b, int c, int d, int e, int f,
+                                bool ghost, Color panel_bg, int selected_field, const char *override_field0_text)
 {
     Color sensing_col = {74, 189, 211};
     SDL_Rect br = sensing_boolean_block_rect(type, x, y, opt);
@@ -1687,47 +1521,12 @@ void sensing_boolean_block_draw(SDL_Renderer *r, TTF_Font *font,
     int padding_x = arrow + 8;
     int cy = br.y + (br.h - 16) / 2;
     Color txt_col = {255, 255, 255};
-
     int cap_h = 20;
     int cap_y = br.y + (br.h - cap_h) / 2;
     int cur_x = br.x + padding_x;
 
     auto draw_word = [&](const char *w)
-    {
-        draw_text(r, font, w, cur_x, cy, txt_col);
-        cur_x += text_w(font, w) + 6;
-    };
-
-    auto draw_color_swatch = [&](int rv, int gv, int bv, int cap_w)
-    {
-        SDL_Rect sw = {cur_x, cap_y, cap_w, cap_h};
-        renderer_fill_rounded_rect(r, &sw, cap_h / 2, rv, gv, bv);
-        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
-        SDL_SetRenderDrawColor(r, 0, 0, 0, 50);
-        SDL_RenderDrawRect(r, &sw);
-        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_NONE);
-        cur_x += cap_w + 6;
-    };
-
-    auto draw_num_caps = [&](const char *num_default,
-                             const char *override_txt,
-                             int field_index,
-                             int cap_w)
-    {
-        const char *show = num_default;
-        if (override_txt && selected_field == field_index)
-            show = override_txt;
-
-        SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cap_w, cap_h);
-        draw_input_capsule(r, cap, selected_field == field_index);
-
-        int tw = text_w(font, show);
-        int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6);
-        int ty = cap.y + (cap.h - 16) / 2;
-        draw_text(r, font, show, tx, ty, (Color){40, 40, 40});
-        cur_x += cap.w + 6;
-    };
-
+    { draw_text(r, font, w, cur_x, cy, txt_col); cur_x += text_w(font, w) + 6; };
     auto draw_dd = [&](const char *txt)
     {
         int tw = text_w(font, txt);
@@ -1741,8 +1540,6 @@ void sensing_boolean_block_draw(SDL_Renderer *r, TTF_Font *font,
         cur_x += cap_w + 6;
     };
 
-    char bufR[16], bufG[16], bufB[16];
-
     switch (type)
     {
     case SENSB_TOUCHING:
@@ -1750,73 +1547,40 @@ void sensing_boolean_block_draw(SDL_Renderer *r, TTF_Font *font,
         draw_dd(sensing_touching_label(opt));
         draw_word("?");
         break;
-
     case SENSB_KEY_PRESSED:
         draw_word("key");
         draw_dd(sensing_key_label(opt));
         draw_word("pressed?");
         break;
-
     case SENSB_MOUSE_DOWN:
         draw_word("mouse");
         draw_word("down?");
         break;
-
     default:
         draw_word("sensing");
         break;
     }
-
-    (void)override_field0_text;
-    (void)d;
-    (void)e;
-    (void)f;
-    (void)a;
-    (void)b;
-    (void)c;
 }
 
-int sensing_boolean_block_hittest_field(TTF_Font *font,
-                                        SensingBlockType type,
-                                        int x, int y,
-                                        int opt, int a, int b, int c,
-                                        int d, int e, int f,
-                                        int px, int py)
+int sensing_boolean_block_hittest_field(TTF_Font *font, SensingBlockType type, int x, int y,
+                                        int opt, int a, int b, int c, int d, int e, int f, int px, int py)
 {
-    (void)a;
-    (void)b;
-    (void)c;
-    (void)d;
-    (void)e;
-    (void)f;
-
     SDL_Rect br = sensing_boolean_block_rect(type, x, y, opt);
     if (!(px >= br.x && px < br.x + br.w && py >= br.y && py < br.y + br.h))
         return -1;
-
     int arrow = br.h / 2;
     int padding_x = arrow + 8;
     int cap_h = 20;
     int cap_y = br.y + (br.h - cap_h) / 2;
     int cur_x = br.x + padding_x;
-
     auto adv_word = [&](const char *w)
     { cur_x += text_w(font, w) + 6; };
     auto cap_rect = [&](int w)
-    {
-        SDL_Rect rc = {cur_x, cap_y, w, cap_h};
-        cur_x += w + 6;
-        return rc;
-    };
+    { SDL_Rect rc = {cur_x, cap_y, w, cap_h}; cur_x += w + 6; return rc; };
     auto in = [&](const SDL_Rect &rc)
-    {
-        return px >= rc.x && px < rc.x + rc.w && py >= rc.y && py < rc.y + rc.h;
-    };
+    { return px >= rc.x && px < rc.x + rc.w && py >= rc.y && py < rc.y + rc.h; };
     auto dd_w = [&](const char *txt)
-    {
-        int tw = text_w(font, txt);
-        return std::max(90, tw + 26);
-    };
+    { return std::max(90, text_w(font, txt) + 26); };
 
     switch (type)
     {
@@ -1825,22 +1589,17 @@ int sensing_boolean_block_hittest_field(TTF_Font *font,
         if (in(cap_rect(dd_w(sensing_touching_label(opt)))))
             return -2;
         return -1;
-
     case SENSB_KEY_PRESSED:
         adv_word("key");
         if (in(cap_rect(dd_w(sensing_key_label(opt)))))
             return -2;
         return -1;
-
     case SENSB_MOUSE_DOWN:
         return -1;
-
     default:
         return -1;
     }
 }
-
-/* -------- Sensing Stack: width, rect, draw, hittest -------- */
 
 int sensing_stack_block_width(SensingBlockType type)
 {
@@ -1859,17 +1618,12 @@ SDL_Rect sensing_stack_block_rect(SensingBlockType type, int x, int y, int opt)
 {
     (void)opt;
     MotionBlockMetrics m = motion_block_metrics();
-    SDL_Rect r = {x, y, sensing_stack_block_width(type), m.h};
-    return r;
+    return {x, y, sensing_stack_block_width(type), m.h};
 }
 
-void sensing_stack_block_draw(SDL_Renderer *r, TTF_Font *font,
-                              SensingBlockType type,
-                              int x, int y,
-                              const std::string &text, int opt,
-                              bool ghost, Color panel_bg,
-                              int selected_field,
-                              const char *override_field0_text)
+void sensing_stack_block_draw(SDL_Renderer *r, TTF_Font *font, SensingBlockType type, int x, int y,
+                              const std::string &text, int opt, bool ghost, Color panel_bg,
+                              int selected_field, const char *override_field0_text)
 {
     Color sensing_col = {74, 189, 211};
     SDL_Rect br = sensing_stack_block_rect(type, x, y, opt);
@@ -1878,36 +1632,25 @@ void sensing_stack_block_draw(SDL_Renderer *r, TTF_Font *font,
     int padding_x = 12;
     int cy = br.y + (br.h - 16) / 2;
     Color txt_col = {255, 255, 255};
-
     int cap_h = 22;
     int cap_y = br.y + (br.h - cap_h) / 2;
     int cur_x = br.x + padding_x;
 
     auto draw_word = [&](const char *w)
-    {
-        draw_text(r, font, w, cur_x, cy, txt_col);
-        cur_x += text_w(font, w) + 6;
-    };
-
-    auto draw_text_caps = [&](const char *default_txt,
-                              const char *override_txt,
-                              int field_index,
-                              int cap_w)
+    { draw_text(r, font, w, cur_x, cy, txt_col); cur_x += text_w(font, w) + 6; };
+    auto draw_text_caps = [&](const char *default_txt, const char *override_txt, int field_index, int cap_w)
     {
         const char *show = default_txt;
         if (override_txt && selected_field == field_index)
             show = override_txt;
-
         SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cap_w, cap_h);
         draw_input_capsule(r, cap, selected_field == field_index);
-
         int tw = text_w(font, show);
         int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6);
         int ty = cap.y + (cap.h - 16) / 2;
         draw_text(r, font, show, tx, ty, (Color){40, 40, 40});
         cur_x += cap.w + 6;
     };
-
     auto draw_dd = [&](const char *txt)
     {
         int tw = text_w(font, txt);
@@ -1929,63 +1672,44 @@ void sensing_stack_block_draw(SDL_Renderer *r, TTF_Font *font,
         draw_word("and");
         draw_word("wait");
         break;
-
     case SENSB_SET_DRAG_MODE:
         draw_word("set");
         draw_word("drag");
         draw_word("mode");
         draw_dd(sensing_drag_label(opt));
         break;
-
     default:
         draw_word("sensing");
         break;
     }
 }
 
-int sensing_stack_block_hittest_field(TTF_Font *font,
-                                      SensingBlockType type,
-                                      int x, int y,
-                                      const std::string &text, int opt,
-                                      int px, int py)
+int sensing_stack_block_hittest_field(TTF_Font *font, SensingBlockType type, int x, int y,
+                                      const std::string &text, int opt, int px, int py)
 {
-    (void)text;
-
     SDL_Rect br = sensing_stack_block_rect(type, x, y, opt);
     if (!(px >= br.x && px < br.x + br.w && py >= br.y && py < br.y + br.h))
         return -1;
-
     int padding_x = 12;
     int cap_h = 22;
     int cap_y = br.y + (br.h - cap_h) / 2;
     int cur_x = br.x + padding_x;
-
     auto adv_word = [&](const char *w)
     { cur_x += text_w(font, w) + 6; };
     auto cap_rect = [&](int w)
-    {
-        SDL_Rect rc = {cur_x, cap_y, w, cap_h};
-        cur_x += w + 6;
-        return rc;
-    };
+    { SDL_Rect rc = {cur_x, cap_y, w, cap_h}; cur_x += w + 6; return rc; };
     auto in = [&](const SDL_Rect &rc)
-    {
-        return px >= rc.x && px < rc.x + rc.w && py >= rc.y && py < rc.y + rc.h;
-    };
+    { return px >= rc.x && px < rc.x + rc.w && py >= rc.y && py < rc.y + rc.h; };
     auto dd_w = [&](const char *txt)
-    {
-        int tw = text_w(font, txt);
-        return std::max(110, tw + 26);
-    };
+    { return std::max(110, text_w(font, txt) + 26); };
 
     switch (type)
     {
     case SENSB_ASK_AND_WAIT:
         adv_word("ask");
         if (in(cap_rect(140)))
-            return 0; // text input field
+            return 0;
         return -1;
-
     case SENSB_SET_DRAG_MODE:
         adv_word("set");
         adv_word("drag");
@@ -1993,7 +1717,6 @@ int sensing_stack_block_hittest_field(TTF_Font *font,
         if (in(cap_rect(dd_w(sensing_drag_label(opt)))))
             return -2;
         return -1;
-
     default:
         return -1;
     }
@@ -2011,42 +1734,34 @@ static void draw_c_shape_native(SDL_Renderer *r, int x, int y, int w, int top_h,
     int spine_w = 16;
     MotionBlockMetrics m = motion_block_metrics();
 
-    // Top arm
     SDL_Rect top = {x, y, w, top_h};
     renderer_fill_rounded_rect(r, &top, 4, border.r, border.g, border.b);
     SDL_Rect topF = {x + 1, y + 1, w - 2, top_h - 2};
     renderer_fill_rounded_rect(r, &topF, 4, fill.r, fill.g, fill.b);
 
-    // Spine
     SDL_Rect spine = {x, y + top_h - 4, spine_w, inner_h + 8};
     SDL_SetRenderDrawColor(r, fill.r, fill.g, fill.b, 255);
     SDL_RenderFillRect(r, &spine);
     SDL_SetRenderDrawColor(r, border.r, border.g, border.b, 255);
     SDL_RenderDrawLine(r, x, spine.y, x, spine.y + spine.h);
 
-    // Bottom arm
     SDL_Rect bot = {x, y + top_h + inner_h, w, bottom_h};
     renderer_fill_rounded_rect(r, &bot, 4, border.r, border.g, border.b);
     SDL_Rect botF = {x + 1, y + top_h + inner_h + 1, w - 2, bottom_h - 2};
     renderer_fill_rounded_rect(r, &botF, 4, fill.r, fill.g, fill.b);
 
-    // Top Notch
     if (has_top_notch)
     {
         SDL_Rect tc = {x + m.notch_x, y, m.notch_w, m.notch_h};
         renderer_fill_rounded_rect(r, &tc, m.notch_h / 2, bg.r, bg.g, bg.b);
     }
-
-    // Bottom Notch (outside)
     if (has_bottom_notch)
     {
         SDL_Rect bc = {x + m.notch_x, bot.y + bot.h - m.notch_h, m.notch_w, m.notch_h};
         renderer_fill_rounded_rect(r, &bc, m.notch_h / 2, bg.r, bg.g, bg.b);
     }
-
-    // Inner Notch (where children snap)
     SDL_Rect ic = {x + spine_w + m.notch_x, y + top_h - m.notch_h, m.notch_w, m.notch_h};
-    renderer_fill_rounded_rect(r, &ic, m.notch_h / 2, fill.r, fill.g, fill.b); // Color of the block
+    renderer_fill_rounded_rect(r, &ic, m.notch_h / 2, fill.r, fill.g, fill.b);
 }
 
 int control_block_width(ControlBlockType type)
@@ -2073,43 +1788,27 @@ int control_block_width(ControlBlockType type)
 SDL_Rect control_block_rect(ControlBlockType type, int x, int y, int inner1_h, int inner2_h)
 {
     int w = control_block_width(type);
-    int h = 40; // Default stack
-
+    int h = 40;
     if (type == CB_REPEAT || type == CB_IF)
-    {
-        h = 40 + std::max(24, inner1_h) + 24; // Top + Inner + Bottom
-    }
+        h = 40 + std::max(24, inner1_h) + 24;
     else if (type == CB_FOREVER)
-    {
-        h = 40 + std::max(24, inner1_h) + 20; // Forever has no bottom notch
-    }
+        h = 40 + std::max(24, inner1_h) + 20;
     else if (type == CB_IF_ELSE)
-    {
-        h = 40 + std::max(24, inner1_h) + 32 + std::max(24, inner2_h) + 24; // Top + Inner1 + Mid + Inner2 + Bot
-    }
-
+        h = 40 + std::max(24, inner1_h) + 32 + std::max(24, inner2_h) + 24;
     return {x, y, w, h};
 }
 
 static void draw_hex_slot(SDL_Renderer *r, int cx, int cy, Color base_col, bool filled)
 {
     if (filled)
-        return; // If a block is inside, don't draw the empty hole
-
+        return;
     int w = 50, h = 24;
     SDL_Rect br = {cx, cy - h / 2, w, h};
-
-    // Create a darker shade of the block's base color for the "hole"
     Color hole_col = shade(base_col, 0.70f);
-
     int arrow = br.h / 2;
-
-    // Middle rect
     SDL_Rect mid = {br.x + arrow, br.y, br.w - 2 * arrow, br.h};
     SDL_SetRenderDrawColor(r, hole_col.r, hole_col.g, hole_col.b, 255);
     SDL_RenderFillRect(r, &mid);
-
-    // Left triangle
     int cx_l = br.x + arrow;
     for (int row = 0; row < br.h; ++row)
     {
@@ -2118,8 +1817,6 @@ static void draw_hex_slot(SDL_Renderer *r, int cx, int cy, Color base_col, bool 
         int x0 = cx_l - half;
         SDL_RenderDrawLine(r, x0, y, cx_l, y);
     }
-
-    // Right triangle
     int cx_r = br.x + br.w - arrow;
     for (int row = 0; row < br.h; ++row)
     {
@@ -2128,8 +1825,6 @@ static void draw_hex_slot(SDL_Renderer *r, int cx, int cy, Color base_col, bool 
         int x1 = cx_r + half;
         SDL_RenderDrawLine(r, cx_r, y, x1, y);
     }
-
-    // Inner shadow line (top) to give a 3D depth effect
     SDL_SetRenderDrawColor(r, 0, 0, 0, 40);
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
     SDL_RenderDrawLine(r, mid.x - 5, mid.y, mid.x + mid.w + 5, mid.y);
@@ -2138,32 +1833,24 @@ static void draw_hex_slot(SDL_Renderer *r, int cx, int cy, Color base_col, bool 
 
 void control_block_draw(SDL_Renderer *r, TTF_Font *font, ControlBlockType type, int x, int y, int inner1_h, int inner2_h, int a, bool has_condition, bool ghost, Color panel_bg, int selected_field, const char *override_field0_text)
 {
-    Color col = {255, 171, 25}; // Control Orange
+    Color col = {255, 171, 25};
     SDL_Rect br = control_block_rect(type, x, y, inner1_h, inner2_h);
-
     int min_inner = 24;
     int h1 = std::max(min_inner, inner1_h);
     int h2 = std::max(min_inner, inner2_h);
 
     if (type == CB_WAIT || type == CB_WAIT_UNTIL)
-    {
         draw_stack_shape_custom(r, br, col, panel_bg, ghost, true, true);
-    }
     else if (type == CB_REPEAT || type == CB_IF)
-    {
         draw_c_shape_native(r, x, y, br.w, 40, h1, 24, col, panel_bg, ghost, true, true);
-    }
     else if (type == CB_FOREVER)
-    {
         draw_c_shape_native(r, x, y, br.w, 40, h1, 20, col, panel_bg, ghost, true, false);
-    }
     else if (type == CB_IF_ELSE)
     {
         draw_c_shape_native(r, x, y, br.w, 40, h1, 32, col, panel_bg, ghost, true, false);
         draw_c_shape_native(r, x, y + 40 + h1, br.w, 32, h2, 24, col, panel_bg, ghost, false, true);
     }
 
-    // --- DRAW TEXT AND INPUTS ---
     int cur_x = br.x + 12;
     int cy = br.y + (40 - 16) / 2;
     Color txt_col = {255, 255, 255};
@@ -2171,11 +1858,7 @@ void control_block_draw(SDL_Renderer *r, TTF_Font *font, ControlBlockType type, 
     std::snprintf(bufA, sizeof(bufA), "%d", a);
 
     auto draw_word = [&](const char *w, int y_pos)
-    {
-        draw_text(r, font, w, cur_x, y_pos, txt_col);
-        cur_x += text_w(font, w) + 6;
-    };
-
+    { draw_text(r, font, w, cur_x, y_pos, txt_col); cur_x += text_w(font, w) + 6; };
     auto draw_num = [&](const char *txt)
     {
         SDL_Rect cap = input_capsule_rect(cur_x, br.y + 9, 40, 22);
@@ -2225,12 +1908,9 @@ void control_block_draw(SDL_Renderer *r, TTF_Font *font, ControlBlockType type, 
 
 int control_block_hittest_field(TTF_Font *font, ControlBlockType type, int x, int y, int inner1_h, int inner2_h, int a, int px, int py)
 {
-    (void)font;
-    (void)a;
     SDL_Rect br = control_block_rect(type, x, y, inner1_h, inner2_h);
     if (!(px >= br.x && px < br.x + br.w && py >= br.y && py < br.y + br.h))
         return -1;
-
     int padding_x = 12;
     int cur_x = br.x + padding_x;
 
@@ -2238,16 +1918,17 @@ int control_block_hittest_field(TTF_Font *font, ControlBlockType type, int x, in
     {
         cur_x += text_w(font, type == CB_WAIT ? "wait" : "repeat") + 6;
         if (px >= cur_x && px < cur_x + 40 && py >= br.y + 9 && py < br.y + 31)
-            return 0; // Number input
+            return 0;
     }
     else if (type == CB_IF || type == CB_IF_ELSE || type == CB_WAIT_UNTIL)
     {
         cur_x += text_w(font, type == CB_WAIT_UNTIL ? "wait until" : "if") + 12;
         if (px >= cur_x && px < cur_x + 50 && py >= br.y + 8 && py < br.y + 32)
-            return -3; // Hex slot
+            return -3;
     }
     return -1;
 }
+
 /* ================================================================ */
 /* ===============       O P E R A T O R S      =================== */
 /* ================================================================ */
@@ -2257,7 +1938,6 @@ static void draw_reporter_shape(SDL_Renderer *r, const SDL_Rect &br, Color col, 
     float gk = ghost ? 0.75f : 1.0f;
     Color border = shade(col, 0.80f * gk);
     Color fill = shade(col, 1.00f * gk);
-
     renderer_fill_rounded_rect(r, &br, br.h / 2, border.r, border.g, border.b);
     SDL_Rect inner{br.x + 1, br.y + 1, br.w - 2, br.h - 2};
     renderer_fill_rounded_rect(r, &inner, std::max(0, inner.h / 2), fill.r, fill.g, fill.b);
@@ -2297,39 +1977,22 @@ SDL_Rect operators_block_rect(OperatorsBlockType type, int x, int y)
     return {x, y, operators_block_width(type), 40};
 }
 
-void operators_block_draw(SDL_Renderer *r, TTF_Font *font,
-                          OperatorsBlockType type,
-                          int x, int y,
-                          const std::string &str_a, const std::string &str_b,
-                          int a, int b,
-                          bool ghost, Color panel_bg,
-                          int selected_field,
-                          const char *override_field0_text,
-                          const char *override_field1_text)
+void operators_block_draw(SDL_Renderer *r, TTF_Font *font, OperatorsBlockType type, int x, int y, const std::string &str_a, const std::string &str_b, int a, int b, bool ghost, Color panel_bg, int selected_field, const char *override_field0_text, const char *override_field1_text)
 {
-    (void)a; // Unused for operators now, we use strings
-    (void)b; // Unused for operators now, we use strings
-
-    Color op_col = {89, 192, 89}; // Scratch Operators Green
+    (void)a;
+    (void)b;
+    Color op_col = {89, 192, 89};
     SDL_Rect br = operators_block_rect(type, x, y);
-
-    bool is_bool = (type == OP_GT || type == OP_LT || type == OP_EQ ||
-                    type == OP_AND || type == OP_OR || type == OP_NOT);
-
+    bool is_bool = (type == OP_GT || type == OP_LT || type == OP_EQ || type == OP_AND || type == OP_OR || type == OP_NOT);
     if (is_bool)
-    {
         draw_boolean_shape(r, br, op_col, panel_bg, ghost);
-    }
     else
-    {
         draw_reporter_shape(r, br, op_col, ghost);
-    }
 
     int cy = br.y + (br.h - 16) / 2;
     int cap_h = 24;
     int cap_y = br.y + (br.h - cap_h) / 2;
 
-    // --- Dynamic Centering Calculation ---
     auto get_word_w = [&](const char *w)
     { return text_w(font, w) + 6; };
     auto get_cap_w = [&](int cw)
@@ -2369,20 +2032,13 @@ void operators_block_draw(SDL_Renderer *r, TTF_Font *font,
         break;
     }
     if (content_w > 0)
-        content_w -= 6; // Remove trailing padding
+        content_w -= 6;
 
-    // perfectly centered X
     int cur_x = br.x + (br.w - content_w) / 2;
-
     Color txt_col = {255, 255, 255};
 
-    // --- DRAWING HELPERS ---
     auto draw_word = [&](const char *w)
-    {
-        draw_text(r, font, w, cur_x, cy, txt_col);
-        cur_x += text_w(font, w) + 6;
-    };
-
+    { draw_text(r, font, w, cur_x, cy, txt_col); cur_x += text_w(font, w) + 6; };
     auto draw_capsule = [&](const char *txt, const char *override_txt, int field_index, int cw)
     {
         const char *show = (override_txt && selected_field == field_index) ? override_txt : txt;
@@ -2394,14 +2050,9 @@ void operators_block_draw(SDL_Renderer *r, TTF_Font *font,
         draw_text(r, font, show, tx, ty, (Color){40, 40, 40});
         cur_x += cap.w + 6;
     };
-
     auto draw_empty_hex = [&]()
-    {
-        draw_hex_slot(r, cur_x, cy + 8, op_col, false);
-        cur_x += 50 + 6;
-    };
+    { draw_hex_slot(r, cur_x, cy + 8, op_col, false); cur_x += 50 + 6; };
 
-    // --- RENDER CONTENT ---
     switch (type)
     {
     case OP_ADD:
@@ -2476,17 +2127,14 @@ int operators_block_hittest_field(TTF_Font *font, OperatorsBlockType type, int x
     SDL_Rect br = operators_block_rect(type, x, y);
     if (!(px >= br.x && px < br.x + br.w && py >= br.y && py < br.y + br.h))
         return -1;
-
     int cap_h = 24;
     int cap_y = br.y + (br.h - cap_h) / 2;
-
     auto get_word_w = [&](const char *w)
     { return text_w(font, w) + 6; };
     auto get_cap_w = [&](int cw)
     { return cw + 6; };
     auto get_hex_w = [&]()
     { return 50 + 6; };
-
     int content_w = 0;
     switch (type)
     {
@@ -2520,21 +2168,13 @@ int operators_block_hittest_field(TTF_Font *font, OperatorsBlockType type, int x
     }
     if (content_w > 0)
         content_w -= 6;
-
     int cur_x = br.x + (br.w - content_w) / 2;
-
     auto adv_word = [&](const char *w)
     { cur_x += text_w(font, w) + 6; };
     auto cap_rect = [&](int cw)
-    {
-        SDL_Rect rc{cur_x, cap_y, cw, cap_h};
-        cur_x += cw + 6;
-        return rc;
-    };
+    { SDL_Rect rc{cur_x, cap_y, cw, cap_h}; cur_x += cw + 6; return rc; };
     auto in = [&](const SDL_Rect &rc)
-    {
-        return px >= rc.x && px < rc.x + rc.w && py >= rc.y && py < rc.y + rc.h;
-    };
+    { return px >= rc.x && px < rc.x + rc.w && py >= rc.y && py < rc.y + rc.h; };
 
     switch (type)
     {
@@ -2615,20 +2255,11 @@ int operators_block_hittest_field(TTF_Font *font, OperatorsBlockType type, int x
         return -1;
     }
 }
-void operators_block_draw_dynamic(SDL_Renderer *r, TTF_Font *font,
-                                  OperatorsBlockType type,
-                                  int x, int y, int total_w,
-                                  const std::string &str_a, const std::string &str_b,
-                                  int cap0_w, int cap1_w,
-                                  bool ghost, Color panel_bg,
-                                  int selected_field,
-                                  const char *override_field0_text,
-                                  const char *override_field1_text)
+void operators_block_draw_dynamic(SDL_Renderer *r, TTF_Font *font, OperatorsBlockType type, int x, int y, int total_w, const std::string &str_a, const std::string &str_b, int cap0_w, int cap1_w, bool ghost, Color panel_bg, int selected_field, const char *override_field0_text, const char *override_field1_text)
 {
     Color op_col = {89, 192, 89};
     SDL_Rect br = {x, y, total_w, 40};
     bool is_bool = (type == OP_GT || type == OP_LT || type == OP_EQ || type == OP_AND || type == OP_OR || type == OP_NOT);
-
     if (is_bool)
         draw_boolean_shape(r, br, op_col, panel_bg, ghost);
     else
@@ -2637,12 +2268,10 @@ void operators_block_draw_dynamic(SDL_Renderer *r, TTF_Font *font,
     int cy = br.y + (br.h - 16) / 2;
     int cap_h = 24;
     int cap_y = br.y + (br.h - cap_h) / 2;
-
     auto get_word_w = [&](const char *w)
     { return text_w(font, w) + 6; };
     auto get_cw = [&](int cw)
     { return cw + 6; };
-
     int content_w = 0;
     switch (type)
     {
@@ -2681,26 +2310,18 @@ void operators_block_draw_dynamic(SDL_Renderer *r, TTF_Font *font,
     }
     if (content_w > 0)
         content_w -= 6;
-
     int cur_x = br.x + (br.w - content_w) / 2;
     Color txt_col = {255, 255, 255};
 
     auto draw_word = [&](const char *w)
-    {
-        draw_text(r, font, w, cur_x, cy, txt_col);
-        cur_x += text_w(font, w) + 6;
-    };
-
+    { draw_text(r, font, w, cur_x, cy, txt_col); cur_x += text_w(font, w) + 6; };
     auto draw_capsule = [&](const char *txt, const char *override_txt, int field_index, int cw, bool is_hex)
     {
         const char *show = (override_txt && selected_field == field_index) ? override_txt : txt;
         SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cw, cap_h);
-
         bool filled = (override_txt != nullptr && override_txt[0] == '\0' && selected_field != field_index);
-
         if (is_hex)
         {
-            // FIXED: Removed the rogue + cw/2 offset that was causing overlaps!
             if (!filled)
                 draw_hex_slot(r, cur_x, cy + 8, op_col, false);
         }
@@ -2787,22 +2408,17 @@ void operators_block_draw_dynamic(SDL_Renderer *r, TTF_Font *font,
     }
 }
 
-int operators_block_hittest_dynamic(TTF_Font *font, OperatorsBlockType type,
-                                    int x, int y, int total_w, int cap0_w, int cap1_w,
-                                    int px, int py)
+int operators_block_hittest_dynamic(TTF_Font *font, OperatorsBlockType type, int x, int y, int total_w, int cap0_w, int cap1_w, int px, int py)
 {
     SDL_Rect br = {x, y, total_w, 40};
     if (!(px >= br.x && px < br.x + br.w && py >= br.y && py < br.y + br.h))
         return -1;
-
     int cap_h = 24;
     int cap_y = br.y + (br.h - cap_h) / 2;
-
     auto get_word_w = [&](const char *w)
     { return text_w(font, w) + 6; };
     auto get_cw = [&](int cw)
     { return cw + 6; };
-
     int content_w = 0;
     switch (type)
     {
@@ -2841,17 +2457,11 @@ int operators_block_hittest_dynamic(TTF_Font *font, OperatorsBlockType type,
     }
     if (content_w > 0)
         content_w -= 6;
-
     int cur_x = br.x + (br.w - content_w) / 2;
-
     auto adv_word = [&](const char *w)
     { cur_x += text_w(font, w) + 6; };
     auto cap_rect = [&](int cw)
-    {
-        SDL_Rect rc{cur_x, cap_y, cw, cap_h};
-        cur_x += cw + 6;
-        return rc;
-    };
+    { SDL_Rect rc{cur_x, cap_y, cw, cap_h}; cur_x += cw + 6; return rc; };
     auto in = [&](const SDL_Rect &rc)
     { return px >= rc.x && px < rc.x + rc.w && py >= rc.y && py < rc.y + rc.h; };
 
@@ -2907,23 +2517,8 @@ int operators_block_hittest_dynamic(TTF_Font *font, OperatorsBlockType type,
             return 1;
         return -1;
     case OP_AND:
-        if (in(cap_rect(cap0_w)))
-            return 0;
-        adv_word("and");
-        if (in(cap_rect(cap1_w)))
-            return 1;
-        return -1;
     case OP_OR:
-        if (in(cap_rect(cap0_w)))
-            return 0;
-        adv_word("or");
-        if (in(cap_rect(cap1_w)))
-            return 1;
-        return -1;
     case OP_NOT:
-        adv_word("not");
-        if (in(cap_rect(cap0_w)))
-            return 0;
         return -1;
     case OP_JOIN:
         adv_word("join");
@@ -2949,6 +2544,7 @@ int operators_block_hittest_dynamic(TTF_Font *font, OperatorsBlockType type,
         return -1;
     }
 }
+
 /* ================================================================ */
 /* ===============       V A R I A B L E S      =================== */
 /* ================================================================ */
@@ -2962,16 +2558,10 @@ SDL_Rect variables_block_rect(VariablesBlockType type, int x, int y, const std::
     return {x, y, 150, 40};
 }
 
-void variables_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state,
-                          VariablesBlockType type, int x, int y,
-                          const std::string &var_name, const std::string &input_text,
-                          int input_num, int opt, bool ghost, int selected_field,
-                          const char *override_field0_text)
+void variables_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, VariablesBlockType type, int x, int y, const std::string &var_name, const std::string &input_text, int input_num, int opt, bool ghost, int selected_field, const char *override_field0_text)
 {
-    Color c = {255, 140, 26}; // Scratch Dark Orange
+    Color c = {255, 140, 26};
     SDL_Rect br = variables_block_rect(type, x, y, var_name);
-
-    // FIXED: Detect if we are in the Palette or Workspace to give the notch the right color!
     Color panel_bg = (x < 300) ? (Color){249, 249, 249} : (Color){200, 200, 200};
 
     if (type == VB_VARIABLE)
@@ -2982,27 +2572,20 @@ void variables_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state
     }
     else if (type == VB_SET || type == VB_CHANGE)
     {
-
-        // FIXED: We now pass 'panel_bg' instead of 'false' to satisfy C++!
         draw_stack_shape(r, br, c, panel_bg, ghost);
-
         int cx = br.x + 16;
         const char *verb = (type == VB_SET) ? "set" : "change";
         draw_text(r, font, verb, cx, br.y + 12, {255, 255, 255});
         cx += text_w(font, verb) + 8;
-
-        // Draw the Dropdown list UI
         std::string sel_var = (opt >= 0 && opt < (int)state.variables.size()) ? state.variables[opt] : "";
         SDL_Rect drop_r = {cx, br.y + 8, std::max(60, text_w(font, sel_var.c_str()) + 24), 24};
         renderer_fill_rounded_rect(r, &drop_r, 12, 220, 100, 10);
         draw_text(r, font, sel_var.c_str(), cx + 8, br.y + 12, {255, 255, 255});
         draw_caret(r, cx + drop_r.w - 12, br.y + 20, {255, 255, 255});
         cx += drop_r.w + 8;
-
         const char *prep = (type == VB_SET) ? "to" : "by";
         draw_text(r, font, prep, cx, br.y + 12, {255, 255, 255});
         cx += text_w(font, prep) + 8;
-
         SDL_Rect cap = input_capsule_rect(cx, br.y + 8, 46, 24);
         draw_input_capsule(r, cap, selected_field == 0);
         std::string disp = override_field0_text && selected_field == 0 ? override_field0_text : (type == VB_SET ? input_text : std::to_string(input_num));
@@ -3017,26 +2600,23 @@ int variables_block_hittest_field(TTF_Font *font, const AppState &state, Variabl
     SDL_Rect br = variables_block_rect(type, x, y, var_name);
     if (!(px >= br.x && px < br.x + br.w && py >= br.y && py < br.y + br.h))
         return -1;
-
     if (type == VB_SET || type == VB_CHANGE)
     {
         int cx = br.x + 16;
         cx += text_w(font, (type == VB_SET) ? "set" : "change") + 8;
-
         std::string sel_var = (opt >= 0 && opt < (int)state.variables.size()) ? state.variables[opt] : "";
         SDL_Rect drop_r = {cx, br.y + 8, std::max(60, text_w(font, sel_var.c_str()) + 24), 24};
         if (px >= drop_r.x && px < drop_r.x + drop_r.w && py >= drop_r.y && py < drop_r.y + drop_r.h)
-            return -2; // Clicked the Dropdown!
-
+            return -2;
         cx += drop_r.w + 8;
         cx += text_w(font, (type == VB_SET) ? "to" : "by") + 8;
-
         SDL_Rect cap = {cx, br.y + 8, 46, 24};
         if (px >= cap.x && px < cap.x + cap.w && py >= cap.y && py < cap.y + cap.h)
-            return 0; // Clicked the Input!
+            return 0;
     }
     return -1;
 }
+
 SDL_Rect sensing_reporter_block_rect(SensingBlockType type, int x, int y)
 {
     if (type == SENSB_ANSWER)
@@ -3045,6 +2625,7 @@ SDL_Rect sensing_reporter_block_rect(SensingBlockType type, int x, int y)
         return {x, y, 220, 40};
     return {x, y, 100, 40};
 }
+
 void sensing_reporter_block_draw(SDL_Renderer *r, TTF_Font *font, SensingBlockType type, int x, int y, bool ghost)
 {
     Color c = {90, 188, 216};
@@ -3064,22 +2645,248 @@ void sensing_reporter_block_draw(SDL_Renderer *r, TTF_Font *font, SensingBlockTy
         draw_caret(r, drop_r.x + drop_r.w - 12, drop_r.y + 12, {255, 255, 255});
     }
 }
+
 int sensing_reporter_block_hittest_field(TTF_Font *font, SensingBlockType type, int x, int y, int px, int py)
 {
     SDL_Rect br = sensing_reporter_block_rect(type, x, y);
     if (!(px >= br.x && px < br.x + br.w && py >= br.y && py < br.y + br.h))
         return -1;
-
-    // ---> FIXED: Restrict the click hitbox to strictly the dropdown area! <---
     if (type == SENSB_DISTANCE_TO)
     {
         int cx = br.x + 16 + text_w(font, "distance to") + 8;
         SDL_Rect drop_r = {cx, br.y + 8, 100, 24};
         if (px >= drop_r.x && px < drop_r.x + drop_r.w && py >= drop_r.y && py < drop_r.y + drop_r.h)
-        {
-            return -2; // Clicked the dropdown!
-        }
+            return -2;
     }
+    return -1;
+}
 
-    return -1; // Clicked the block body -> Drag it!
+/* ================================================================ */
+/* ==================       P E N       =========================== */
+/* ================================================================ */
+
+int pen_block_width(PenBlockType type)
+{
+    switch (type)
+    {
+    case PB_ERASE_ALL:
+        return 160;
+    case PB_STAMP:
+        return 140;
+    case PB_PEN_DOWN:
+        return 160;
+    case PB_PEN_UP:
+        return 140;
+    case PB_SET_COLOR_TO_PICKER:
+        return 240;
+    case PB_CHANGE_ATTRIB_BY:
+        return 260;
+    case PB_SET_ATTRIB_TO:
+        return 240;
+    case PB_CHANGE_SIZE_BY:
+        return 260;
+    case PB_SET_SIZE_TO:
+        return 240;
+    default:
+        return 160;
+    }
+}
+
+SDL_Rect pen_block_rect(PenBlockType type, int x, int y)
+{
+    MotionBlockMetrics m = motion_block_metrics();
+    return {x, y, pen_block_width(type), m.h};
+}
+
+void pen_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state,
+                    PenBlockType type, int x, int y,
+                    int a, int opt, bool ghost, Color panel_bg,
+                    int selected_field, const char *override_field0_text)
+{
+    Color pen_col = {15, 189, 140}; // Scratch Pen Green
+    SDL_Rect br = pen_block_rect(type, x, y);
+    draw_stack_shape(r, br, pen_col, panel_bg, ghost);
+
+    int padding_x = 12;
+    int cy = br.y + (br.h - 16) / 2;
+    int cap_h = 22;
+    int cap_y = br.y + (br.h - cap_h) / 2;
+    int cur_x = br.x + padding_x;
+    Color txt_col = {255, 255, 255};
+
+    char bufA[32];
+    std::snprintf(bufA, sizeof(bufA), "%d", a);
+
+    auto draw_word = [&](const char *w)
+    {
+        draw_text(r, font, w, cur_x, cy, txt_col);
+        cur_x += text_w(font, w) + 6;
+    };
+
+    auto draw_num_caps = [&](const char *num_default, int field_index, int cap_w)
+    {
+        const char *show = num_default;
+        if (override_field0_text && selected_field == field_index)
+            show = override_field0_text;
+        SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cap_w, cap_h);
+        draw_input_capsule(r, cap, selected_field == field_index);
+        int tw = text_w(font, show);
+        int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6);
+        draw_text(r, font, show, tx, cap.y + (cap.h - 16) / 2, (Color){40, 40, 40});
+        cur_x += cap.w + 6;
+    };
+
+    auto draw_dd = [&](const char *txt)
+    {
+        int tw = text_w(font, txt);
+        int cap_w = std::max(90, tw + 26);
+        SDL_Rect dd = {cur_x, cap_y, cap_w, cap_h};
+        draw_dropdown_capsule(r, dd, (Color){10, 150, 110});
+        int tx = dd.x + 10;
+        int ty = dd.y + (dd.h - 16) / 2;
+        draw_text(r, font, txt, tx, ty, (Color){255, 255, 255});
+        draw_caret(r, dd.x + dd.w - 12, dd.y + dd.h / 2, (Color){255, 255, 255});
+        cur_x += cap_w + 6;
+    };
+
+    auto draw_color_picker = [&]()
+    {
+        SDL_Rect cap = input_capsule_rect(cur_x, cap_y, 40, cap_h);
+        Color c = {0, 255, 0};
+        if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
+        {
+            auto &sc = state.sprites[state.selected_sprite].pen_color;
+            c = {sc.r, sc.g, sc.b};
+        }
+        renderer_fill_rounded_rect(r, &cap, cap.h / 2, c.r, c.g, c.b);
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(r, 0, 0, 0, 50);
+        SDL_RenderDrawRect(r, &cap);
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_NONE);
+        cur_x += 46;
+    };
+
+    const char *attribs[] = {"color", "saturation", "brightness"};
+    const char *attr_str = (opt >= 0 && opt < 3) ? attribs[opt] : "color";
+
+    switch (type)
+    {
+    case PB_ERASE_ALL:
+        draw_word("erase");
+        draw_word("all");
+        break;
+    case PB_STAMP:
+        draw_word("stamp");
+        break;
+    case PB_PEN_DOWN:
+        draw_word("pen");
+        draw_word("down");
+        break;
+    case PB_PEN_UP:
+        draw_word("pen");
+        draw_word("up");
+        break;
+    case PB_SET_COLOR_TO_PICKER:
+        draw_word("set");
+        draw_word("pen");
+        draw_word("color");
+        draw_word("to");
+        draw_color_picker();
+        break;
+    case PB_CHANGE_ATTRIB_BY:
+        draw_word("change");
+        draw_word("pen");
+        draw_dd(attr_str);
+        draw_word("by");
+        draw_num_caps(bufA, 0, 40);
+        break;
+    case PB_SET_ATTRIB_TO:
+        draw_word("set");
+        draw_word("pen");
+        draw_dd(attr_str);
+        draw_word("to");
+        draw_num_caps(bufA, 0, 40);
+        break;
+    case PB_CHANGE_SIZE_BY:
+        draw_word("change");
+        draw_word("pen");
+        draw_word("size");
+        draw_word("by");
+        draw_num_caps(bufA, 0, 40);
+        break;
+    case PB_SET_SIZE_TO:
+        draw_word("set");
+        draw_word("pen");
+        draw_word("size");
+        draw_word("to");
+        draw_num_caps(bufA, 0, 40);
+        break;
+    }
+}
+
+int pen_block_hittest_field(TTF_Font *font, PenBlockType type, int x, int y, int opt, int px, int py)
+{
+    SDL_Rect br = pen_block_rect(type, x, y);
+    if (!(px >= br.x && px < br.x + br.w && py >= br.y && py < br.y + br.h))
+        return -1;
+
+    int cur_x = br.x + 12;
+    int cap_y = br.y + (br.h - 22) / 2;
+    auto adv_word = [&](const char *w)
+    { cur_x += text_w(font, w) + 6; };
+    auto cap_rect = [&](int w)
+    { SDL_Rect rc{cur_x, cap_y, w, 22}; cur_x += w + 6; return rc; };
+    auto in = [&](const SDL_Rect &rc)
+    { return px >= rc.x && px < rc.x + rc.w && py >= rc.y && py < rc.y + rc.h; };
+
+    const char *attribs[] = {"color", "saturation", "brightness"};
+    const char *attr_str = (opt >= 0 && opt < 3) ? attribs[opt] : "color";
+
+    switch (type)
+    {
+    case PB_SET_COLOR_TO_PICKER:
+        adv_word("set");
+        adv_word("pen");
+        adv_word("color");
+        adv_word("to");
+        if (in(cap_rect(40)))
+            return -4; // specialized return code for the color picker
+        return -1;
+    case PB_CHANGE_ATTRIB_BY:
+        adv_word("change");
+        adv_word("pen");
+        if (in(cap_rect(std::max(90, text_w(font, attr_str) + 26))))
+            return -2; // dropdown
+        adv_word("by");
+        if (in(cap_rect(40)))
+            return 0;
+        return -1;
+    case PB_SET_ATTRIB_TO:
+        adv_word("set");
+        adv_word("pen");
+        if (in(cap_rect(std::max(90, text_w(font, attr_str) + 26))))
+            return -2; // dropdown
+        adv_word("to");
+        if (in(cap_rect(40)))
+            return 0;
+        return -1;
+    case PB_CHANGE_SIZE_BY:
+        adv_word("change");
+        adv_word("pen");
+        adv_word("size");
+        adv_word("by");
+        if (in(cap_rect(40)))
+            return 0;
+        return -1;
+    case PB_SET_SIZE_TO:
+        adv_word("set");
+        adv_word("pen");
+        adv_word("size");
+        adv_word("to");
+        if (in(cap_rect(40)))
+            return 0;
+        return -1;
+    default:
+        return -1;
+    }
 }

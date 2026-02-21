@@ -10,7 +10,9 @@
 
 static bool point_in_rect(int px, int py, const SDL_Rect &r) { return px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h; }
 
-// ---> FIXED: MAPS WORKSPACE DIRECTLY TO THE SELECTED SPRITE! <---
+// ---> FIXED: Forward declaration so the compiler knows this function exists! <---
+static SDL_Rect block_rect(const AppState &state, const BlockInstance &b);
+
 BlockInstance *workspace_find(AppState &state, int id)
 {
     if (state.selected_sprite < 0 || state.selected_sprite >= (int)state.sprites.size())
@@ -119,6 +121,8 @@ static SDL_Rect block_rect(const AppState &state, const BlockInstance &b)
         return sound_block_rect((SoundBlockType)b.subtype, b.x, b.y, b.a, b.opt);
     if (b.kind == BK_EVENTS)
         return events_block_rect((EventsBlockType)b.subtype, b.x, b.y, b.opt);
+    if (b.kind == BK_PEN)
+        return pen_block_rect((PenBlockType)b.subtype, b.x, b.y);
     if (b.kind == BK_OPERATORS)
     {
         int cw0, cw1;
@@ -227,6 +231,8 @@ static SDL_Rect get_capsule_rect(TTF_Font *font, const AppState &state, const Bl
             field = sound_block_hittest_field(font, state, (SoundBlockType)b.subtype, b.x, b.y, b.a, b.opt, px, cy);
         else if (b.kind == BK_EVENTS)
             field = events_block_hittest_field(font, (EventsBlockType)b.subtype, b.x, b.y, b.opt, px, cy);
+        else if (b.kind == BK_PEN)
+            field = pen_block_hittest_field(font, (PenBlockType)b.subtype, b.x, b.y, b.opt, px, cy);
         else if (b.kind == BK_CONTROL)
             field = control_block_hittest_field(font, (ControlBlockType)b.subtype, b.x, b.y, chain_height(state, b.child_id), chain_height(state, b.child2_id), b.a, px, cy);
         else if (b.kind == BK_SENSING)
@@ -259,6 +265,20 @@ static SDL_Rect get_capsule_rect(TTF_Font *font, const AppState &state, const Bl
     if (hit_start != -1)
         return {hit_start, br.y + (br.h - 24) / 2, hit_end - hit_start + 2, 24};
     return {br.x + 20, br.y + 8, 40, 24};
+}
+
+BlockInstance workspace_make_default_pen(PenBlockType type)
+{
+    BlockInstance b;
+    b.kind = BK_PEN;
+    b.subtype = (int)type;
+    b.a = 10;
+    if (type == PB_SET_SIZE_TO)
+        b.a = 1;
+    if (type == PB_SET_ATTRIB_TO)
+        b.a = 50;
+    b.opt = 0;
+    return b;
 }
 
 BlockInstance workspace_make_default(MotionBlockType type)
@@ -297,14 +317,14 @@ BlockInstance workspace_make_default_looks(LooksBlockType type)
         break;
     case LB_SAY_FOR:
         b.text = "Hello!";
-        b.b = 2; // <--- FIXED: Map to b.b
+        b.b = 2;
         break;
     case LB_THINK:
         b.text = "Hmm...";
         break;
     case LB_THINK_FOR:
         b.text = "Hmm...";
-        b.b = 2; // <--- FIXED: Map to b.b
+        b.b = 2;
         break;
     case LB_CHANGE_SIZE_BY:
         b.a = 10;
@@ -663,12 +683,13 @@ static void compute_snap(AppState &state, TTF_Font *font)
                 if (b->kind == BK_MOTION)
                     field = motion_block_hittest_field(font, (MotionBlockType)b->subtype, b->x, b->y, b->a, b->b, (GoToTarget)b->opt, px, py);
                 else if (b->kind == BK_LOOKS)
-                    // ---> FIXED: THIS LINE WAS MISSING THE STATE PARAMETER! <---
                     field = looks_block_hittest_field(font, state, (LooksBlockType)b->subtype, b->x, b->y, b->text, b->a, b->b, b->opt, px, py);
                 else if (b->kind == BK_SOUND)
                     field = sound_block_hittest_field(font, state, (SoundBlockType)b->subtype, b->x, b->y, b->a, b->opt, px, py);
                 else if (b->kind == BK_EVENTS)
                     field = events_block_hittest_field(font, (EventsBlockType)b->subtype, b->x, b->y, b->opt, px, py);
+                else if (b->kind == BK_PEN)
+                    field = pen_block_hittest_field(font, (PenBlockType)b->subtype, b->x, b->y, b->opt, px, py);
                 else if (b->kind == BK_CONTROL)
                     field = control_block_hittest_field(font, (ControlBlockType)b->subtype, b->x, b->y, chain_height(state, b->child_id), chain_height(state, b->child2_id), b->a, px, py);
                 else if (b->kind == BK_SENSING)
@@ -777,7 +798,6 @@ static void draw_chain(SDL_Renderer *r, TTF_Font *font, const Textures &tex, con
         int bx = b->x + off_x;
         int by = b->y + off_y;
         int sel = -1;
-        // ---> FIXED: Pass the saved text buffer as the override so it renders! <---
         const char *ov0 = (b->arg0_id != -1) ? "" : (b->text.empty() ? nullptr : b->text.c_str());
         const char *ov1 = (b->arg1_id != -1) ? "" : (b->text2.empty() ? nullptr : b->text2.c_str());
         if (!ghost && state.active_input == INPUT_BLOCK_FIELD && state.block_input.block_id == b->id)
@@ -806,6 +826,8 @@ static void draw_chain(SDL_Renderer *r, TTF_Font *font, const Textures &tex, con
             sound_block_draw(r, font, state, (SoundBlockType)b->subtype, bx, by, b->a, b->opt, ghost, bg, sel, ov0);
         else if (b->kind == BK_EVENTS)
             events_block_draw(r, font, tex, (EventsBlockType)b->subtype, bx, by, b->opt, ghost, bg, -1);
+        else if (b->kind == BK_PEN)
+            pen_block_draw(r, font, state, (PenBlockType)b->subtype, bx, by, b->a, b->opt, ghost, bg, sel, ov0);
         else if (b->kind == BK_SENSING)
         {
             SensingBlockType sbt = (SensingBlockType)b->subtype;
@@ -930,6 +952,8 @@ void workspace_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex, const 
                 def = workspace_make_default_sound((SoundBlockType)state.drag.palette_subtype);
             else if (state.drag.palette_kind == BK_EVENTS)
                 def = workspace_make_default_events((EventsBlockType)state.drag.palette_subtype);
+            else if (state.drag.palette_kind == BK_PEN)
+                def = workspace_make_default_pen((PenBlockType)state.drag.palette_subtype);
             else if (state.drag.palette_kind == BK_SENSING)
                 def = workspace_make_default_sensing((SensingBlockType)state.drag.palette_subtype);
             else if (state.drag.palette_kind == BK_OPERATORS)
@@ -1001,6 +1025,8 @@ static void finish_drag(AppState &state)
             b = workspace_make_default_sound((SoundBlockType)state.drag.palette_subtype);
         else if (state.drag.palette_kind == BK_EVENTS)
             b = workspace_make_default_events((EventsBlockType)state.drag.palette_subtype);
+        else if (state.drag.palette_kind == BK_PEN)
+            b = workspace_make_default_pen((PenBlockType)state.drag.palette_subtype);
         else if (state.drag.palette_kind == BK_SENSING)
             b = workspace_make_default_sensing((SensingBlockType)state.drag.palette_subtype);
         else if (state.drag.palette_kind == BK_OPERATORS)
@@ -1146,13 +1172,11 @@ void workspace_commit_active_input(AppState &state)
     if (!b)
         return;
 
-    // ---> FIXED: Ensure we always save the raw text first for ALL block types! <---
     if (state.block_input.field_index == 0)
         b->text = state.input_buffer;
     else if (state.block_input.field_index == 1)
         b->text2 = state.input_buffer;
 
-    // Then, if it's supposed to be an integer, also parse it to the math fields
     if (state.block_input.type == BFT_INT)
     {
         int val = 0;
@@ -1322,6 +1346,8 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
             field = events_block_hittest_field(font, (EventsBlockType)b->subtype, b->x, b->y, b->opt, e.button.x, e.button.y);
         else if (b->kind == BK_SOUND)
             field = sound_block_hittest_field(font, state, (SoundBlockType)b->subtype, b->x, b->y, b->a, b->opt, e.button.x, e.button.y);
+        else if (b->kind == BK_PEN)
+            field = pen_block_hittest_field(font, (PenBlockType)b->subtype, b->x, b->y, b->opt, e.button.x, e.button.y);
         else if (b->kind == BK_CONTROL)
             field = control_block_hittest_field(font, (ControlBlockType)b->subtype, b->x, b->y, chain_height(state, b->child_id), chain_height(state, b->child2_id), b->a, e.button.x, e.button.y);
         else if (b->kind == BK_SENSING)
@@ -1342,11 +1368,14 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
             field = operators_block_hittest_dynamic(font, (OperatorsBlockType)b->subtype, b->x, b->y, total_w, cw0, cw1, e.button.x, e.button.y);
         }
         else if (b->kind == BK_VARIABLES)
-        {
             field = variables_block_hittest_field(font, state, (VariablesBlockType)b->subtype, b->x, b->y, b->text, b->opt, e.button.x, e.button.y);
-        }
 
-        if (field == -2)
+        if (field == -4)
+        {
+            state.active_input = INPUT_PEN_COLOR_PICKER;
+            return true;
+        }
+        else if (field == -2)
         {
             if (state.active_input == INPUT_BLOCK_FIELD)
             {
@@ -1379,12 +1408,16 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
                 max_opt = 2;
             else if (b->kind == BK_SOUND && (b->subtype == SB_START_SOUND || b->subtype == SB_PLAY_SOUND_UNTIL_DONE))
                 max_opt = state.sprites[state.selected_sprite].sounds.size();
+            else if (b->kind == BK_PEN && (b->subtype == PB_CHANGE_ATTRIB_BY || b->subtype == PB_SET_ATTRIB_TO))
+                max_opt = 3;
+
             if (max_opt == 0)
                 max_opt = 1;
             else if (b->kind == BK_SENSING && b->subtype == SENSB_DISTANCE_TO)
                 max_opt = 1;
             else if (b->kind == BK_SENSING && b->subtype == SENSB_SET_DRAG_MODE)
                 max_opt = 2;
+
             if (max_opt > 0)
             {
                 b->opt = (b->opt + 1) % max_opt;

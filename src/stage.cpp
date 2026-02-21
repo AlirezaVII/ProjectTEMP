@@ -48,6 +48,13 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const St
         SDL_RenderFillRect(r, &rects.stage_area);
     }
 
+    // ---> ADD THIS EXACTLY HERE <---
+    // Render Pen Layer (Strokes and Stamps) on top of the backdrop, but under the sprites
+    if (g_pen_layer) {
+        // FIXED: Changed rects.stage to rects.stage_area
+        SDL_RenderCopy(r, g_pen_layer, NULL, &rects.stage_area); 
+    }
+
     set_color(r, COL_STAGE_BORDER);
     SDL_RenderDrawRect(r, &rects.stage_area);
     SDL_RenderSetClipRect(r, const_cast<SDL_Rect *>(&rects.stage_area));
