@@ -26,8 +26,8 @@
 #include <cstring>
 #include <cstdlib>
 #include <iostream>
+#include <ctime>
 
-// ---> NEW: GLOBAL SPRITE LIBRARY MEMORY <---
 static std::vector<std::pair<std::string, SDL_Texture *>> global_sprite_lib;
 
 static void load_library_sprites(SDL_Renderer *renderer)
@@ -61,6 +61,8 @@ static void render_simple_text(SDL_Renderer *r, TTF_Font *font, const char *text
 
 int main(int /*argc*/, char * /*argv*/[])
 {
+    std::srand(static_cast<unsigned>(std::time(nullptr)));
+
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
         return 1;
     if (TTF_Init() != 0)
@@ -93,12 +95,22 @@ int main(int /*argc*/, char * /*argv*/[])
     }
     SDL_RenderSetLogicalSize(renderer, WINDOW_WIDTH, WINDOW_HEIGHT);
 
+    // Standard Font
     TTF_Font *font = TTF_OpenFont("assets/fonts/NotoSans-Regular.ttf", 13);
     if (!font)
         font = TTF_OpenFont("/System/Library/Fonts/Helvetica.ttc", 13);
     if (!font)
         font = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 13);
     if (!font)
+        return 1;
+
+    // ---> NEW: Large Font for the Library <---
+    TTF_Font *font_large = TTF_OpenFont("assets/fonts/NotoSans-Regular.ttf", 24);
+    if (!font_large)
+        font_large = TTF_OpenFont("/System/Library/Fonts/Helvetica.ttc", 24);
+    if (!font_large)
+        font_large = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24);
+    if (!font_large)
         return 1;
 
     Textures tex;
@@ -130,7 +142,7 @@ int main(int /*argc*/, char * /*argv*/[])
     sprite_panel_layout(sprite_panel_rects);
 
     AppState state;
-    state.sprites.push_back(Sprite("Sprite1", tex.scratch_cat)); // INITIALIZE DEFAULT SPRITE
+    state.sprites.push_back(Sprite("Sprite1", tex.scratch_cat));
     SDL_StartTextInput();
     bool quit = false;
 
@@ -241,15 +253,16 @@ int main(int /*argc*/, char * /*argv*/[])
                 {
                     int mx = e.button.x;
                     int my = e.button.y;
-                    if (mx >= 10 && mx <= 80 && my >= 10 && my <= 40)
+
+                    if (mx >= 10 && mx <= 120 && my >= 10 && my <= 60)
                     {
                         state.mode = MODE_EDITOR;
-                    } // Back button
+                    }
                     for (size_t i = 0; i < global_sprite_lib.size(); i++)
                     {
-                        int x = 50 + (i % 6) * 150;
-                        int y = 100 + (i / 6) * 150;
-                        if (mx >= x && mx <= x + 120 && my >= y && my <= y + 120)
+                        int x = 50 + i * 180;
+                        int y = 150;
+                        if (mx >= x && mx <= x + 160 && my >= y && my <= y + 160)
                         {
                             std::string new_name = global_sprite_lib[i].first;
                             int count = 1;
@@ -265,7 +278,7 @@ int main(int /*argc*/, char * /*argv*/[])
                         }
                     }
                 }
-                continue; // Block all other interactions while in library
+                continue;
             }
 
             if (e.type == SDL_KEYDOWN && state.active_input == INPUT_NONE && !state.file_menu_open && !state.var_modal_active)
@@ -276,26 +289,16 @@ int main(int /*argc*/, char * /*argv*/[])
                 break;
             }
 
-            if (filemenu_handle_event(e, state, filemenu_rects))
-                continue;
-            if (navbar_handle_event(e, state, navbar_rects))
-                continue;
-            if (tab_bar_handle_event(e, state, tab_bar_rects))
-                continue;
-            if (settings_handle_event(e, state, settings_rects))
-                continue;
-            if (stage_handle_event(e, state, stage_rects, tex))
-                continue;
-            if (sprite_panel_handle_event(e, state, sprite_panel_rects))
-                continue;
+            // ---> EXCLUSIVE HOVER MENU CLICK INTERCEPTOR <---
             if (state.sprite_menu_open && e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
             {
                 int mx = e.button.x, my = e.button.y;
-                if (mx >= sprite_panel_rects.sprite_menu_items[2].x && mx <= sprite_panel_rects.sprite_menu_items[2].x + 36 &&
-                    my >= sprite_panel_rects.sprite_menu_items[2].y && my <= sprite_panel_rects.sprite_menu_items[2].y + 36)
-                {
+                bool consumed_menu = false;
 
-                    // Trigger Native Mac Upload Dialog
+                // [0] Top: Upload
+                if (mx >= sprite_panel_rects.sprite_menu_items[0].x && mx <= sprite_panel_rects.sprite_menu_items[0].x + 36 &&
+                    my >= sprite_panel_rects.sprite_menu_items[0].y && my <= sprite_panel_rects.sprite_menu_items[0].y + 36)
+                {
                     char buffer[1024];
                     std::string result = "";
                     FILE *pipe = popen("osascript -e 'POSIX path of (choose file with prompt \"Choose Sprite\" of type {\"png\", \"jpg\", \"jpeg\"})'", "r");
@@ -318,9 +321,53 @@ int main(int /*argc*/, char * /*argv*/[])
                         }
                     }
                     state.sprite_menu_open = false;
-                    continue;
+                    consumed_menu = true;
                 }
+                // [1] Middle: Surprise
+                else if (mx >= sprite_panel_rects.sprite_menu_items[1].x && mx <= sprite_panel_rects.sprite_menu_items[1].x + 36 &&
+                         my >= sprite_panel_rects.sprite_menu_items[1].y && my <= sprite_panel_rects.sprite_menu_items[1].y + 36)
+                {
+                    if (!global_sprite_lib.empty())
+                    {
+                        int r_idx = std::rand() % global_sprite_lib.size();
+                        std::string new_name = global_sprite_lib[r_idx].first;
+                        int count = 1;
+                        for (auto &s : state.sprites)
+                            if (s.name.find(new_name) != std::string::npos)
+                                count++;
+                        if (count > 1)
+                            new_name += std::to_string(count);
+                        state.sprites.push_back(Sprite(new_name, global_sprite_lib[r_idx].second));
+                        state.selected_sprite = state.sprites.size() - 1;
+                    }
+                    state.sprite_menu_open = false;
+                    consumed_menu = true;
+                }
+                // [2] Bottom: Search
+                else if (mx >= sprite_panel_rects.sprite_menu_items[2].x && mx <= sprite_panel_rects.sprite_menu_items[2].x + 36 &&
+                         my >= sprite_panel_rects.sprite_menu_items[2].y && my <= sprite_panel_rects.sprite_menu_items[2].y + 36)
+                {
+                    state.mode = MODE_SPRITE_LIBRARY;
+                    state.sprite_menu_open = false;
+                    consumed_menu = true;
+                }
+
+                if (consumed_menu)
+                    continue;
             }
+
+            if (filemenu_handle_event(e, state, filemenu_rects))
+                continue;
+            if (navbar_handle_event(e, state, navbar_rects))
+                continue;
+            if (tab_bar_handle_event(e, state, tab_bar_rects))
+                continue;
+            if (settings_handle_event(e, state, settings_rects))
+                continue;
+            if (stage_handle_event(e, state, stage_rects, tex))
+                continue;
+            if (sprite_panel_handle_event(e, state, sprite_panel_rects))
+                continue;
 
             if (state.current_tab == TAB_CODE)
             {
@@ -385,7 +432,6 @@ int main(int /*argc*/, char * /*argv*/[])
                     if (state.active_input == INPUT_BLOCK_FIELD)
                         workspace_commit_active_input(state);
 
-                    // ---> CRITICAL FIX: THESE LINES WERE MISSING LAST TIME! <---
                     state.active_input = INPUT_NONE;
                     state.input_buffer.clear();
                 }
@@ -401,27 +447,36 @@ int main(int /*argc*/, char * /*argv*/[])
         {
             SDL_SetRenderDrawColor(renderer, 245, 245, 245, 255);
             SDL_RenderFillRect(renderer, NULL);
-            SDL_Rect nav_bg = {0, 0, WINDOW_WIDTH, NAVBAR_HEIGHT};
+            SDL_Rect nav_bg = {0, 0, WINDOW_WIDTH, NAVBAR_HEIGHT + 20};
             SDL_SetRenderDrawColor(renderer, 76, 151, 255, 255);
             SDL_RenderFillRect(renderer, &nav_bg);
-            render_simple_text(renderer, font, "< Back", 20, 15, {255, 255, 255});
+
+            // Draw Large Back text
+            render_simple_text(renderer, font_large, "< Back", 30, 20, {255, 255, 255});
 
             for (size_t i = 0; i < global_sprite_lib.size(); i++)
             {
-                int x = 50 + (i % 6) * 150;
-                int y = 100 + (i / 6) * 150;
-                SDL_Rect box = {x, y, 120, 120};
-                renderer_fill_rounded_rect(renderer, &box, 8, 255, 255, 255);
+                // Align to one single horizontal row!
+                int x = 50 + i * 180;
+                int y = 150;
+
+                // Draw significantly larger box
+                SDL_Rect box = {x, y, 160, 160};
+                renderer_fill_rounded_rect(renderer, &box, 12, 255, 255, 255);
                 SDL_SetRenderDrawColor(renderer, 220, 220, 220, 255);
                 SDL_RenderDrawRect(renderer, &box);
+
+                // Draw larger image
                 if (global_sprite_lib[i].second)
                 {
-                    SDL_Rect img_dst = {x + 20, y + 10, 80, 80};
+                    SDL_Rect img_dst = {x + 30, y + 20, 100, 100};
                     SDL_RenderCopy(renderer, global_sprite_lib[i].second, NULL, &img_dst);
                 }
+
+                // Draw larger title
                 int tw = 0;
-                TTF_SizeUTF8(font, global_sprite_lib[i].first.c_str(), &tw, NULL);
-                render_simple_text(renderer, font, global_sprite_lib[i].first.c_str(), x + 60 - tw / 2, y + 95, {40, 40, 40});
+                TTF_SizeUTF8(font_large, global_sprite_lib[i].first.c_str(), &tw, NULL);
+                render_simple_text(renderer, font_large, global_sprite_lib[i].first.c_str(), x + 80 - tw / 2, y + 125, {40, 40, 40});
             }
         }
         else
@@ -441,6 +496,7 @@ int main(int /*argc*/, char * /*argv*/[])
             {
                 sounds_tab_draw(renderer, font, state);
             }
+
             stage_draw(renderer, font, state, stage_rects, tex);
             settings_draw(renderer, font, state, settings_rects, tex);
             sprite_panel_draw(renderer, font, state, tex, sprite_panel_rects);
@@ -487,6 +543,7 @@ int main(int /*argc*/, char * /*argv*/[])
 
     textures_free(tex);
     TTF_CloseFont(font);
+    TTF_CloseFont(font_large);
     SDL_StopTextInput();
     audio_quit();
     SDL_DestroyRenderer(renderer);

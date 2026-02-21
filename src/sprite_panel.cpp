@@ -121,7 +121,6 @@ void sprite_panel_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, c
     SDL_RenderDrawLine(r, rects.backdrop_area.x, rects.backdrop_area.y, rects.backdrop_area.x, rects.backdrop_area.y + rects.backdrop_area.h);
     SDL_RenderDrawLine(r, rects.sprite_list_area.x, rects.sprite_list_area.y, rects.sprite_list_area.x + rects.sprite_list_area.w + rects.backdrop_area.w, rects.sprite_list_area.y);
 
-    // ---> NEW: DYNAMICALLY DRAW ALL SPRITE THUMBNAILS! <---
     int grid_x = rects.sprite_list_area.x + 12;
     int grid_y = rects.sprite_list_area.y + 12;
     for (size_t i = 0; i < state.sprites.size(); i++)
@@ -179,7 +178,9 @@ void sprite_panel_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, c
     if (state.sprite_menu_open)
     {
         sp_fill_rect(r, rects.sprite_menu, 77, 151, 255, 255);
-        SDL_Texture *icons[3] = {tex.search_icon, tex.surprise_icon, tex.upload_icon};
+
+        // FIXED ICON ORDER: [0]=Top(Upload), [1]=Middle(Surprise), [2]=Bottom(Search)
+        SDL_Texture *icons[3] = {tex.upload_icon, tex.surprise_icon, tex.search_icon};
         for (int i = 0; i < 3; i++)
         {
             int icx = rects.sprite_menu_items[i].x + MENU_ITEM_SZ / 2;
@@ -228,16 +229,8 @@ bool sprite_panel_handle_event(const SDL_Event &e, AppState &state, const Sprite
     else if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
     {
         int mx = e.button.x, my = e.button.y;
-        if (state.sprite_menu_open)
-        {
-            if (sp_point_in(rects.sprite_menu_items[0], mx, my))
-            {
-                state.mode = MODE_SPRITE_LIBRARY;
-                return true;
-            }
-        }
 
-        if (sp_point_in(rects.sprite_list_area, mx, my))
+        if (sp_point_in(rects.sprite_list_area, mx, my) && !state.sprite_menu_open)
         {
             int grid_x = rects.sprite_list_area.x + 12;
             int grid_y = rects.sprite_list_area.y + 12;
@@ -245,7 +238,6 @@ bool sprite_panel_handle_event(const SDL_Event &e, AppState &state, const Sprite
             {
                 SDL_Rect thumb = {grid_x, grid_y, THUMB_W, THUMB_H};
 
-                // Delete Button Click
                 if ((int)i == state.selected_sprite)
                 {
                     SDL_Rect del_r = {thumb.x - 6 + thumb.w + 6 - 18, thumb.y - 13, 24, 24};
@@ -258,7 +250,6 @@ bool sprite_panel_handle_event(const SDL_Event &e, AppState &state, const Sprite
                     }
                 }
 
-                // Select Sprite Click
                 if (sp_point_in(thumb, mx, my))
                 {
                     state.selected_sprite = i;
