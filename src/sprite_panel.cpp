@@ -4,19 +4,6 @@
 #include <cmath>
 #include <string>
 
-static void sp_draw_text(SDL_Renderer *r, TTF_Font *font, const char *txt, int x, int y, Uint8 cr, Uint8 cg, Uint8 cb)
-{
-    SDL_Color col = {cr, cg, cb, 255};
-    SDL_Surface *s = TTF_RenderUTF8_Blended(font, txt, col);
-    if (!s)
-        return;
-    SDL_Texture *t = SDL_CreateTextureFromSurface(r, s);
-    SDL_Rect dst = {x, y, s->w, s->h};
-    SDL_RenderCopy(r, t, NULL, &dst);
-    SDL_DestroyTexture(t);
-    SDL_FreeSurface(s);
-}
-
 static void sp_draw_text_centered(SDL_Renderer *r, TTF_Font *font, const char *txt, int cx, int cy, Uint8 cr, Uint8 cg, Uint8 cb)
 {
     SDL_Color col = {cr, cg, cb, 255};
@@ -52,71 +39,30 @@ static const int BTN_RAD = 20;
 static const int MENU_ITEM_SZ = 36;
 static const int MENU_PAD = 4;
 static const int MENU_W = MENU_ITEM_SZ + MENU_PAD * 2;
-static const int THUMB_W = 64;
-static const int THUMB_H = 64;
+static const int THUMB_W = 64, THUMB_H = 64;
 
 void sprite_panel_layout(SpritePanelRects &rects)
 {
-    int rc_x = WINDOW_WIDTH - RIGHT_COLUMN_WIDTH;
-    int col_h = WINDOW_HEIGHT - NAVBAR_HEIGHT;
-    int stage_h = col_h * STAGE_HEIGHT_RATIO / 100;
-    int panel_top = NAVBAR_HEIGHT + stage_h + SETTINGS_PANEL_H;
+    int rc_x = WINDOW_WIDTH - RIGHT_COLUMN_WIDTH, col_h = WINDOW_HEIGHT - NAVBAR_HEIGHT;
+    int stage_h = col_h * STAGE_HEIGHT_RATIO / 100, panel_top = NAVBAR_HEIGHT + stage_h + SETTINGS_PANEL_H;
     int panel_h = WINDOW_HEIGHT - panel_top;
 
-    rects.backdrop_area.x = rc_x + RIGHT_COLUMN_WIDTH - BACKDROP_W;
-    rects.backdrop_area.y = panel_top;
-    rects.backdrop_area.w = BACKDROP_W;
-    rects.backdrop_area.h = panel_h;
-
-    // ---> FIXED SPACING HERE <---
-    rects.backdrop_thumb.w = 64;
-    rects.backdrop_thumb.h = 48;
-    rects.backdrop_thumb.x = rects.backdrop_area.x + (rects.backdrop_area.w - rects.backdrop_thumb.w) / 2;
-    rects.backdrop_thumb.y = rects.backdrop_area.y + 30; // Move thumb down to fit "Stage" above it
-
-    rects.backdrop_label.x = rects.backdrop_area.x;
-    rects.backdrop_label.y = rects.backdrop_thumb.y + rects.backdrop_thumb.h;
-    rects.backdrop_label.w = rects.backdrop_area.w;
-    rects.backdrop_label.h = 30;
-
-    rects.backdrop_btn.w = BTN_RAD * 2;
-    rects.backdrop_btn.h = BTN_RAD * 2;
-    rects.backdrop_btn.x = rects.backdrop_area.x + rects.backdrop_area.w - rects.backdrop_btn.w - 6;
-    rects.backdrop_btn.y = rects.backdrop_area.y + rects.backdrop_area.h - rects.backdrop_btn.h - 6;
+    rects.backdrop_area = {rc_x + RIGHT_COLUMN_WIDTH - BACKDROP_W, panel_top, BACKDROP_W, panel_h};
+    rects.backdrop_thumb = {rects.backdrop_area.x + (BACKDROP_W - 64) / 2, rects.backdrop_area.y + 30, 64, 48};
+    rects.backdrop_label = {rects.backdrop_area.x, rects.backdrop_thumb.y + 48, BACKDROP_W, 30};
+    rects.backdrop_btn = {rects.backdrop_area.x + BACKDROP_W - BTN_RAD * 2 - 6, rects.backdrop_area.y + panel_h - BTN_RAD * 2 - 6, BTN_RAD * 2, BTN_RAD * 2};
 
     int menu_h = 3 * (MENU_ITEM_SZ + MENU_PAD) + MENU_PAD;
-    rects.backdrop_menu.w = MENU_W;
-    rects.backdrop_menu.h = menu_h;
-    rects.backdrop_menu.x = rects.backdrop_btn.x + (rects.backdrop_btn.w - MENU_W) / 2;
-    rects.backdrop_menu.y = rects.backdrop_btn.y - menu_h;
+    rects.backdrop_menu = {rects.backdrop_btn.x + (BTN_RAD * 2 - MENU_W) / 2, rects.backdrop_btn.y - menu_h, MENU_W, menu_h};
     for (int i = 0; i < 3; i++)
-    {
-        rects.backdrop_menu_items[i].x = rects.backdrop_menu.x + MENU_PAD;
-        rects.backdrop_menu_items[i].y = rects.backdrop_menu.y + MENU_PAD + i * (MENU_ITEM_SZ + MENU_PAD);
-        rects.backdrop_menu_items[i].w = MENU_ITEM_SZ;
-        rects.backdrop_menu_items[i].h = MENU_ITEM_SZ;
-    }
+        rects.backdrop_menu_items[i] = {rects.backdrop_menu.x + MENU_PAD, rects.backdrop_menu.y + MENU_PAD + i * (MENU_ITEM_SZ + MENU_PAD), MENU_ITEM_SZ, MENU_ITEM_SZ};
 
-    rects.sprite_list_area.x = rc_x;
-    rects.sprite_list_area.y = panel_top;
-    rects.sprite_list_area.w = RIGHT_COLUMN_WIDTH - BACKDROP_W;
-    rects.sprite_list_area.h = panel_h;
-    rects.sprite_btn.w = BTN_RAD * 2;
-    rects.sprite_btn.h = BTN_RAD * 2;
-    rects.sprite_btn.x = rects.sprite_list_area.x + rects.sprite_list_area.w - rects.sprite_btn.w - 6;
-    rects.sprite_btn.y = rects.sprite_list_area.y + rects.sprite_list_area.h - rects.sprite_btn.h - 6;
+    rects.sprite_list_area = {rc_x, panel_top, RIGHT_COLUMN_WIDTH - BACKDROP_W, panel_h};
+    rects.sprite_btn = {rects.sprite_list_area.x + rects.sprite_list_area.w - BTN_RAD * 2 - 6, rects.sprite_list_area.y + panel_h - BTN_RAD * 2 - 6, BTN_RAD * 2, BTN_RAD * 2};
 
-    rects.sprite_menu.w = MENU_W;
-    rects.sprite_menu.h = menu_h;
-    rects.sprite_menu.x = rects.sprite_btn.x + (rects.sprite_btn.w - MENU_W) / 2;
-    rects.sprite_menu.y = rects.sprite_btn.y - menu_h;
+    rects.sprite_menu = {rects.sprite_btn.x + (BTN_RAD * 2 - MENU_W) / 2, rects.sprite_btn.y - menu_h, MENU_W, menu_h};
     for (int i = 0; i < 3; i++)
-    {
-        rects.sprite_menu_items[i].x = rects.sprite_menu.x + MENU_PAD;
-        rects.sprite_menu_items[i].y = rects.sprite_menu.y + MENU_PAD + i * (MENU_ITEM_SZ + MENU_PAD);
-        rects.sprite_menu_items[i].w = MENU_ITEM_SZ;
-        rects.sprite_menu_items[i].h = MENU_ITEM_SZ;
-    }
+        rects.sprite_menu_items[i] = {rects.sprite_menu.x + MENU_PAD, rects.sprite_menu.y + MENU_PAD + i * (MENU_ITEM_SZ + MENU_PAD), MENU_ITEM_SZ, MENU_ITEM_SZ};
 }
 
 void sprite_panel_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const Textures &tex, const SpritePanelRects &rects)
@@ -125,25 +71,34 @@ void sprite_panel_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, c
     SDL_SetRenderDrawColor(r, 220, 220, 220, 255);
     SDL_RenderDrawLine(r, rects.backdrop_area.x, rects.backdrop_area.y, rects.backdrop_area.x, rects.backdrop_area.y + rects.backdrop_area.h);
     SDL_RenderDrawLine(r, rects.sprite_list_area.x, rects.sprite_list_area.y, rects.sprite_list_area.x + rects.sprite_list_area.w + rects.backdrop_area.w, rects.sprite_list_area.y);
+    SDL_RenderDrawLine(r, rects.sprite_list_area.x, rects.sprite_list_area.y, rects.sprite_list_area.x, rects.sprite_list_area.y + rects.sprite_list_area.h);
 
-    int grid_x = rects.sprite_list_area.x + 12;
-    int grid_y = rects.sprite_list_area.y + 12;
+    int grid_x = rects.sprite_list_area.x + 12, grid_y = rects.sprite_list_area.y + 12;
     for (size_t i = 0; i < state.sprites.size(); i++)
     {
         SDL_Rect thumb = {grid_x, grid_y, THUMB_W, THUMB_H};
 
-        if ((int)i == state.selected_sprite)
+        if (!state.editing_target_is_stage && (int)i == state.selected_sprite)
         {
             SDL_Rect border = {thumb.x - 3, thumb.y - 3, thumb.w + 6, thumb.h + 22};
             sp_fill_rect(r, border, 77, 151, 255, 255);
             SDL_Rect inner = {thumb.x - 2, thumb.y - 2, thumb.w + 4, thumb.h + 4};
             sp_fill_rect(r, inner, 255, 255, 255, 255);
 
-            if (tex.delete_sprite)
+            int cx = border.x + border.w - 10;
+            int cy = border.y + 2;
+            sp_draw_circle(r, cx, cy, 12, 255, 60, 60);
+            SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
+            int d = 4;
+            for (int w = -1; w <= 1; w++)
             {
-                SDL_Rect del_r = {border.x + border.w - 18, border.y - 10, 24, 24};
-                SDL_RenderCopy(r, tex.delete_sprite, NULL, &del_r);
+                SDL_RenderDrawLine(r, cx - d + w, cy - d, cx + d + w, cy + d);
+                SDL_RenderDrawLine(r, cx - d + w, cy + d, cx + d + w, cy - d);
             }
+
+            if (state.sprites[i].texture)
+                SDL_RenderCopy(r, state.sprites[i].texture, NULL, &thumb);
+            sp_draw_text_centered(r, font, state.sprites[i].name.c_str(), thumb.x + thumb.w / 2, thumb.y + thumb.h + 8, 255, 255, 255);
         }
         else
         {
@@ -151,13 +106,10 @@ void sprite_panel_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, c
             sp_fill_rect(r, inner, 255, 255, 255, 255);
             SDL_SetRenderDrawColor(r, 200, 200, 200, 255);
             SDL_RenderDrawRect(r, &inner);
+            if (state.sprites[i].texture)
+                SDL_RenderCopy(r, state.sprites[i].texture, NULL, &thumb);
+            sp_draw_text_centered(r, font, state.sprites[i].name.c_str(), thumb.x + thumb.w / 2, thumb.y + thumb.h + 8, 80, 80, 80);
         }
-
-        if (state.sprites[i].texture)
-        {
-            SDL_RenderCopy(r, state.sprites[i].texture, NULL, &thumb);
-        }
-        sp_draw_text_centered(r, font, state.sprites[i].name.c_str(), thumb.x + thumb.w / 2, thumb.y + thumb.h + 8, 80, 80, 80);
 
         grid_x += THUMB_W + 15;
         if (grid_x + THUMB_W > rects.sprite_list_area.x + rects.sprite_list_area.w - 60)
@@ -167,8 +119,7 @@ void sprite_panel_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, c
         }
     }
 
-    int cx = rects.sprite_btn.x + BTN_RAD;
-    int cy = rects.sprite_btn.y + BTN_RAD;
+    int cx = rects.sprite_btn.x + BTN_RAD, cy = rects.sprite_btn.y + BTN_RAD;
     sp_draw_circle(r, cx, cy, BTN_RAD, 77, 151, 255);
     if (tex.sprite_btn_icon)
     {
@@ -176,9 +127,7 @@ void sprite_panel_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, c
         SDL_RenderCopy(r, tex.sprite_btn_icon, NULL, &ir);
     }
     else
-    {
         sp_draw_text_centered(r, font, "+", cx, cy, 255, 255, 255);
-    }
 
     if (state.sprite_menu_open)
     {
@@ -186,8 +135,7 @@ void sprite_panel_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, c
         SDL_Texture *icons[3] = {tex.upload_icon, tex.surprise_icon, tex.search_icon};
         for (int i = 0; i < 3; i++)
         {
-            int icx = rects.sprite_menu_items[i].x + MENU_ITEM_SZ / 2;
-            int icy = rects.sprite_menu_items[i].y + MENU_ITEM_SZ / 2;
+            int icx = rects.sprite_menu_items[i].x + MENU_ITEM_SZ / 2, icy = rects.sprite_menu_items[i].y + MENU_ITEM_SZ / 2;
             sp_draw_circle(r, icx, icy, MENU_ITEM_SZ / 2 - 2, 255, 255, 255);
             if (icons[i])
             {
@@ -198,25 +146,23 @@ void sprite_panel_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, c
     }
 
     sp_fill_rect(r, rects.backdrop_area, 255, 255, 255, 255);
-
-    // ---> FIXED SPACING: TEXT OVERLAPS ELIMINATED <---
     sp_draw_text_centered(r, font, "Stage", rects.backdrop_area.x + rects.backdrop_area.w / 2, rects.backdrop_area.y + 16, 80, 80, 80);
+
+    if (state.editing_target_is_stage)
+    {
+        SDL_Rect border = {rects.backdrop_thumb.x - 4, rects.backdrop_thumb.y - 4, rects.backdrop_thumb.w + 8, rects.backdrop_thumb.h + 8};
+        sp_fill_rect(r, border, 77, 151, 255, 255);
+    }
 
     SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
     SDL_RenderFillRect(r, const_cast<SDL_Rect *>(&rects.backdrop_thumb));
 
     if (state.selected_backdrop >= 0 && state.selected_backdrop < (int)state.backdrops.size())
     {
-        SDL_Texture *bg_tex = state.backdrops[state.selected_backdrop].texture;
-        if (bg_tex)
-        {
-            SDL_RenderCopy(r, bg_tex, NULL, const_cast<SDL_Rect *>(&rects.backdrop_thumb));
-        }
-        std::string bg_name = state.backdrops[state.selected_backdrop].name;
-
-        // Beautifully spaced labels below the image
+        if (state.backdrops[state.selected_backdrop].texture)
+            SDL_RenderCopy(r, state.backdrops[state.selected_backdrop].texture, NULL, const_cast<SDL_Rect *>(&rects.backdrop_thumb));
         sp_draw_text_centered(r, font, "Backdrops", rects.backdrop_area.x + rects.backdrop_area.w / 2, rects.backdrop_label.y + 12, 100, 100, 100);
-        sp_draw_text_centered(r, font, bg_name.c_str(), rects.backdrop_area.x + rects.backdrop_area.w / 2, rects.backdrop_label.y + 30, 140, 140, 140);
+        sp_draw_text_centered(r, font, state.backdrops[state.selected_backdrop].name.c_str(), rects.backdrop_area.x + rects.backdrop_area.w / 2, rects.backdrop_label.y + 30, 140, 140, 140);
     }
     else
     {
@@ -236,9 +182,7 @@ void sprite_panel_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, c
         SDL_RenderCopy(r, tex.backdrop_btn_icon, NULL, &ir);
     }
     else
-    {
         sp_draw_text_centered(r, font, "+", cx, cy, 255, 255, 255);
-    }
 
     if (state.backdrop_menu_open)
     {
@@ -246,8 +190,7 @@ void sprite_panel_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, c
         SDL_Texture *icons[3] = {tex.upload_icon, tex.surprise_icon, tex.search_icon};
         for (int i = 0; i < 3; i++)
         {
-            int icx = rects.backdrop_menu_items[i].x + MENU_ITEM_SZ / 2;
-            int icy = rects.backdrop_menu_items[i].y + MENU_ITEM_SZ / 2;
+            int icx = rects.backdrop_menu_items[i].x + MENU_ITEM_SZ / 2, icy = rects.backdrop_menu_items[i].y + MENU_ITEM_SZ / 2;
             sp_draw_circle(r, icx, icy, MENU_ITEM_SZ / 2 - 2, 255, 255, 255);
             if (icons[i])
             {
@@ -272,17 +215,28 @@ bool sprite_panel_handle_event(const SDL_Event &e, AppState &state, const Sprite
     {
         int mx = e.button.x, my = e.button.y;
 
+        if (sp_point_in(rects.backdrop_area, mx, my))
+        {
+            if (sp_point_in(rects.backdrop_thumb, mx, my))
+            {
+                state.editing_target_is_stage = true;
+                // ---> FIXED: FORCE TAB SWITCH TO AVOID BEING TRAPPED IN DISABLED TABS <---
+                state.current_tab = TAB_COSTUMES;
+                return true;
+            }
+        }
+
         if (sp_point_in(rects.sprite_list_area, mx, my) && !state.sprite_menu_open)
         {
-            int grid_x = rects.sprite_list_area.x + 12;
-            int grid_y = rects.sprite_list_area.y + 12;
+            int grid_x = rects.sprite_list_area.x + 12, grid_y = rects.sprite_list_area.y + 12;
             for (size_t i = 0; i < state.sprites.size(); i++)
             {
                 SDL_Rect thumb = {grid_x, grid_y, THUMB_W, THUMB_H};
 
-                if ((int)i == state.selected_sprite)
+                if (!state.editing_target_is_stage && (int)i == state.selected_sprite)
                 {
-                    SDL_Rect del_r = {thumb.x - 6 + thumb.w + 6 - 18, thumb.y - 13, 24, 24};
+                    SDL_Rect border = {thumb.x - 3, thumb.y - 3, thumb.w + 6, thumb.h + 22};
+                    SDL_Rect del_r = {border.x + border.w - 22, border.y - 10, 24, 24};
                     if (sp_point_in(del_r, mx, my))
                     {
                         state.sprites.erase(state.sprites.begin() + i);
@@ -295,6 +249,7 @@ bool sprite_panel_handle_event(const SDL_Event &e, AppState &state, const Sprite
                 if (sp_point_in(thumb, mx, my))
                 {
                     state.selected_sprite = i;
+                    state.editing_target_is_stage = false;
                     return true;
                 }
 

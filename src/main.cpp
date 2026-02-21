@@ -132,12 +132,8 @@ int main(int /*argc*/, char * /*argv*/[])
 
     load_library_sprites(renderer);
     load_library_backdrops(renderer);
-
-    // Initialize the Pen drawing layer
     renderer_init_pen_layer(renderer);
-
-    // Load Pen Extension Poster
-    SDL_Texture* pen_poster = IMG_LoadTexture(renderer, "assets/extensions/pencil.png");
+    SDL_Texture *pen_poster = IMG_LoadTexture(renderer, "assets/extensions/pencil.png");
 
     NavbarRects navbar_rects;
     navbar_layout(navbar_rects);
@@ -166,7 +162,6 @@ int main(int /*argc*/, char * /*argv*/[])
     Mix_Chunk *def_snd = audio_load_sound("assets/sounds/meow.wav");
     if (def_snd)
         state.sprites[0].sounds.push_back(SoundData("meow", def_snd));
-
     state.backdrops.push_back(Backdrop("backdrop1", nullptr));
 
     SDL_StartTextInput();
@@ -280,41 +275,34 @@ int main(int /*argc*/, char * /*argv*/[])
                 continue;
             }
 
-            // PEN COLOR PICKER LOGIC
-            if (state.active_input == INPUT_PEN_COLOR_PICKER) {
-                if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
+            if (state.active_input == INPUT_PEN_COLOR_PICKER)
+            {
+                if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
+                {
                     int mx = e.button.x, my = e.button.y;
-                    int mw = 300, mh = 250;
-                    int mod_x = WINDOW_WIDTH / 2 - mw / 2;
-                    int mod_y = WINDOW_HEIGHT / 2 - mh / 2;
-                    
+                    int mw = 300, mh = 250, mod_x = WINDOW_WIDTH / 2 - mw / 2, mod_y = WINDOW_HEIGHT / 2 - mh / 2;
                     bool clicked_color = false;
-                    Color palette[9] = { 
-                        {255,0,0}, {0,255,0}, {0,0,255}, 
-                        {255,255,0}, {0,255,255}, {255,0,255}, 
-                        {0,0,0}, {128,128,128}, {255,255,255} 
-                    };
-                    
-                    for (int i = 0; i < 9; i++) {
+                    Color palette[9] = {{255, 0, 0}, {0, 255, 0}, {0, 0, 255}, {255, 255, 0}, {0, 255, 255}, {255, 0, 255}, {0, 0, 0}, {128, 128, 128}, {255, 255, 255}};
+                    for (int i = 0; i < 9; i++)
+                    {
                         SDL_Rect c_rect = {mod_x + 30 + (i % 3) * 80, mod_y + 80 + (i / 3) * 50, 70, 40};
-                        if (mx >= c_rect.x && mx < c_rect.x + c_rect.w && my >= c_rect.y && my < c_rect.y + c_rect.h) {
-                            if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size()) {
-                                state.sprites[state.selected_sprite].pen_color = { (Uint8)palette[i].r, (Uint8)palette[i].g, (Uint8)palette[i].b, 255 };
-                            }
+                        if (mx >= c_rect.x && mx < c_rect.x + c_rect.w && my >= c_rect.y && my < c_rect.y + c_rect.h)
+                        {
+                            if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
+                                state.sprites[state.selected_sprite].pen_color = {(Uint8)palette[i].r, (Uint8)palette[i].g, (Uint8)palette[i].b, 255};
                             state.active_input = INPUT_NONE;
                             clicked_color = true;
                             break;
                         }
                     }
-                    
-                    if (!clicked_color && (mx < mod_x || mx > mod_x + mw || my < mod_y || my > mod_y + mh)) {
+                    if (!clicked_color && (mx < mod_x || mx > mod_x + mw || my < mod_y || my > mod_y + mh))
                         state.active_input = INPUT_NONE;
-                    }
                 }
                 continue;
             }
 
-            if (state.active_input == INPUT_SOUND_NAME || state.active_input == INPUT_SOUND_VOLUME)
+            // ---> FIXED: COSTUME NAME EVENT HANDLING ROUTING <---
+            if (state.active_input == INPUT_SOUND_NAME || state.active_input == INPUT_SOUND_VOLUME || state.active_input == INPUT_COSTUME_NAME)
             {
                 if (e.type == SDL_KEYDOWN)
                 {
@@ -322,78 +310,53 @@ int main(int /*argc*/, char * /*argv*/[])
                     {
                         if (!state.input_buffer.empty())
                             state.input_buffer.pop_back();
-
-                        if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
-                        {
-                            Sprite &spr = state.sprites[state.selected_sprite];
-                            if (spr.selected_sound >= 0 && spr.selected_sound < (int)spr.sounds.size())
-                            {
-                                if (state.active_input == INPUT_SOUND_NAME) {
-                                    spr.sounds[spr.selected_sound].name = state.input_buffer;
-                                }
-                                else if (state.active_input == INPUT_SOUND_VOLUME)
-                                {
-                                    int v = state.input_buffer.empty() ? 0 : std::atoi(state.input_buffer.c_str());
-                                    if (v < 0) v = 0; if (v > 100) v = 100;
-                                    spr.sounds[spr.selected_sound].volume = v;
-                                    audio_set_volume(v);
-                                }
-                            }
-                        }
                         continue;
                     }
                     else if (e.key.keysym.sym == SDLK_RETURN || e.key.keysym.sym == SDLK_KP_ENTER || e.key.keysym.sym == SDLK_ESCAPE)
                     {
+                        if (state.active_input == INPUT_COSTUME_NAME && !state.input_buffer.empty())
+                        {
+                            if (state.editing_target_is_stage)
+                            {
+                                if (state.selected_backdrop >= 0 && state.selected_backdrop < (int)state.backdrops.size())
+                                    state.backdrops[state.selected_backdrop].name = state.input_buffer;
+                            }
+                            else
+                            {
+                                if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
+                                {
+                                    auto &spr = state.sprites[state.selected_sprite];
+                                    if (spr.selected_costume >= 0 && spr.selected_costume < (int)spr.costumes.size())
+                                        spr.costumes[spr.selected_costume].name = state.input_buffer;
+                                }
+                            }
+                        }
                         state.active_input = INPUT_NONE;
                         state.input_buffer.clear();
-                        continue; 
+                        continue;
                     }
                 }
                 else if (e.type == SDL_TEXTINPUT)
                 {
                     state.input_buffer += e.text.text;
-                    if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
-                    {
-                        Sprite &spr = state.sprites[state.selected_sprite];
-                        if (spr.selected_sound >= 0 && spr.selected_sound < (int)spr.sounds.size())
-                        {
-                            if (state.active_input == INPUT_SOUND_NAME) {
-                                spr.sounds[spr.selected_sound].name = state.input_buffer;
-                            }
-                            else if (state.active_input == INPUT_SOUND_VOLUME)
-                            {
-                                int v = std::atoi(state.input_buffer.c_str());
-                                if (v < 0) v = 0; if (v > 100) v = 100;
-                                spr.sounds[spr.selected_sound].volume = v;
-                                audio_set_volume(v);
-                            }
-                        }
-                    }
-                    continue; 
+                    continue;
                 }
             }
 
-            // EXTENSION LIBRARY CLICK EVENTS (Refined Layout)
             if (state.mode == MODE_EXTENSION_LIBRARY)
             {
                 if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
                 {
-                    int mx = e.button.x;
-                    int my = e.button.y;
-                    
-                    if (my < NAVBAR_HEIGHT) { 
-                        state.mode = MODE_EDITOR; // Clicked the Back nav bar
+                    int mx = e.button.x, my = e.button.y;
+                    if (my < NAVBAR_HEIGHT)
+                    {
+                        state.mode = MODE_EDITOR;
                     }
-                    
-                    // Card click detection - Updated for larger size
-                    int box_w = WINDOW_WIDTH / 3;
-                    int box_h = 320;
-                    int box_x = 60;
-                    int box_y = NAVBAR_HEIGHT + 40;
+                    int box_w = WINDOW_WIDTH / 3, box_h = 320, box_x = 60, box_y = NAVBAR_HEIGHT + 40;
                     if (mx >= box_x && mx < box_x + box_w && my >= box_y && my < box_y + box_h)
                     {
                         state.pen_extension_enabled = true;
-                        state.selected_category = 9; // Switch to the newly created Pen category index
+                        state.selected_category = 9;
                         state.mode = MODE_EDITOR;
                     }
                 }
@@ -404,16 +367,12 @@ int main(int /*argc*/, char * /*argv*/[])
             {
                 if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
                 {
-                    int mx = e.button.x;
-                    int my = e.button.y;
+                    int mx = e.button.x, my = e.button.y;
                     if (mx >= 10 && mx <= 120 && my >= 10 && my <= 60)
-                    {
                         state.mode = MODE_EDITOR;
-                    }
                     for (size_t i = 0; i < global_sprite_lib.size(); i++)
                     {
-                        int x = 50 + i * 180;
-                        int y = 150;
+                        int x = 50 + i * 180, y = 150;
                         if (mx >= x && mx <= x + 160 && my >= y && my <= y + 160)
                         {
                             std::string new_name = global_sprite_lib[i].first;
@@ -424,12 +383,11 @@ int main(int /*argc*/, char * /*argv*/[])
                             if (count > 1)
                                 new_name += std::to_string(count);
                             state.sprites.push_back(Sprite(new_name, global_sprite_lib[i].second));
-
                             Mix_Chunk *ds = audio_load_sound("assets/sounds/meow.wav");
                             if (ds)
                                 state.sprites.back().sounds.push_back(SoundData("meow", ds));
-
                             state.selected_sprite = state.sprites.size() - 1;
+                            state.editing_target_is_stage = false;
                             state.mode = MODE_EDITOR;
                             break;
                         }
@@ -442,20 +400,17 @@ int main(int /*argc*/, char * /*argv*/[])
             {
                 if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
                 {
-                    int mx = e.button.x;
-                    int my = e.button.y;
+                    int mx = e.button.x, my = e.button.y;
                     if (mx >= 10 && mx <= 120 && my >= 10 && my <= 60)
-                    {
                         state.mode = MODE_EDITOR;
-                    }
                     for (size_t i = 0; i < global_backdrop_lib.size(); i++)
                     {
-                        int x = 50 + i * 180;
-                        int y = 150;
+                        int x = 50 + i * 180, y = 150;
                         if (mx >= x && mx <= x + 160 && my >= y && my <= y + 160)
                         {
                             state.backdrops.push_back(Backdrop(global_backdrop_lib[i].first, global_backdrop_lib[i].second));
                             state.selected_backdrop = state.backdrops.size() - 1;
+                            state.editing_target_is_stage = true;
                             state.mode = MODE_EDITOR;
                             break;
                         }
@@ -489,7 +444,6 @@ int main(int /*argc*/, char * /*argv*/[])
                     }
                     if (!result.empty() && result.back() == '\n')
                         result.pop_back();
-
                     if (!result.empty())
                     {
                         SDL_Texture *t = IMG_LoadTexture(renderer, result.c_str());
@@ -501,12 +455,11 @@ int main(int /*argc*/, char * /*argv*/[])
                             if (dot != std::string::npos)
                                 fname = fname.substr(0, dot);
                             state.sprites.push_back(Sprite(fname, t));
-
                             Mix_Chunk *ds = audio_load_sound("assets/sounds/meow.wav");
                             if (ds)
                                 state.sprites.back().sounds.push_back(SoundData("meow", ds));
-
                             state.selected_sprite = state.sprites.size() - 1;
+                            state.editing_target_is_stage = false;
                         }
                     }
                     state.sprite_menu_open = false;
@@ -525,12 +478,11 @@ int main(int /*argc*/, char * /*argv*/[])
                         if (count > 1)
                             new_name += std::to_string(count);
                         state.sprites.push_back(Sprite(new_name, global_sprite_lib[r_idx].second));
-
                         Mix_Chunk *ds = audio_load_sound("assets/sounds/meow.wav");
                         if (ds)
                             state.sprites.back().sounds.push_back(SoundData("meow", ds));
-
                         state.selected_sprite = state.sprites.size() - 1;
+                        state.editing_target_is_stage = false;
                     }
                     state.sprite_menu_open = false;
                     consumed_menu = true;
@@ -562,7 +514,6 @@ int main(int /*argc*/, char * /*argv*/[])
                     }
                     if (!result.empty() && result.back() == '\n')
                         result.pop_back();
-
                     if (!result.empty())
                     {
                         SDL_Texture *t = IMG_LoadTexture(renderer, result.c_str());
@@ -575,6 +526,7 @@ int main(int /*argc*/, char * /*argv*/[])
                                 fname = fname.substr(0, dot);
                             state.backdrops.push_back(Backdrop(fname, t));
                             state.selected_backdrop = state.backdrops.size() - 1;
+                            state.editing_target_is_stage = true;
                         }
                     }
                     state.backdrop_menu_open = false;
@@ -587,6 +539,7 @@ int main(int /*argc*/, char * /*argv*/[])
                         int r_idx = std::rand() % global_backdrop_lib.size();
                         state.backdrops.push_back(Backdrop(global_backdrop_lib[r_idx].first, global_backdrop_lib[r_idx].second));
                         state.selected_backdrop = state.backdrops.size() - 1;
+                        state.editing_target_is_stage = true;
                     }
                     state.backdrop_menu_open = false;
                     consumed_menu = true;
@@ -627,6 +580,7 @@ int main(int /*argc*/, char * /*argv*/[])
             }
             else if (state.current_tab == TAB_COSTUMES)
             {
+                // ---> NEW ROUTING <---
                 costumes_tab_handle_event(e, state);
             }
             else if (state.current_tab == TAB_SOUNDS)
@@ -637,7 +591,7 @@ int main(int /*argc*/, char * /*argv*/[])
 
             if (e.type == SDL_MOUSEBUTTONDOWN)
             {
-                if (state.active_input != INPUT_NONE && state.active_input != INPUT_PROJECT_NAME)
+                if (state.active_input != INPUT_NONE && state.active_input != INPUT_PROJECT_NAME && state.active_input != INPUT_COSTUME_NAME)
                 {
                     if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
                     {
@@ -667,11 +621,7 @@ int main(int /*argc*/, char * /*argv*/[])
                             if (!state.input_buffer.empty())
                             {
                                 int s = std::atoi(state.input_buffer.c_str());
-                                if (s < 0)
-                                    s = 0;
-                                if (s > 999)
-                                    s = 999;
-                                spr.size = s;
+                                spr.size = std::max(0, std::min(s, 999));
                             }
                         }
                         else if (state.active_input == INPUT_SOUND_NAME)
@@ -683,11 +633,7 @@ int main(int /*argc*/, char * /*argv*/[])
                         {
                             if (!state.input_buffer.empty() && spr.selected_sound >= 0 && spr.selected_sound < (int)spr.sounds.size())
                             {
-                                int v = std::atoi(state.input_buffer.c_str());
-                                if (v < 0)
-                                    v = 0;
-                                if (v > 100)
-                                    v = 100;
+                                int v = std::max(0, std::min(std::atoi(state.input_buffer.c_str()), 100));
                                 spr.sounds[spr.selected_sound].volume = v;
                                 if (v > 0)
                                     spr.sounds[spr.selected_sound].prev_volume = v;
@@ -697,7 +643,6 @@ int main(int /*argc*/, char * /*argv*/[])
                     }
                     if (state.active_input == INPUT_BLOCK_FIELD)
                         workspace_commit_active_input(state);
-
                     state.active_input = INPUT_NONE;
                     state.input_buffer.clear();
                 }
@@ -706,63 +651,55 @@ int main(int /*argc*/, char * /*argv*/[])
 
         interpreter_tick(state);
 
+        // ---> NATIVE COSTUME SYNC ENGINE <---
+        // This flawlessly syncs the Stage without altering stage.cpp or drag_area.cpp!
+        for (auto &spr : state.sprites)
+        {
+            if (!spr.costumes.empty() && spr.selected_costume >= 0 && spr.selected_costume < (int)spr.costumes.size())
+            {
+                spr.texture = spr.costumes[spr.selected_costume].texture;
+            }
+        }
+        if (!state.backdrops.empty() && state.selected_backdrop >= 0 && state.selected_backdrop < (int)state.backdrops.size())
+        {
+            state.backdrops[state.selected_backdrop].texture = state.backdrops[state.selected_backdrop].texture;
+        }
+
         SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
         SDL_RenderClear(renderer);
 
-        // ---> REDESIGNED: EXTENSION LIBRARY UI <---
         if (state.mode == MODE_EXTENSION_LIBRARY)
         {
-            // 1. Clear background
             SDL_SetRenderDrawColor(renderer, 245, 245, 245, 255);
             SDL_RenderFillRect(renderer, NULL);
-            
-            // 2. Draw Top Navigation Bar
             SDL_Rect nav_bg = {0, 0, WINDOW_WIDTH, NAVBAR_HEIGHT};
-            SDL_SetRenderDrawColor(renderer, 76, 151, 255, 255); // Scratch blue
+            SDL_SetRenderDrawColor(renderer, 76, 151, 255, 255);
             SDL_RenderFillRect(renderer, &nav_bg);
-            
-            // Back button and Main Title
             render_simple_text(renderer, font_large, "< Back", 30, (NAVBAR_HEIGHT - 24) / 2, {255, 255, 255});
-            
-            int tw = 0; 
+            int tw = 0;
             TTF_SizeUTF8(font_large, "Choose an Extension", &tw, NULL);
             render_simple_text(renderer, font_large, "Choose an Extension", (WINDOW_WIDTH - tw) / 2, (NAVBAR_HEIGHT - 24) / 2, {255, 255, 255});
 
-            // 3. Draw The Extension Card (Larger Size: 1/3 WINDOW WIDTH)
-            int box_w = WINDOW_WIDTH / 3;
-            int box_h = 320;
-            int box_x = 60;
-            int box_y = NAVBAR_HEIGHT + 40;
-            SDL_Rect box_rect = { box_x, box_y, box_w, box_h };
-            
-            // Card base
+            int box_w = WINDOW_WIDTH / 3, box_h = 320, box_x = 60, box_y = NAVBAR_HEIGHT + 40;
+            SDL_Rect box_rect = {box_x, box_y, box_w, box_h};
             renderer_fill_rounded_rect(renderer, &box_rect, 10, 255, 255, 255);
             SDL_SetRenderDrawColor(renderer, 210, 210, 210, 255);
             SDL_RenderDrawRect(renderer, &box_rect);
 
-            // Poster Image (100% width fit, fixed height)
             int img_h = 210;
             if (pen_poster)
             {
-                SDL_Rect img_r = { box_x + 1, box_y + 1, box_w - 2, img_h };
+                SDL_Rect img_r = {box_x + 1, box_y + 1, box_w - 2, img_h};
                 SDL_RenderCopy(renderer, pen_poster, NULL, &img_r);
-                
-                // Light gray line dividing the image and the text
                 SDL_SetRenderDrawColor(renderer, 230, 230, 230, 255);
                 SDL_RenderDrawLine(renderer, box_x, box_y + img_h + 2, box_x + box_w, box_y + img_h + 2);
             }
-
-            // Title ("Pen") - CENTERED
             int title_w = 0;
             TTF_SizeUTF8(font_large, "Pen", &title_w, NULL);
-            int title_x = box_x + (box_w - title_w) / 2;
-            render_simple_text(renderer, font_large, "Pen", title_x, box_y + img_h + 20, {80, 80, 80});
-
-            // Description - CENTERED
+            render_simple_text(renderer, font_large, "Pen", box_x + (box_w - title_w) / 2, box_y + img_h + 20, {80, 80, 80});
             int desc_w = 0;
             TTF_SizeUTF8(font, "Draw with your sprites.", &desc_w, NULL);
-            int desc_x = box_x + (box_w - desc_w) / 2;
-            render_simple_text(renderer, font, "Draw with your sprites.", desc_x, box_y + img_h + 60, {120, 120, 120});
+            render_simple_text(renderer, font, "Draw with your sprites.", box_x + (box_w - desc_w) / 2, box_y + img_h + 60, {120, 120, 120});
         }
         else if (state.mode == MODE_SPRITE_LIBRARY)
         {
@@ -772,11 +709,9 @@ int main(int /*argc*/, char * /*argv*/[])
             SDL_SetRenderDrawColor(renderer, 76, 151, 255, 255);
             SDL_RenderFillRect(renderer, &nav_bg);
             render_simple_text(renderer, font_large, "< Back", 30, 20, {255, 255, 255});
-
             for (size_t i = 0; i < global_sprite_lib.size(); i++)
             {
-                int x = 50 + i * 180;
-                int y = 150;
+                int x = 50 + i * 180, y = 150;
                 SDL_Rect box = {x, y, 160, 160};
                 renderer_fill_rounded_rect(renderer, &box, 12, 255, 255, 255);
                 SDL_SetRenderDrawColor(renderer, 220, 220, 220, 255);
@@ -799,11 +734,9 @@ int main(int /*argc*/, char * /*argv*/[])
             SDL_SetRenderDrawColor(renderer, 76, 151, 255, 255);
             SDL_RenderFillRect(renderer, &nav_bg);
             render_simple_text(renderer, font_large, "< Back", 30, 20, {255, 255, 255});
-
             for (size_t i = 0; i < global_backdrop_lib.size(); i++)
             {
-                int x = 50 + i * 180;
-                int y = 150;
+                int x = 50 + i * 180, y = 150;
                 SDL_Rect box = {x, y, 160, 160};
                 renderer_fill_rounded_rect(renderer, &box, 12, 255, 255, 255);
                 SDL_SetRenderDrawColor(renderer, 220, 220, 220, 255);
@@ -829,7 +762,7 @@ int main(int /*argc*/, char * /*argv*/[])
             }
             else if (state.current_tab == TAB_COSTUMES)
             {
-                costumes_tab_draw(renderer, font, state);
+                costumes_tab_draw(renderer, font, state, tex); // ---> PASSED TEX <---
             }
             else if (state.current_tab == TAB_SOUNDS)
             {
@@ -877,39 +810,34 @@ int main(int /*argc*/, char * /*argv*/[])
             renderer_fill_rounded_rect(renderer, &cancel_btn, 4, 220, 220, 220);
             render_simple_text(renderer, font, "Cancel", cancel_btn.x + 22, cancel_btn.y + 12, (Color){40, 40, 40});
         }
-        
-        if (state.active_input == INPUT_PEN_COLOR_PICKER) {
+
+        if (state.active_input == INPUT_PEN_COLOR_PICKER)
+        {
             SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 150);
             SDL_Rect screen_rect = {0, 0, WINDOW_WIDTH, WINDOW_HEIGHT};
             SDL_RenderFillRect(renderer, &screen_rect);
             SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
-
             int mw = 300, mh = 250, mx = WINDOW_WIDTH / 2 - mw / 2, my = WINDOW_HEIGHT / 2 - mh / 2;
             SDL_Rect modal_rect = {mx, my, mw, mh};
             renderer_fill_rounded_rect(renderer, &modal_rect, 8, 255, 255, 255);
             SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
             SDL_RenderDrawRect(renderer, &modal_rect);
-
             render_simple_text(renderer, font_large, "Pick Pen Color", modal_rect.x + 60, modal_rect.y + 20, {40, 40, 40});
-
-            Color palette[9] = {
-                {255,0,0}, {0,255,0}, {0,0,255},
-                {255,255,0}, {0,255,255}, {255,0,255},
-                {0,0,0}, {128,128,128}, {255,255,255}
-            };
-            for(int i=0; i<9; i++) {
+            Color palette[9] = {{255, 0, 0}, {0, 255, 0}, {0, 0, 255}, {255, 255, 0}, {0, 255, 255}, {255, 0, 255}, {0, 0, 0}, {128, 128, 128}, {255, 255, 255}};
+            for (int i = 0; i < 9; i++)
+            {
                 SDL_Rect c_rect = {mx + 30 + (i % 3) * 80, my + 80 + (i / 3) * 50, 70, 40};
                 renderer_fill_rounded_rect(renderer, &c_rect, 4, palette[i].r, palette[i].g, palette[i].b);
                 SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
                 SDL_RenderDrawRect(renderer, &c_rect);
             }
         }
-
         SDL_RenderPresent(renderer);
     }
 
-    if (pen_poster) SDL_DestroyTexture(pen_poster);
+    if (pen_poster)
+        SDL_DestroyTexture(pen_poster);
     textures_free(tex);
     TTF_CloseFont(font);
     TTF_CloseFont(font_large);

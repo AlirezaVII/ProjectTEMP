@@ -45,12 +45,8 @@ void settings_layout(SettingsRects &rects)
     int col_h = WINDOW_HEIGHT - NAVBAR_HEIGHT;
     int stage_h = col_h * STAGE_HEIGHT_RATIO / 100;
     int top = NAVBAR_HEIGHT + stage_h;
-    rects.panel.x = col_x;
-    rects.panel.y = top;
-    rects.panel.w = RIGHT_COLUMN_WIDTH;
-    rects.panel.h = 80;
-    int px = col_x + 10;
-    int py = top + 10;
+    rects.panel = {col_x, top, RIGHT_COLUMN_WIDTH, 80};
+    int px = col_x + 10, py = top + 10;
 
     rects.sprite_name_label = {px, py, 45, SETTINGS_INPUT_H};
     rects.sprite_name_input = {px + 45, py, 110, SETTINGS_INPUT_H};
@@ -78,11 +74,23 @@ void settings_draw(SDL_Renderer *r, TTF_Font *font, AppState &state, const Setti
 {
     SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
     SDL_RenderFillRect(r, &rects.panel);
+
+    // ---> FIXED: SEPARATORS AND LEFT BORDER <---
     set_color(r, COL_SETTINGS_BORDER);
     SDL_RenderDrawLine(r, rects.panel.x, rects.panel.y, rects.panel.x + rects.panel.w, rects.panel.y);
     SDL_RenderDrawLine(r, rects.panel.x, rects.panel.y + rects.panel.h - 1, rects.panel.x + rects.panel.w, rects.panel.y + rects.panel.h - 1);
+    SDL_SetRenderDrawColor(r, 220, 220, 220, 255);
+    SDL_RenderDrawLine(r, rects.panel.x, rects.panel.y, rects.panel.x, rects.panel.y + rects.panel.h);
 
     int ty_offset = (SETTINGS_INPUT_H - 13) / 2;
+
+    // ---> FIXED: DISABLE SETTINGS IF STAGE SELECTED <---
+    if (state.editing_target_is_stage)
+    {
+        draw_text(r, font, "Stage selected: No motion settings", rects.sprite_name_label.x, rects.sprite_name_label.y + ty_offset, COL_SETTINGS_TEXT);
+        return;
+    }
+
     draw_text(r, font, "Sprite", rects.sprite_name_label.x, rects.sprite_name_label.y + ty_offset, COL_SETTINGS_TEXT);
     draw_text(r, font, "x", rects.x_icon.x, rects.x_icon.y, COL_SETTINGS_TEXT);
     draw_text(r, font, "y", rects.y_icon.x, rects.y_icon.y, COL_SETTINGS_TEXT);
@@ -90,9 +98,7 @@ void settings_draw(SDL_Renderer *r, TTF_Font *font, AppState &state, const Setti
     draw_text(r, font, "Size", rects.size_label.x, rects.size_label.y + ty_offset, COL_SETTINGS_TEXT);
     draw_text(r, font, "Direction", rects.dir_label_pos.x, rects.dir_label_pos.y + ty_offset, COL_SETTINGS_TEXT);
 
-    Sprite *active_spr = nullptr;
-    if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
-        active_spr = &state.sprites[state.selected_sprite];
+    Sprite *active_spr = (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size()) ? &state.sprites[state.selected_sprite] : nullptr;
 
     std::string txt = (state.active_input == INPUT_SPRITE_NAME) ? state.input_buffer + "|" : (active_spr ? active_spr->name : "");
     draw_input_box(r, font, rects.sprite_name_input, txt.c_str(), state.active_input == INPUT_SPRITE_NAME);
@@ -180,11 +186,7 @@ static void commit_input(AppState &state)
         if (!state.input_buffer.empty())
         {
             int val = std::atoi(state.input_buffer.c_str());
-            if (val < 0)
-                val = 0;
-            if (val > 999)
-                val = 999;
-            spr.size = val;
+            spr.size = std::max(0, std::min(val, 999));
         }
     }
     else if (state.active_input == INPUT_DIRECTION)
@@ -198,10 +200,13 @@ static void commit_input(AppState &state)
 
 bool settings_handle_event(const SDL_Event &e, AppState &state, const SettingsRects &rects)
 {
+    if (state.editing_target_is_stage)
+        return false; // Ignore clicks if stage selected
+
     if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
     {
         int mx = e.button.x, my = e.button.y;
-        if (state.active_input != INPUT_NONE && state.active_input != INPUT_PROJECT_NAME && state.active_input != INPUT_BLOCK_FIELD)
+        if (state.active_input != INPUT_NONE && state.active_input != INPUT_PROJECT_NAME && state.active_input != INPUT_BLOCK_FIELD && state.active_input != INPUT_COSTUME_NAME)
             commit_input(state);
 
         if (point_in_rect(mx, my, rects.sprite_name_input))
@@ -251,7 +256,7 @@ bool settings_handle_event(const SDL_Event &e, AppState &state, const SettingsRe
             return true;
     }
 
-    if (state.active_input != INPUT_NONE && state.active_input != INPUT_PROJECT_NAME && state.active_input != INPUT_BLOCK_FIELD)
+    if (state.active_input != INPUT_NONE && state.active_input != INPUT_PROJECT_NAME && state.active_input != INPUT_BLOCK_FIELD && state.active_input != INPUT_COSTUME_NAME)
     {
         if (e.type == SDL_KEYDOWN)
         {

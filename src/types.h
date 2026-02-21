@@ -35,9 +35,11 @@ enum ActiveInput
     INPUT_VAR_MODAL,
     INPUT_SOUND_NAME,
     INPUT_SOUND_VOLUME,
-    INPUT_PEN_COLOR_PICKER
+    INPUT_PEN_COLOR_PICKER,
+    INPUT_COSTUME_NAME // Added for costume naming
 };
 
+// Block Types...
 enum MotionBlockType
 {
     MB_MOVE_STEPS = 0,
@@ -145,8 +147,6 @@ enum DragMode
     DRAG_DRAGGABLE = 0,
     DRAG_NOT_DRAGGABLE = 1
 };
-
-// ---> NEW: PEN BLOCKS <---
 enum PenBlockType
 {
     PB_ERASE_ALL = 0,
@@ -159,7 +159,6 @@ enum PenBlockType
     PB_CHANGE_SIZE_BY,
     PB_SET_SIZE_TO
 };
-
 enum BlockKind
 {
     BK_MOTION = 0,
@@ -186,6 +185,7 @@ struct BlockInstance
     int next_id = -1, parent_id = -1, child_id = -1, child2_id = -1, condition_id = -1;
     int arg0_id = -1, arg1_id = -1, arg2_id = -1;
 };
+
 enum SnapType
 {
     SNAP_NONE = 0,
@@ -224,6 +224,45 @@ struct SoundData
     SoundData(std::string n, Mix_Chunk *c) : name(n), chunk(c), volume(100), prev_volume(100) {}
 };
 
+// ---> NEW: EDITOR TOOLS & GRAPHIC SHAPES <---
+enum EditTool
+{
+    TOOL_POINTER = 0,
+    TOOL_BRUSH,
+    TOOL_ERASER,
+    TOOL_TEXT,
+    TOOL_FILL,
+    TOOL_RECT,
+    TOOL_CIRCLE
+};
+enum ShapeType
+{
+    SHAPE_RECT = 0,
+    SHAPE_CIRCLE,
+    SHAPE_TEXT
+};
+
+struct GraphicShape
+{
+    ShapeType type;
+    SDL_Rect rect;
+    SDL_Color color;
+    std::string text;
+};
+
+// Shared structure for both Costumes and Backdrops
+struct GraphicItem
+{
+    std::string name;
+    SDL_Texture *texture;             // The original loaded image
+    SDL_Texture *paint_layer;         // Freehand brush/eraser layer
+    std::vector<GraphicShape> shapes; // Draggable shapes
+    GraphicItem(std::string n, SDL_Texture *t) : name(n), texture(t), paint_layer(nullptr) {}
+};
+
+typedef GraphicItem Costume;
+typedef GraphicItem Backdrop;
+
 struct Sprite
 {
     std::string name;
@@ -236,12 +275,16 @@ struct Sprite
     int volume;
     bool draggable;
     int layer_order;
-    SDL_Texture *texture;
+    SDL_Texture *texture; // Cached output layer
 
     std::vector<SoundData> sounds;
     int selected_sound;
 
-    // ---> NEW: PEN MEMORY <---
+    // ---> NEW: COSTUMES <---
+    std::vector<Costume> costumes;
+    int selected_costume;
+
+    // Pen memory
     bool pen_down;
     int pen_size;
     SDL_Color pen_color;
@@ -251,19 +294,16 @@ struct Sprite
 
     std::vector<BlockInstance> blocks;
     std::vector<int> top_level_blocks;
-    Sprite(std::string n, SDL_Texture *tex) : name(n), x(0), y(0), direction(90), visible(true), size(100), say_text(""), is_thinking(false), say_end_time(0), volume(100), draggable(true), layer_order(get_next_layer()), texture(tex), selected_sound(0), pen_down(false), pen_size(1), pen_color({15, 189, 140, 255}), pen_color_val(50), pen_saturation(100), pen_brightness(100) {}
+
+    Sprite(std::string n, SDL_Texture *tex) : name(n), x(0), y(0), direction(90), visible(true), size(100), say_text(""), is_thinking(false), say_end_time(0), volume(100), draggable(true), layer_order(get_next_layer()), texture(tex), selected_sound(0), selected_costume(0), pen_down(false), pen_size(1), pen_color({15, 189, 140, 255}), pen_color_val(50), pen_saturation(100), pen_brightness(100)
+    {
+        costumes.push_back(Costume(n, tex));
+    }
     static int get_next_layer()
     {
         static int l = 0;
         return l++;
     }
-};
-
-struct Backdrop
-{
-    std::string name;
-    SDL_Texture *texture;
-    Backdrop(std::string n, SDL_Texture *t) : name(n), texture(t) {}
 };
 
 struct AppState
@@ -296,11 +336,15 @@ struct AppState
     std::string ask_msg;
     std::string ask_reply;
     std::string global_answer;
-
-    // ---> NEW: EXTENSION TOGGLE <---
     bool pen_extension_enabled;
 
-    AppState() : file_menu_open(false), file_menu_hover(-1), sprite_menu_open(false), backdrop_menu_open(false), current_tab(TAB_CODE), start_hover(false), stop_hover(false), running(false), mode(MODE_EDITOR), selected_sprite(0), add_sprite_hover(false), selected_backdrop(0), selected_tab(TAB_CODE), selected_category(0), project_name("Untitled"), drag(), next_block_id(1), active_input(INPUT_NONE), input_buffer(""), block_input(), variables({"my variable"}), variable_values({{"my variable", "0"}}), variable_visible({{"my variable", true}}), var_modal_active(false), stage_drag_active(false), stage_drag_off_x(0), stage_drag_off_y(0), ask_active(false), ask_msg(""), ask_reply(""), global_answer(""), pen_extension_enabled(false) {}
+    // ---> NEW: EDITOR STATE <---
+    bool editing_target_is_stage;
+    EditTool active_tool;
+    SDL_Color active_color;
+    int active_shape_index;
+
+    AppState() : file_menu_open(false), file_menu_hover(-1), sprite_menu_open(false), backdrop_menu_open(false), current_tab(TAB_CODE), start_hover(false), stop_hover(false), running(false), mode(MODE_EDITOR), selected_sprite(0), add_sprite_hover(false), selected_backdrop(0), selected_tab(TAB_CODE), selected_category(0), project_name("Untitled"), drag(), next_block_id(1), active_input(INPUT_NONE), input_buffer(""), block_input(), variables({"my variable"}), variable_values({{"my variable", "0"}}), variable_visible({{"my variable", true}}), var_modal_active(false), stage_drag_active(false), stage_drag_off_x(0), stage_drag_off_y(0), ask_active(false), ask_msg(""), ask_reply(""), global_answer(""), pen_extension_enabled(false), editing_target_is_stage(false), active_tool(TOOL_POINTER), active_color({255, 0, 0, 255}), active_shape_index(-1) {}
 };
 
 #endif
