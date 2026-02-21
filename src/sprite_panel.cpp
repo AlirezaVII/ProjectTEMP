@@ -2,6 +2,7 @@
 #include "config.h"
 #include <cstdio>
 #include <cmath>
+#include <string>
 
 static void sp_draw_text(SDL_Renderer *r, TTF_Font *font, const char *txt, int x, int y, Uint8 cr, Uint8 cg, Uint8 cb)
 {
@@ -66,14 +67,18 @@ void sprite_panel_layout(SpritePanelRects &rects)
     rects.backdrop_area.y = panel_top;
     rects.backdrop_area.w = BACKDROP_W;
     rects.backdrop_area.h = panel_h;
+
+    // ---> FIXED: PUSHED THUMBNAIL DOWN TO FIX SPACING <---
     rects.backdrop_thumb.w = 64;
     rects.backdrop_thumb.h = 48;
     rects.backdrop_thumb.x = rects.backdrop_area.x + (rects.backdrop_area.w - rects.backdrop_thumb.w) / 2;
-    rects.backdrop_thumb.y = rects.backdrop_area.y + 24;
+    rects.backdrop_thumb.y = rects.backdrop_area.y + 28;
+
     rects.backdrop_label.x = rects.backdrop_area.x;
-    rects.backdrop_label.y = rects.backdrop_thumb.y + rects.backdrop_thumb.h + 2;
+    rects.backdrop_label.y = rects.backdrop_thumb.y + rects.backdrop_thumb.h + 5;
     rects.backdrop_label.w = rects.backdrop_area.w;
     rects.backdrop_label.h = 30;
+
     rects.backdrop_btn.w = BTN_RAD * 2;
     rects.backdrop_btn.h = BTN_RAD * 2;
     rects.backdrop_btn.x = rects.backdrop_area.x + rects.backdrop_area.w - rects.backdrop_btn.w - 6;
@@ -195,13 +200,34 @@ void sprite_panel_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, c
     }
 
     sp_fill_rect(r, rects.backdrop_area, 255, 255, 255, 255);
-    sp_draw_text_centered(r, font, "Stage", rects.backdrop_area.x + rects.backdrop_area.w / 2, rects.backdrop_area.y + 10, 80, 80, 80);
+    sp_draw_text_centered(r, font, "Stage", rects.backdrop_area.x + rects.backdrop_area.w / 2, rects.backdrop_area.y + 12, 80, 80, 80);
+
+    // ---> FIXED: BACKDROP THUMBNAIL DRAWING <---
     SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
     SDL_RenderFillRect(r, const_cast<SDL_Rect *>(&rects.backdrop_thumb));
+
+    if (state.selected_backdrop >= 0 && state.selected_backdrop < (int)state.backdrops.size())
+    {
+        SDL_Texture *bg_tex = state.backdrops[state.selected_backdrop].texture;
+        if (bg_tex)
+        {
+            SDL_RenderCopy(r, bg_tex, NULL, const_cast<SDL_Rect *>(&rects.backdrop_thumb));
+        }
+        std::string bg_name = state.backdrops[state.selected_backdrop].name;
+
+        // Spread the texts out so they don't overlap!
+        sp_draw_text_centered(r, font, "Backdrops", rects.backdrop_area.x + rects.backdrop_area.w / 2, rects.backdrop_label.y + 10, 100, 100, 100);
+        sp_draw_text_centered(r, font, bg_name.c_str(), rects.backdrop_area.x + rects.backdrop_area.w / 2, rects.backdrop_label.y + 26, 140, 140, 140);
+    }
+    else
+    {
+        sp_draw_text_centered(r, font, "Backdrops", rects.backdrop_area.x + rects.backdrop_area.w / 2, rects.backdrop_label.y + 10, 100, 100, 100);
+        sp_draw_text_centered(r, font, "1", rects.backdrop_area.x + rects.backdrop_area.w / 2, rects.backdrop_label.y + 26, 140, 140, 140);
+    }
+
     SDL_SetRenderDrawColor(r, 200, 200, 200, 255);
     SDL_RenderDrawRect(r, const_cast<SDL_Rect *>(&rects.backdrop_thumb));
-    sp_draw_text_centered(r, font, "Backdrops", rects.backdrop_area.x + rects.backdrop_area.w / 2, rects.backdrop_label.y + 8, 100, 100, 100);
-    sp_draw_text_centered(r, font, "1", rects.backdrop_area.x + rects.backdrop_area.w / 2, rects.backdrop_label.y + 16, 140, 140, 140);
+
     cx = rects.backdrop_btn.x + BTN_RAD;
     cy = rects.backdrop_btn.y + BTN_RAD;
     sp_draw_circle(r, cx, cy, BTN_RAD, 77, 151, 255);
@@ -213,6 +239,24 @@ void sprite_panel_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, c
     else
     {
         sp_draw_text_centered(r, font, "+", cx, cy, 255, 255, 255);
+    }
+
+    // ---> FIXED: BACKDROP MENU DRAWING <---
+    if (state.backdrop_menu_open)
+    {
+        sp_fill_rect(r, rects.backdrop_menu, 77, 151, 255, 255);
+        SDL_Texture *icons[3] = {tex.upload_icon, tex.surprise_icon, tex.search_icon};
+        for (int i = 0; i < 3; i++)
+        {
+            int icx = rects.backdrop_menu_items[i].x + MENU_ITEM_SZ / 2;
+            int icy = rects.backdrop_menu_items[i].y + MENU_ITEM_SZ / 2;
+            sp_draw_circle(r, icx, icy, MENU_ITEM_SZ / 2 - 2, 255, 255, 255);
+            if (icons[i])
+            {
+                SDL_Rect ir = {icx - 10, icy - 10, 20, 20};
+                SDL_RenderCopy(r, icons[i], NULL, &ir);
+            }
+        }
     }
 }
 

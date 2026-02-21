@@ -29,6 +29,8 @@
 #include <ctime>
 
 static std::vector<std::pair<std::string, SDL_Texture *>> global_sprite_lib;
+// ---> NEW: BACKDROP LIBRARY ARRAY <---
+static std::vector<std::pair<std::string, SDL_Texture *>> global_backdrop_lib;
 
 static void load_library_sprites(SDL_Renderer *renderer)
 {
@@ -40,6 +42,20 @@ static void load_library_sprites(SDL_Renderer *renderer)
         SDL_Texture *t = IMG_LoadTexture(renderer, path.c_str());
         if (t)
             global_sprite_lib.push_back({lib_names[i], t});
+    }
+}
+
+// ---> NEW: LOAD BACKDROPS INTO GLOBAL MEMORY <---
+static void load_library_backdrops(SDL_Renderer *renderer)
+{
+    const char *lib_files[] = {"cage.png", "city.png", "geometric.png", "sky.png", "traffic.png", "voronoimal.png", "waves.png"};
+    const char *lib_names[] = {"cage", "city", "geometric", "sky", "traffic", "voronoimal", "waves"};
+    for (int i = 0; i < 7; ++i)
+    {
+        std::string path = "assets/backdrops/" + std::string(lib_files[i]);
+        SDL_Texture *t = IMG_LoadTexture(renderer, path.c_str());
+        if (t)
+            global_backdrop_lib.push_back({lib_names[i], t});
     }
 }
 
@@ -95,7 +111,6 @@ int main(int /*argc*/, char * /*argv*/[])
     }
     SDL_RenderSetLogicalSize(renderer, WINDOW_WIDTH, WINDOW_HEIGHT);
 
-    // Standard Font
     TTF_Font *font = TTF_OpenFont("assets/fonts/NotoSans-Regular.ttf", 13);
     if (!font)
         font = TTF_OpenFont("/System/Library/Fonts/Helvetica.ttc", 13);
@@ -104,7 +119,6 @@ int main(int /*argc*/, char * /*argv*/[])
     if (!font)
         return 1;
 
-    // ---> NEW: Large Font for the Library <---
     TTF_Font *font_large = TTF_OpenFont("assets/fonts/NotoSans-Regular.ttf", 24);
     if (!font_large)
         font_large = TTF_OpenFont("/System/Library/Fonts/Helvetica.ttc", 24);
@@ -119,6 +133,7 @@ int main(int /*argc*/, char * /*argv*/[])
         std::fprintf(stderr, "Warning: Audio failed to load. Sounds will be silent.\n");
 
     load_library_sprites(renderer);
+    load_library_backdrops(renderer); // Load new backdrops
 
     NavbarRects navbar_rects;
     navbar_layout(navbar_rects);
@@ -143,6 +158,8 @@ int main(int /*argc*/, char * /*argv*/[])
 
     AppState state;
     state.sprites.push_back(Sprite("Sprite1", tex.scratch_cat));
+    state.backdrops.push_back(Backdrop("backdrop1", nullptr)); // Init blank backdrop
+
     SDL_StartTextInput();
     bool quit = false;
 
@@ -199,15 +216,12 @@ int main(int /*argc*/, char * /*argv*/[])
                                 unique = false;
                                 break;
                             }
-
-                        // ---> FIXED: INITIALIZE VALUE AND VISIBILITY! <---
                         if (unique && !state.input_buffer.empty())
                         {
                             state.variables.push_back(state.input_buffer);
                             state.variable_values[state.input_buffer] = "0";
                             state.variable_visible[state.input_buffer] = true;
                         }
-
                         state.var_modal_active = false;
                         state.active_input = INPUT_NONE;
                         state.input_buffer.clear();
@@ -229,7 +243,6 @@ int main(int /*argc*/, char * /*argv*/[])
                     SDL_Rect cancel_btn = {mx + mw - 220, my + mh - 60, 90, 40};
                     auto in_rect = [](int px, int py, const SDL_Rect &r)
                     { return px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h; };
-
                     if (in_rect(e.button.x, e.button.y, submit_btn))
                     {
                         bool unique = true;
@@ -239,15 +252,12 @@ int main(int /*argc*/, char * /*argv*/[])
                                 unique = false;
                                 break;
                             }
-
-                        // ---> FIXED: INITIALIZE VALUE AND VISIBILITY! <---
                         if (unique && !state.input_buffer.empty())
                         {
                             state.variables.push_back(state.input_buffer);
                             state.variable_values[state.input_buffer] = "0";
                             state.variable_visible[state.input_buffer] = true;
                         }
-
                         state.var_modal_active = false;
                         state.active_input = INPUT_NONE;
                         state.input_buffer.clear();
@@ -268,7 +278,6 @@ int main(int /*argc*/, char * /*argv*/[])
                 {
                     int mx = e.button.x;
                     int my = e.button.y;
-
                     if (mx >= 10 && mx <= 120 && my >= 10 && my <= 60)
                     {
                         state.mode = MODE_EDITOR;
@@ -296,6 +305,33 @@ int main(int /*argc*/, char * /*argv*/[])
                 continue;
             }
 
+            // ---> NEW: BACKDROP LIBRARY CLICKS <---
+            if (state.mode == MODE_BACKDROP_LIBRARY)
+            {
+                if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
+                {
+                    int mx = e.button.x;
+                    int my = e.button.y;
+                    if (mx >= 10 && mx <= 120 && my >= 10 && my <= 60)
+                    {
+                        state.mode = MODE_EDITOR;
+                    }
+                    for (size_t i = 0; i < global_backdrop_lib.size(); i++)
+                    {
+                        int x = 50 + i * 180;
+                        int y = 150;
+                        if (mx >= x && mx <= x + 160 && my >= y && my <= y + 160)
+                        {
+                            state.backdrops.push_back(Backdrop(global_backdrop_lib[i].first, global_backdrop_lib[i].second));
+                            state.selected_backdrop = state.backdrops.size() - 1;
+                            state.mode = MODE_EDITOR;
+                            break;
+                        }
+                    }
+                }
+                continue;
+            }
+
             if (e.type == SDL_KEYDOWN && state.active_input == INPUT_NONE && !state.file_menu_open && !state.var_modal_active)
                 interpreter_trigger_key(state, e.key.keysym.sym);
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE && state.active_input == INPUT_NONE && !state.file_menu_open)
@@ -304,15 +340,12 @@ int main(int /*argc*/, char * /*argv*/[])
                 break;
             }
 
-            // ---> EXCLUSIVE HOVER MENU CLICK INTERCEPTOR <---
+            // SPRITE HOVER MENU INTERCEPTOR
             if (state.sprite_menu_open && e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
             {
                 int mx = e.button.x, my = e.button.y;
                 bool consumed_menu = false;
-
-                // [0] Top: Upload
-                if (mx >= sprite_panel_rects.sprite_menu_items[0].x && mx <= sprite_panel_rects.sprite_menu_items[0].x + 36 &&
-                    my >= sprite_panel_rects.sprite_menu_items[0].y && my <= sprite_panel_rects.sprite_menu_items[0].y + 36)
+                if (mx >= sprite_panel_rects.sprite_menu_items[0].x && mx <= sprite_panel_rects.sprite_menu_items[0].x + 36 && my >= sprite_panel_rects.sprite_menu_items[0].y && my <= sprite_panel_rects.sprite_menu_items[0].y + 36)
                 {
                     char buffer[1024];
                     std::string result = "";
@@ -331,16 +364,19 @@ int main(int /*argc*/, char * /*argv*/[])
                         SDL_Texture *t = IMG_LoadTexture(renderer, result.c_str());
                         if (t)
                         {
-                            state.sprites.push_back(Sprite("Sprite" + std::to_string(state.sprites.size() + 1), t));
+                            size_t slash = result.find_last_of('/');
+                            std::string fname = (slash == std::string::npos) ? result : result.substr(slash + 1);
+                            size_t dot = fname.find_last_of('.');
+                            if (dot != std::string::npos)
+                                fname = fname.substr(0, dot);
+                            state.sprites.push_back(Sprite(fname, t));
                             state.selected_sprite = state.sprites.size() - 1;
                         }
                     }
                     state.sprite_menu_open = false;
                     consumed_menu = true;
                 }
-                // [1] Middle: Surprise
-                else if (mx >= sprite_panel_rects.sprite_menu_items[1].x && mx <= sprite_panel_rects.sprite_menu_items[1].x + 36 &&
-                         my >= sprite_panel_rects.sprite_menu_items[1].y && my <= sprite_panel_rects.sprite_menu_items[1].y + 36)
+                else if (mx >= sprite_panel_rects.sprite_menu_items[1].x && mx <= sprite_panel_rects.sprite_menu_items[1].x + 36 && my >= sprite_panel_rects.sprite_menu_items[1].y && my <= sprite_panel_rects.sprite_menu_items[1].y + 36)
                 {
                     if (!global_sprite_lib.empty())
                     {
@@ -358,15 +394,69 @@ int main(int /*argc*/, char * /*argv*/[])
                     state.sprite_menu_open = false;
                     consumed_menu = true;
                 }
-                // [2] Bottom: Search
-                else if (mx >= sprite_panel_rects.sprite_menu_items[2].x && mx <= sprite_panel_rects.sprite_menu_items[2].x + 36 &&
-                         my >= sprite_panel_rects.sprite_menu_items[2].y && my <= sprite_panel_rects.sprite_menu_items[2].y + 36)
+                else if (mx >= sprite_panel_rects.sprite_menu_items[2].x && mx <= sprite_panel_rects.sprite_menu_items[2].x + 36 && my >= sprite_panel_rects.sprite_menu_items[2].y && my <= sprite_panel_rects.sprite_menu_items[2].y + 36)
                 {
                     state.mode = MODE_SPRITE_LIBRARY;
                     state.sprite_menu_open = false;
                     consumed_menu = true;
                 }
+                if (consumed_menu)
+                    continue;
+            }
 
+            // ---> NEW: BACKDROP HOVER MENU INTERCEPTOR <---
+            if (state.backdrop_menu_open && e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
+            {
+                int mx = e.button.x, my = e.button.y;
+                bool consumed_menu = false;
+                if (mx >= sprite_panel_rects.backdrop_menu_items[0].x && mx <= sprite_panel_rects.backdrop_menu_items[0].x + 36 && my >= sprite_panel_rects.backdrop_menu_items[0].y && my <= sprite_panel_rects.backdrop_menu_items[0].y + 36)
+                {
+                    char buffer[1024];
+                    std::string result = "";
+                    FILE *pipe = popen("osascript -e 'POSIX path of (choose file with prompt \"Choose Backdrop\" of type {\"png\", \"jpg\", \"jpeg\"})'", "r");
+                    if (pipe)
+                    {
+                        while (fgets(buffer, sizeof(buffer), pipe) != NULL)
+                            result += buffer;
+                        pclose(pipe);
+                    }
+                    if (!result.empty() && result.back() == '\n')
+                        result.pop_back();
+
+                    if (!result.empty())
+                    {
+                        SDL_Texture *t = IMG_LoadTexture(renderer, result.c_str());
+                        if (t)
+                        {
+                            size_t slash = result.find_last_of('/');
+                            std::string fname = (slash == std::string::npos) ? result : result.substr(slash + 1);
+                            size_t dot = fname.find_last_of('.');
+                            if (dot != std::string::npos)
+                                fname = fname.substr(0, dot);
+                            state.backdrops.push_back(Backdrop(fname, t));
+                            state.selected_backdrop = state.backdrops.size() - 1;
+                        }
+                    }
+                    state.backdrop_menu_open = false;
+                    consumed_menu = true;
+                }
+                else if (mx >= sprite_panel_rects.backdrop_menu_items[1].x && mx <= sprite_panel_rects.backdrop_menu_items[1].x + 36 && my >= sprite_panel_rects.backdrop_menu_items[1].y && my <= sprite_panel_rects.backdrop_menu_items[1].y + 36)
+                {
+                    if (!global_backdrop_lib.empty())
+                    {
+                        int r_idx = std::rand() % global_backdrop_lib.size();
+                        state.backdrops.push_back(Backdrop(global_backdrop_lib[r_idx].first, global_backdrop_lib[r_idx].second));
+                        state.selected_backdrop = state.backdrops.size() - 1;
+                    }
+                    state.backdrop_menu_open = false;
+                    consumed_menu = true;
+                }
+                else if (mx >= sprite_panel_rects.backdrop_menu_items[2].x && mx <= sprite_panel_rects.backdrop_menu_items[2].x + 36 && my >= sprite_panel_rects.backdrop_menu_items[2].y && my <= sprite_panel_rects.backdrop_menu_items[2].y + 36)
+                {
+                    state.mode = MODE_BACKDROP_LIBRARY;
+                    state.backdrop_menu_open = false;
+                    consumed_menu = true;
+                }
                 if (consumed_menu)
                     continue;
             }
@@ -466,32 +556,54 @@ int main(int /*argc*/, char * /*argv*/[])
             SDL_SetRenderDrawColor(renderer, 76, 151, 255, 255);
             SDL_RenderFillRect(renderer, &nav_bg);
 
-            // Draw Large Back text
             render_simple_text(renderer, font_large, "< Back", 30, 20, {255, 255, 255});
 
             for (size_t i = 0; i < global_sprite_lib.size(); i++)
             {
-                // Align to one single horizontal row!
                 int x = 50 + i * 180;
                 int y = 150;
-
-                // Draw significantly larger box
                 SDL_Rect box = {x, y, 160, 160};
                 renderer_fill_rounded_rect(renderer, &box, 12, 255, 255, 255);
                 SDL_SetRenderDrawColor(renderer, 220, 220, 220, 255);
                 SDL_RenderDrawRect(renderer, &box);
 
-                // Draw larger image
                 if (global_sprite_lib[i].second)
                 {
                     SDL_Rect img_dst = {x + 30, y + 20, 100, 100};
                     SDL_RenderCopy(renderer, global_sprite_lib[i].second, NULL, &img_dst);
                 }
-
-                // Draw larger title
                 int tw = 0;
                 TTF_SizeUTF8(font_large, global_sprite_lib[i].first.c_str(), &tw, NULL);
                 render_simple_text(renderer, font_large, global_sprite_lib[i].first.c_str(), x + 80 - tw / 2, y + 125, {40, 40, 40});
+            }
+        }
+        else if (state.mode == MODE_BACKDROP_LIBRARY)
+        {
+            SDL_SetRenderDrawColor(renderer, 245, 245, 245, 255);
+            SDL_RenderFillRect(renderer, NULL);
+            SDL_Rect nav_bg = {0, 0, WINDOW_WIDTH, NAVBAR_HEIGHT + 20};
+            SDL_SetRenderDrawColor(renderer, 76, 151, 255, 255);
+            SDL_RenderFillRect(renderer, &nav_bg);
+
+            render_simple_text(renderer, font_large, "< Back", 30, 20, {255, 255, 255});
+
+            for (size_t i = 0; i < global_backdrop_lib.size(); i++)
+            {
+                int x = 50 + i * 180;
+                int y = 150;
+                SDL_Rect box = {x, y, 160, 160};
+                renderer_fill_rounded_rect(renderer, &box, 12, 255, 255, 255);
+                SDL_SetRenderDrawColor(renderer, 220, 220, 220, 255);
+                SDL_RenderDrawRect(renderer, &box);
+
+                if (global_backdrop_lib[i].second)
+                {
+                    SDL_Rect img_dst = {x + 10, y + 20, 140, 100}; // Wider for backdrops
+                    SDL_RenderCopy(renderer, global_backdrop_lib[i].second, NULL, &img_dst);
+                }
+                int tw = 0;
+                TTF_SizeUTF8(font_large, global_backdrop_lib[i].first.c_str(), &tw, NULL);
+                render_simple_text(renderer, font_large, global_backdrop_lib[i].first.c_str(), x + 80 - tw / 2, y + 125, {40, 40, 40});
             }
         }
         else

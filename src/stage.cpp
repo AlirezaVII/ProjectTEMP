@@ -26,6 +26,27 @@ void stage_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const St
 {
     set_color(r, COL_STAGE_BG);
     SDL_RenderFillRect(r, &rects.panel);
+
+    // ---> NEW: DRAW ACTIVE BACKDROP BEHIND SPRITES <---
+    if (state.selected_backdrop >= 0 && state.selected_backdrop < (int)state.backdrops.size())
+    {
+        SDL_Texture *bg_tex = state.backdrops[state.selected_backdrop].texture;
+        if (bg_tex)
+        {
+            SDL_RenderCopy(r, bg_tex, NULL, &rects.stage_area);
+        }
+        else
+        {
+            SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
+            SDL_RenderFillRect(r, &rects.stage_area);
+        }
+    }
+    else
+    {
+        SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
+        SDL_RenderFillRect(r, &rects.stage_area);
+    }
+
     set_color(r, COL_STAGE_BORDER);
     SDL_RenderDrawRect(r, &rects.stage_area);
     SDL_RenderSetClipRect(r, const_cast<SDL_Rect *>(&rects.stage_area));
@@ -259,7 +280,7 @@ bool stage_handle_event(const SDL_Event &e, AppState &state, const StageRects &r
                 SDL_Rect sprite_rect = {cx - w / 2, cy - h / 2, w, h};
                 if (point_in_rect(mx, my, sprite_rect))
                 {
-                    state.selected_sprite = i; // Select the clicked sprite!
+                    state.selected_sprite = i;
                     if (spr.draggable)
                     {
                         state.stage_drag_active = true;
