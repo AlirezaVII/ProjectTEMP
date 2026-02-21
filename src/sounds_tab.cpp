@@ -47,7 +47,6 @@ void sounds_tab_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, con
         return;
     const Sprite &spr = state.sprites[state.selected_sprite];
 
-    // Left Column List
     int sy = top_y + 10;
     for (size_t i = 0; i < spr.sounds.size(); i++)
     {
@@ -91,12 +90,10 @@ void sounds_tab_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, con
         sy += 70;
     }
 
-    // Upload Button
     SDL_Rect up_btn = {10, WINDOW_HEIGHT - 60, left_w - 20, 40};
     fill_rounded(r, &up_btn, 8, 77, 151, 255);
     draw_text(r, font, "Upload Sound", up_btn.x + 60, up_btn.y + 10, 255, 255, 255);
 
-    // Right Controls
     if (spr.selected_sound >= 0 && spr.selected_sound < (int)spr.sounds.size())
     {
         const auto &snd = spr.sounds[spr.selected_sound];
@@ -166,30 +163,9 @@ bool sounds_tab_handle_event(const SDL_Event &e, AppState &state)
         return false;
     Sprite &spr = state.sprites[state.selected_sprite];
 
-    // Force commit active inputs before changing focus
-    if (state.active_input == INPUT_SOUND_NAME || state.active_input == INPUT_SOUND_VOLUME)
-    {
-        if (spr.selected_sound >= 0 && spr.selected_sound < (int)spr.sounds.size())
-        {
-            if (state.active_input == INPUT_SOUND_NAME)
-            {
-                spr.sounds[spr.selected_sound].name = state.input_buffer;
-            }
-            else if (state.active_input == INPUT_SOUND_VOLUME)
-            {
-                int v = state.input_buffer.empty() ? 0 : std::atoi(state.input_buffer.c_str());
-                if (v < 0) v = 0; if (v > 100) v = 100;
-                spr.sounds[spr.selected_sound].volume = v;
-                if (v > 0) spr.sounds[spr.selected_sound].prev_volume = v;
-                audio_set_volume(v);
-            }
-        }
-    }
-
     SDL_Rect up_btn = {10, WINDOW_HEIGHT - 60, left_w - 20, 40};
     if (point_in(up_btn, mx, my))
     {
-        state.active_input = INPUT_NONE; state.input_buffer.clear(); 
         char buffer[1024];
         std::string result = "";
         FILE *pipe = popen("osascript -e 'POSIX path of (choose file with prompt \"Choose Sound\" of type {\"public.audio\"})'", "r");
@@ -229,11 +205,7 @@ bool sounds_tab_handle_event(const SDL_Event &e, AppState &state)
 
             if ((int)i == spr.selected_sound && point_in(del_r, mx, my))
             {
-                state.active_input = INPUT_NONE; state.input_buffer.clear(); 
-                
-                // ---> FIXED: STOP AUDIO WHEN DELETING <---
                 audio_stop_all();
-
                 spr.sounds.erase(spr.sounds.begin() + i);
                 if (spr.selected_sound >= (int)spr.sounds.size())
                     spr.selected_sound = spr.sounds.size() - 1;
@@ -243,7 +215,6 @@ bool sounds_tab_handle_event(const SDL_Event &e, AppState &state)
             }
             if (point_in(box, mx, my))
             {
-                state.active_input = INPUT_NONE; state.input_buffer.clear(); 
                 spr.selected_sound = i;
                 return true;
             }
@@ -260,11 +231,8 @@ bool sounds_tab_handle_event(const SDL_Event &e, AppState &state)
         SDL_Rect name_box = {rx + 110, ry, 200, 30};
         if (point_in(name_box, mx, my))
         {
-            if (state.active_input != INPUT_SOUND_NAME)
-            {
-                state.active_input = INPUT_SOUND_NAME;
-                state.input_buffer = snd.name; 
-            }
+            state.active_input = INPUT_SOUND_NAME;
+            state.input_buffer = snd.name; 
             return true;
         }
 
@@ -272,54 +240,30 @@ bool sounds_tab_handle_event(const SDL_Event &e, AppState &state)
         SDL_Rect vol_box = {rx + 110, ry, 60, 30};
         if (point_in(vol_box, mx, my))
         {
-            if (state.active_input != INPUT_SOUND_VOLUME)
-            {
-                state.active_input = INPUT_SOUND_VOLUME;
-                char buf[32];
-                std::snprintf(buf, sizeof(buf), "%d", snd.volume);
-                state.input_buffer = buf; 
-            }
+            state.active_input = INPUT_SOUND_VOLUME;
+            char buf[32];
+            std::snprintf(buf, sizeof(buf), "%d", snd.volume);
+            state.input_buffer = buf; 
             return true;
         }
 
         ry += 60;
-
         SDL_Rect play_btn = {rx, ry, 120, 50};
         if (point_in(play_btn, mx, my))
         {
-            state.active_input = INPUT_NONE; state.input_buffer.clear(); 
-            if (audio_is_playing())
-            {
-                audio_stop_all();
-            }
-            else
-            {
-                audio_play_chunk(snd.chunk, snd.volume);
-            }
+            if (audio_is_playing()) audio_stop_all();
+            else audio_play_chunk(snd.chunk, snd.volume);
             return true;
         }
 
         SDL_Rect mute_btn = {rx + 140, ry, 120, 50};
         if (point_in(mute_btn, mx, my))
         {
-            state.active_input = INPUT_NONE; state.input_buffer.clear(); 
-            if (snd.volume > 0)
-            {
-                snd.prev_volume = snd.volume;
-                snd.volume = 0;
-            }
-            else
-            {
-                snd.volume = (snd.prev_volume > 0) ? snd.prev_volume : 100;
-            }
+            if (snd.volume > 0) { snd.prev_volume = snd.volume; snd.volume = 0; }
+            else { snd.volume = (snd.prev_volume > 0) ? snd.prev_volume : 100; }
             audio_set_volume(snd.volume);
             return true;
         }
-    }
-
-    if (state.active_input == INPUT_SOUND_NAME || state.active_input == INPUT_SOUND_VOLUME) {
-        state.active_input = INPUT_NONE;
-        state.input_buffer.clear();
     }
 
     return false;

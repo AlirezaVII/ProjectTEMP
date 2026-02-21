@@ -307,7 +307,6 @@ int main(int /*argc*/, char * /*argv*/[])
                 continue;
             }
 
-            // ---> FIXED: THIS BLOCK NO LONGER HIJACKS AND DESTROYS MOUSE CLICKS! <---
             if (state.active_input == INPUT_COSTUME_TEXT)
             {
                 bool is_key = false;
@@ -344,7 +343,6 @@ int main(int /*argc*/, char * /*argv*/[])
                     }
                     continue;
                 }
-                // Mouse clicks safely fall through to the rest of the engine!
             }
             else if (state.active_input == INPUT_SOUND_NAME || state.active_input == INPUT_SOUND_VOLUME || state.active_input == INPUT_COSTUME_NAME)
             {
@@ -372,6 +370,30 @@ int main(int /*argc*/, char * /*argv*/[])
                                     auto &spr = state.sprites[state.selected_sprite];
                                     if (spr.selected_costume >= 0 && spr.selected_costume < (int)spr.costumes.size())
                                         spr.costumes[spr.selected_costume].name = state.input_buffer;
+                                }
+                            }
+                        }
+                        else if (state.active_input == INPUT_SOUND_NAME && !state.input_buffer.empty())
+                        {
+                            if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
+                            {
+                                auto &spr = state.sprites[state.selected_sprite];
+                                if (spr.selected_sound >= 0 && spr.selected_sound < (int)spr.sounds.size())
+                                    spr.sounds[spr.selected_sound].name = state.input_buffer;
+                            }
+                        }
+                        else if (state.active_input == INPUT_SOUND_VOLUME && !state.input_buffer.empty())
+                        {
+                            if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
+                            {
+                                auto &spr = state.sprites[state.selected_sprite];
+                                if (spr.selected_sound >= 0 && spr.selected_sound < (int)spr.sounds.size())
+                                {
+                                    int v = std::max(0, std::min(std::atoi(state.input_buffer.c_str()), 100));
+                                    spr.sounds[spr.selected_sound].volume = v;
+                                    if (v > 0)
+                                        spr.sounds[spr.selected_sound].prev_volume = v;
+                                    audio_set_volume(v);
                                 }
                             }
                         }
@@ -598,45 +620,10 @@ int main(int /*argc*/, char * /*argv*/[])
                     continue;
             }
 
-            if (filemenu_handle_event(e, state, filemenu_rects))
-                continue;
-            if (navbar_handle_event(e, state, navbar_rects))
-                continue;
-            if (tab_bar_handle_event(e, state, tab_bar_rects))
-                continue;
-            if (settings_handle_event(e, state, settings_rects))
-                continue;
-            if (stage_handle_event(e, state, stage_rects, tex))
-                continue;
-            if (sprite_panel_handle_event(e, state, sprite_panel_rects))
-                continue;
-
-            if (state.current_tab == TAB_CODE)
+            // ---> FIXED: GLOBAL UNFOCUS ENGINE (Saves inputs if you click ANYWHERE else) <---
+            if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
             {
-                if (categories_handle_event(e, state, cat_rects))
-                    continue;
-                if (palette_handle_event(e, state, pal_rects, font))
-                    continue;
-                if (workspace_handle_event(e, state, canvas_rects.panel, pal_rects.panel, font))
-                    continue;
-                if (canvas_handle_event(e, state, canvas_rects, pal_rects, font))
-                    continue;
-            }
-            else if (state.current_tab == TAB_COSTUMES)
-            {
-                if (costumes_tab_handle_event(e, state, renderer, font))
-                    continue;
-            }
-            else if (state.current_tab == TAB_SOUNDS)
-            {
-                if (sounds_tab_handle_event(e, state))
-                    continue;
-            }
-
-            // ---> FIXED: UNFOCUS INPUTS PROPERLY WHEN CLICKING OUTSIDE <---
-            if (e.type == SDL_MOUSEBUTTONDOWN)
-            {
-                if (state.active_input != INPUT_NONE && state.active_input != INPUT_PROJECT_NAME)
+                if (state.active_input != INPUT_NONE && state.active_input != INPUT_PROJECT_NAME && state.active_input != INPUT_COSTUME_TEXT)
                 {
                     if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
                     {
@@ -685,6 +672,22 @@ int main(int /*argc*/, char * /*argv*/[])
                                 audio_set_volume(v);
                             }
                         }
+                        else if (state.active_input == INPUT_COSTUME_NAME)
+                        {
+                            if (!state.input_buffer.empty())
+                            {
+                                if (state.editing_target_is_stage)
+                                {
+                                    if (state.selected_backdrop >= 0 && state.selected_backdrop < (int)state.backdrops.size())
+                                        state.backdrops[state.selected_backdrop].name = state.input_buffer;
+                                }
+                                else
+                                {
+                                    if (spr.selected_costume >= 0 && spr.selected_costume < (int)spr.costumes.size())
+                                        spr.costumes[spr.selected_costume].name = state.input_buffer;
+                                }
+                            }
+                        }
                     }
                     if (state.active_input == INPUT_BLOCK_FIELD)
                         workspace_commit_active_input(state);
@@ -692,6 +695,41 @@ int main(int /*argc*/, char * /*argv*/[])
                     state.active_input = INPUT_NONE;
                     state.input_buffer.clear();
                 }
+            }
+
+            if (filemenu_handle_event(e, state, filemenu_rects))
+                continue;
+            if (navbar_handle_event(e, state, navbar_rects))
+                continue;
+            if (tab_bar_handle_event(e, state, tab_bar_rects))
+                continue;
+            if (settings_handle_event(e, state, settings_rects))
+                continue;
+            if (stage_handle_event(e, state, stage_rects, tex))
+                continue;
+            if (sprite_panel_handle_event(e, state, sprite_panel_rects))
+                continue;
+
+            if (state.current_tab == TAB_CODE)
+            {
+                if (categories_handle_event(e, state, cat_rects))
+                    continue;
+                if (palette_handle_event(e, state, pal_rects, font))
+                    continue;
+                if (workspace_handle_event(e, state, canvas_rects.panel, pal_rects.panel, font))
+                    continue;
+                if (canvas_handle_event(e, state, canvas_rects, pal_rects, font))
+                    continue;
+            }
+            else if (state.current_tab == TAB_COSTUMES)
+            {
+                if (costumes_tab_handle_event(e, state, renderer, font))
+                    continue;
+            }
+            else if (state.current_tab == TAB_SOUNDS)
+            {
+                if (sounds_tab_handle_event(e, state))
+                    continue;
             }
         }
 

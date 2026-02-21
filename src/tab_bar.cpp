@@ -82,16 +82,8 @@ void tab_bar_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const 
             SDL_RenderFillRect(r, &ul);
         }
 
-        // ---> FIXED: SHOW PROPER BACKDROP ICON <---
-        SDL_Texture *ico = nullptr;
-        if (i == 1 && state.editing_target_is_stage)
-        {
-            ico = tex.backdrop_btn_icon ? tex.backdrop_btn_icon : (active ? tex.brush_active : tex.brush_tab_active);
-        }
-        else
-        {
-            ico = active ? active_icons[i] : inactive_icons[i];
-        }
+        // ---> FIXED: Always use the brush icon (like real Scratch) to prevent loading breaks <---
+        SDL_Texture *ico = active ? active_icons[i] : inactive_icons[i];
 
         if (ico)
         {
