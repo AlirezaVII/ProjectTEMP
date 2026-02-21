@@ -42,6 +42,10 @@ struct Textures {
 
     /* NEW CLOUD TEXTURE */
     SDL_Texture *cloud;
+    SDL_Texture *vol_up;
+    SDL_Texture *vol_down;
+    SDL_Texture *vol_mute;
+    SDL_Texture *play_icon;
 };
 
 /* Load all textures from assets/icons/. Returns false on critical failure. */

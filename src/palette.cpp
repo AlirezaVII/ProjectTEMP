@@ -101,7 +101,7 @@ void palette_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const 
             else if (defs[i].kind == BK_SOUND)
             {
                 def = workspace_make_default_sound((SoundBlockType)defs[i].subtype);
-                sound_block_draw(r, font, (SoundBlockType)defs[i].subtype, bx, by, def.a, def.opt, false, bg, -1, nullptr);
+                sound_block_draw(r, font,state, (SoundBlockType)defs[i].subtype, bx, by, def.a, def.opt, false, bg, -1, nullptr);
             }
             else if (defs[i].kind == BK_EVENTS)
             {

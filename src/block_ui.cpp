@@ -793,218 +793,88 @@ int looks_block_hittest_field(TTF_Font *font, const AppState &state, LooksBlockT
 
 /* ---------------- Sound ---------------- */
 
-int sound_block_width(SoundBlockType type)
-{
-    switch (type)
-    {
-    case SB_CHANGE_VOLUME_BY:
-        return 300;
-    case SB_SET_VOLUME_TO:
-        return 280;
-    case SB_STOP_ALL_SOUNDS:
-        return 230;
-    case SB_START_SOUND:
-        return 260;
-    case SB_PLAY_SOUND_UNTIL_DONE:
-        return 330;
-    default:
-        return 260;
+int sound_block_width(SoundBlockType type) {
+    switch (type) {
+        case SB_CHANGE_VOLUME_BY: return 300;
+        case SB_SET_VOLUME_TO: return 280;
+        case SB_STOP_ALL_SOUNDS: return 230;
+        case SB_START_SOUND: return 260;
+        case SB_PLAY_SOUND_UNTIL_DONE: return 330;
+        default: return 260;
     }
 }
 
-SDL_Rect sound_block_rect(SoundBlockType type, int x, int y, int a, int opt)
-{
-    (void)a;
-    (void)opt;
+SDL_Rect sound_block_rect(SoundBlockType type, int x, int y, int a, int opt) {
+    (void)a; (void)opt;
     MotionBlockMetrics m = motion_block_metrics();
-    SDL_Rect r{x, y, sound_block_width(type), m.h};
-    return r;
+    return {x, y, sound_block_width(type), m.h};
 }
 
-void sound_block_draw(SDL_Renderer *r, TTF_Font *font,
-                      SoundBlockType type,
-                      int x, int y,
-                      int a, int opt,
-                      bool ghost, Color panel_bg,
-                      int selected_field,
-                      const char *override_field0_text)
-{
-    (void)opt;
-
-    Color sound_col = {207, 99, 207};
-    SDL_Rect br = sound_block_rect(type, x, y, a, opt);
+void sound_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, SoundBlockType type, int x, int y, int a, int opt, bool ghost, Color panel_bg, int selected_field, const char *override_field0_text) {
+    Color sound_col = {207, 99, 207}; SDL_Rect br = sound_block_rect(type, x, y, a, opt);
     draw_stack_shape(r, br, sound_col, panel_bg, ghost);
 
-    int padding_x = 12;
-    int cy = br.y + (br.h - 16) / 2;
-
-    Color txt_col = {255, 255, 255};
-
-    char bufA[32];
-    std::snprintf(bufA, sizeof(bufA), "%d", a);
-
-    int cap_h = 22;
-    int cap_y = br.y + (br.h - cap_h) / 2;
-
-    int cur_x = br.x + padding_x;
-
-    auto draw_word = [&](const char *w)
-    {
-        draw_text(r, font, w, cur_x, cy, txt_col);
-        cur_x += text_w(font, w) + 6;
+    int padding_x = 12; int cy = br.y + (br.h - 16) / 2; Color txt_col = {255, 255, 255};
+    char bufA[32]; std::snprintf(bufA, sizeof(bufA), "%d", a); int cap_h = 22; int cap_y = br.y + (br.h - cap_h) / 2; int cur_x = br.x + padding_x;
+    
+    auto draw_word = [&](const char *w) { draw_text(r, font, w, cur_x, cy, txt_col); cur_x += text_w(font, w) + 6; };
+    auto draw_num_caps = [&](const char *num_default, int field_index, int cap_w) {
+        const char *show = num_default; if (override_field0_text && selected_field == field_index) show = override_field0_text;
+        SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cap_w, cap_h); draw_input_capsule(r, cap, selected_field == field_index);
+        int tw = text_w(font, show); int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6);
+        draw_text(r, font, show, tx, cap.y + (cap.h - 16) / 2, (Color){40, 40, 40}); cur_x += cap.w + 6;
     };
-
-    auto draw_num_caps = [&](const char *num_default,
-                             const char *override_txt,
-                             int field_index,
-                             int cap_w)
-    {
-        const char *show = num_default;
-        if (override_txt)
-            show = override_txt;
-
-        SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cap_w, cap_h);
-        draw_input_capsule(r, cap, selected_field == field_index);
-
-        int tw = text_w(font, show);
-        int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6);
-        int ty = cap.y + (cap.h - 16) / 2;
-        draw_text(r, font, show, tx, ty, (Color){40, 40, 40});
-
-        cur_x += cap.w + 6;
-    };
-
-    auto draw_dd = [&](const char *txt)
-    {
-        int tw = text_w(font, txt);
-        int cap_w = std::max(90, tw + 26);
-
-        SDL_Rect dd{cur_x, cap_y, cap_w, cap_h};
-        /* a slightly darker purple for dropdown capsule */
+    auto draw_dd = [&](const char *txt) {
+        int cap_w = std::max(90, text_w(font, txt) + 26); SDL_Rect dd{cur_x, cap_y, cap_w, cap_h};
         draw_dropdown_capsule(r, dd, (Color){165, 70, 165});
-
-        int tx = dd.x + 10;
-        int ty = dd.y + (dd.h - 16) / 2;
-        draw_text(r, font, txt, tx, ty, (Color){255, 255, 255});
-        draw_caret(r, dd.x + dd.w - 12, dd.y + dd.h / 2, (Color){255, 255, 255});
-
-        cur_x += cap_w + 6;
+        draw_text(r, font, txt, dd.x + 10, dd.y + (dd.h - 16) / 2, (Color){255, 255, 255});
+        draw_caret(r, dd.x + dd.w - 12, dd.y + dd.h / 2, (Color){255, 255, 255}); cur_x += cap_w + 6;
     };
 
-    switch (type)
-    {
-    case SB_CHANGE_VOLUME_BY:
-        draw_word("change");
-        draw_word("volume");
-        draw_word("by");
-        draw_num_caps(bufA, override_field0_text, 0, 52);
-        break;
-
-    case SB_SET_VOLUME_TO:
-        draw_word("set");
-        draw_word("volume");
-        draw_word("to");
-        draw_num_caps(bufA, override_field0_text, 0, 52);
-        draw_word("%");
-        break;
-
-    case SB_STOP_ALL_SOUNDS:
-        draw_word("stop");
-        draw_word("all");
-        draw_word("sounds");
-        break;
-
-    case SB_START_SOUND:
-        draw_word("start");
-        draw_word("sound");
-        draw_dd("Meow");
-        break;
-
-    case SB_PLAY_SOUND_UNTIL_DONE:
-        draw_word("play");
-        draw_word("sound");
-        draw_dd("Meow");
-        draw_word("until");
-        draw_word("done");
-        break;
-
-    default:
-        draw_word("sound");
-        break;
+    switch (type) {
+        case SB_PLAY_SOUND_UNTIL_DONE:
+        case SB_START_SOUND: {
+            draw_word(type == SB_PLAY_SOUND_UNTIL_DONE ? "play" : "start"); draw_word("sound");
+            std::string s_txt = "Meow";
+            if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size()) {
+                const auto& spr = state.sprites[state.selected_sprite];
+                if (opt >= 0 && opt < (int)spr.sounds.size()) s_txt = spr.sounds[opt].name;
+            }
+            draw_dd(s_txt.c_str());
+            if (type == SB_PLAY_SOUND_UNTIL_DONE) { draw_word("until"); draw_word("done"); }
+            break;
+        }
+        case SB_STOP_ALL_SOUNDS: draw_word("stop"); draw_word("all"); draw_word("sounds"); break;
+        case SB_CHANGE_VOLUME_BY: draw_word("change"); draw_word("volume"); draw_word("by"); draw_num_caps(bufA, 0, 52); break;
+        case SB_SET_VOLUME_TO: draw_word("set"); draw_word("volume"); draw_word("to"); draw_num_caps(bufA, 0, 52); draw_word("%"); break;
     }
 }
 
-int sound_block_hittest_field(TTF_Font *font,
-                              SoundBlockType type,
-                              int x, int y,
-                              int a, int opt,
-                              int px, int py)
-{
-    (void)a;
-    (void)opt;
-
+int sound_block_hittest_field(TTF_Font *font, const AppState &state, SoundBlockType type, int x, int y, int a, int opt, int px, int py) {
     SDL_Rect br = sound_block_rect(type, x, y, a, opt);
-    if (!(px >= br.x && px < br.x + br.w && py >= br.y && py < br.y + br.h))
-        return -1;
+    if (!(px >= br.x && px < br.x + br.w && py >= br.y && py < br.y + br.h)) return -1;
+    int cur_x = br.x + 12; int cap_y = br.y + (br.h - 22) / 2;
+    auto adv_word = [&](const char *w) { cur_x += text_w(font, w) + 6; };
+    auto cap_rect = [&](int w) { SDL_Rect rc{cur_x, cap_y, w, 22}; cur_x += w + 6; return rc; };
+    auto in = [&](const SDL_Rect &rc) { return px >= rc.x && px < rc.x + rc.w && py >= rc.y && py < rc.y + rc.h; };
 
-    int padding_x = 12;
-    int cap_h = 22;
-    int cap_y = br.y + (br.h - cap_h) / 2;
-    int cur_x = br.x + padding_x;
-
-    auto adv_word = [&](const char *w)
-    { cur_x += text_w(font, w) + 6; };
-    auto cap_rect = [&](int w)
-    {
-        SDL_Rect rc{cur_x, cap_y, w, cap_h};
-        cur_x += w + 6;
-        return rc;
-    };
-    auto in = [&](const SDL_Rect &rc)
-    {
-        return px >= rc.x && px < rc.x + rc.w && py >= rc.y && py < rc.y + rc.h;
-    };
-
-    switch (type)
-    {
-    case SB_CHANGE_VOLUME_BY:
-        adv_word("change");
-        adv_word("volume");
-        adv_word("by");
-        if (in(cap_rect(52)))
-            return 0;
-        return -1;
-
-    case SB_SET_VOLUME_TO:
-        adv_word("set");
-        adv_word("volume");
-        adv_word("to");
-        if (in(cap_rect(52)))
-            return 0;
-        return -1;
-
-    case SB_STOP_ALL_SOUNDS:
-        return -1;
-
-    case SB_START_SOUND:
-        adv_word("start");
-        adv_word("sound");
-        if (in(cap_rect(96)))
-            return -2;
-        return -1;
-
-    case SB_PLAY_SOUND_UNTIL_DONE:
-        adv_word("play");
-        adv_word("sound");
-        if (in(cap_rect(96)))
-            return -2;
-        return -1;
-
-    default:
-        return -1;
+    switch (type) {
+        case SB_PLAY_SOUND_UNTIL_DONE:
+        case SB_START_SOUND: {
+            adv_word(type == SB_PLAY_SOUND_UNTIL_DONE ? "play" : "start"); adv_word("sound");
+            std::string s_txt = "Meow";
+            if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size()) {
+                const auto& spr = state.sprites[state.selected_sprite];
+                if (opt >= 0 && opt < (int)spr.sounds.size()) s_txt = spr.sounds[opt].name;
+            }
+            if (in(cap_rect(std::max(90, text_w(font, s_txt.c_str()) + 26)))) return -2;
+            return -1;
+        }
+        case SB_CHANGE_VOLUME_BY: adv_word("change"); adv_word("volume"); adv_word("by"); if (in(cap_rect(52))) return 0; return -1;
+        case SB_SET_VOLUME_TO: adv_word("set"); adv_word("volume"); adv_word("to"); if (in(cap_rect(52))) return 0; return -1;
+        default: return -1;
     }
 }
-
 /* ---------------- Events ---------------- */
 
 static const char *events_key_label(int opt)

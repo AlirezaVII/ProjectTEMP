@@ -85,24 +85,14 @@ SDL_Rect sound_block_rect(SoundBlockType type, int x, int y, int a, int opt);
   - a is numeric input (volume delta or absolute volume)
   - opt is dropdown selection (only Meow for now)
 */
-void sound_block_draw(SDL_Renderer *r, TTF_Font *font,
-                      SoundBlockType type,
-                      int x, int y,
-                      int a, int opt,
-                      bool ghost, Color panel_bg,
-                      int selected_field,
-                      const char *override_field0_text);
+void sound_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, SoundBlockType type, int x, int y, int a, int opt, bool ghost, Color panel_bg, int selected_field, const char *override_field0_text);
 
 /* returns:
    0   => click on numeric capsule (field0)
    -2  => click on dropdown (Meow)
    -1  => body / none
 */
-int sound_block_hittest_field(TTF_Font *font,
-                              SoundBlockType type,
-                              int x, int y,
-                              int a, int opt,
-                              int px, int py);
+int sound_block_hittest_field(TTF_Font *font, const AppState &state, SoundBlockType type, int x, int y, int a, int opt, int px, int py);
 
 int events_block_width(EventsBlockType type);
 SDL_Rect events_block_rect(EventsBlockType type, int x, int y, int opt);

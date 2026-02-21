@@ -44,7 +44,17 @@ void audio_set_volume(int percent) {
     Mix_Volume(-1, mix_vol);
 }
 
+Mix_Chunk* audio_load_sound(const std::string& path) {
+    return Mix_LoadWAV(path.c_str());
+}
+
+void audio_play_chunk(Mix_Chunk* chunk, int volume) {
+    if (!chunk) return;
+    int channel = Mix_PlayChannel(-1, chunk, 0);
+    if (channel != -1) {
+        Mix_Volume(channel, (volume * MIX_MAX_VOLUME) / 100);
+    }
+}
 bool audio_is_playing() {
-    if (meow_channel == -1) return false;
-    return Mix_Playing(meow_channel) > 0;
+    return Mix_Playing(-1) > 0;
 }

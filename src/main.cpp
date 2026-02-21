@@ -29,7 +29,6 @@
 #include <ctime>
 
 static std::vector<std::pair<std::string, SDL_Texture *>> global_sprite_lib;
-// ---> NEW: BACKDROP LIBRARY ARRAY <---
 static std::vector<std::pair<std::string, SDL_Texture *>> global_backdrop_lib;
 
 static void load_library_sprites(SDL_Renderer *renderer)
@@ -45,7 +44,6 @@ static void load_library_sprites(SDL_Renderer *renderer)
     }
 }
 
-// ---> NEW: LOAD BACKDROPS INTO GLOBAL MEMORY <---
 static void load_library_backdrops(SDL_Renderer *renderer)
 {
     const char *lib_files[] = {"cage.png", "city.png", "geometric.png", "sky.png", "traffic.png", "voronoimal.png", "waves.png"};
@@ -133,7 +131,7 @@ int main(int /*argc*/, char * /*argv*/[])
         std::fprintf(stderr, "Warning: Audio failed to load. Sounds will be silent.\n");
 
     load_library_sprites(renderer);
-    load_library_backdrops(renderer); // Load new backdrops
+    load_library_backdrops(renderer);
 
     NavbarRects navbar_rects;
     navbar_layout(navbar_rects);
@@ -158,7 +156,12 @@ int main(int /*argc*/, char * /*argv*/[])
 
     AppState state;
     state.sprites.push_back(Sprite("Sprite1", tex.scratch_cat));
-    state.backdrops.push_back(Backdrop("backdrop1", nullptr)); // Init blank backdrop
+
+    Mix_Chunk *def_snd = audio_load_sound("assets/sounds/meow.wav");
+    if (def_snd)
+        state.sprites[0].sounds.push_back(SoundData("meow", def_snd));
+
+    state.backdrops.push_back(Backdrop("backdrop1", nullptr));
 
     SDL_StartTextInput();
     bool quit = false;
@@ -181,7 +184,6 @@ int main(int /*argc*/, char * /*argv*/[])
                     if (e.key.keysym.sym == SDLK_RETURN || e.key.keysym.sym == SDLK_KP_ENTER)
                     {
                         state.global_answer = state.ask_reply;
-                        std::cout << "[Engine] Ask Input Received: " << state.global_answer << std::endl;
                         state.ask_active = false;
                     }
                     else if (e.key.keysym.sym == SDLK_BACKSPACE)
@@ -272,6 +274,68 @@ int main(int /*argc*/, char * /*argv*/[])
                 continue;
             }
 
+            // ---> FIXED: 100% BULLETPROOF LIVE SAVING FOR NAME AND VOLUME! <---
+            if (state.active_input == INPUT_SOUND_NAME || state.active_input == INPUT_SOUND_VOLUME)
+            {
+                if (e.type == SDL_KEYDOWN)
+                {
+                    if (e.key.keysym.sym == SDLK_BACKSPACE)
+                    {
+                        if (!state.input_buffer.empty())
+                            state.input_buffer.pop_back();
+
+                        // Save instantly!
+                        if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
+                        {
+                            Sprite &spr = state.sprites[state.selected_sprite];
+                            if (spr.selected_sound >= 0 && spr.selected_sound < (int)spr.sounds.size())
+                            {
+                                if (state.active_input == INPUT_SOUND_NAME) {
+                                    spr.sounds[spr.selected_sound].name = state.input_buffer;
+                                }
+                                else if (state.active_input == INPUT_SOUND_VOLUME)
+                                {
+                                    int v = state.input_buffer.empty() ? 0 : std::atoi(state.input_buffer.c_str());
+                                    if (v < 0) v = 0; if (v > 100) v = 100;
+                                    spr.sounds[spr.selected_sound].volume = v;
+                                    audio_set_volume(v);
+                                }
+                            }
+                        }
+                        continue;
+                    }
+                    else if (e.key.keysym.sym == SDLK_RETURN || e.key.keysym.sym == SDLK_KP_ENTER || e.key.keysym.sym == SDLK_ESCAPE)
+                    {
+                        state.active_input = INPUT_NONE;
+                        state.input_buffer.clear();
+                        continue; 
+                    }
+                }
+                else if (e.type == SDL_TEXTINPUT)
+                {
+                    state.input_buffer += e.text.text;
+                    // Save instantly!
+                    if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
+                    {
+                        Sprite &spr = state.sprites[state.selected_sprite];
+                        if (spr.selected_sound >= 0 && spr.selected_sound < (int)spr.sounds.size())
+                        {
+                            if (state.active_input == INPUT_SOUND_NAME) {
+                                spr.sounds[spr.selected_sound].name = state.input_buffer;
+                            }
+                            else if (state.active_input == INPUT_SOUND_VOLUME)
+                            {
+                                int v = std::atoi(state.input_buffer.c_str());
+                                if (v < 0) v = 0; if (v > 100) v = 100;
+                                spr.sounds[spr.selected_sound].volume = v;
+                                audio_set_volume(v);
+                            }
+                        }
+                    }
+                    continue; 
+                }
+            }
+
             if (state.mode == MODE_SPRITE_LIBRARY)
             {
                 if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
@@ -296,6 +360,11 @@ int main(int /*argc*/, char * /*argv*/[])
                             if (count > 1)
                                 new_name += std::to_string(count);
                             state.sprites.push_back(Sprite(new_name, global_sprite_lib[i].second));
+
+                            Mix_Chunk *ds = audio_load_sound("assets/sounds/meow.wav");
+                            if (ds)
+                                state.sprites.back().sounds.push_back(SoundData("meow", ds));
+
                             state.selected_sprite = state.sprites.size() - 1;
                             state.mode = MODE_EDITOR;
                             break;
@@ -305,7 +374,6 @@ int main(int /*argc*/, char * /*argv*/[])
                 continue;
             }
 
-            // ---> NEW: BACKDROP LIBRARY CLICKS <---
             if (state.mode == MODE_BACKDROP_LIBRARY)
             {
                 if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
@@ -370,6 +438,11 @@ int main(int /*argc*/, char * /*argv*/[])
                             if (dot != std::string::npos)
                                 fname = fname.substr(0, dot);
                             state.sprites.push_back(Sprite(fname, t));
+
+                            Mix_Chunk *ds = audio_load_sound("assets/sounds/meow.wav");
+                            if (ds)
+                                state.sprites.back().sounds.push_back(SoundData("meow", ds));
+
                             state.selected_sprite = state.sprites.size() - 1;
                         }
                     }
@@ -389,6 +462,11 @@ int main(int /*argc*/, char * /*argv*/[])
                         if (count > 1)
                             new_name += std::to_string(count);
                         state.sprites.push_back(Sprite(new_name, global_sprite_lib[r_idx].second));
+
+                        Mix_Chunk *ds = audio_load_sound("assets/sounds/meow.wav");
+                        if (ds)
+                            state.sprites.back().sounds.push_back(SoundData("meow", ds));
+
                         state.selected_sprite = state.sprites.size() - 1;
                     }
                     state.sprite_menu_open = false;
@@ -404,7 +482,6 @@ int main(int /*argc*/, char * /*argv*/[])
                     continue;
             }
 
-            // ---> NEW: BACKDROP HOVER MENU INTERCEPTOR <---
             if (state.backdrop_menu_open && e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
             {
                 int mx = e.button.x, my = e.button.y;
@@ -491,7 +568,8 @@ int main(int /*argc*/, char * /*argv*/[])
             }
             else if (state.current_tab == TAB_SOUNDS)
             {
-                sounds_tab_handle_event(e, state);
+                if (sounds_tab_handle_event(e, state))
+                    continue;
             }
 
             if (e.type == SDL_MOUSEBUTTONDOWN)
@@ -533,6 +611,26 @@ int main(int /*argc*/, char * /*argv*/[])
                                 spr.size = s;
                             }
                         }
+                        else if (state.active_input == INPUT_SOUND_NAME)
+                        {
+                            if (!state.input_buffer.empty() && spr.selected_sound >= 0 && spr.selected_sound < (int)spr.sounds.size())
+                                spr.sounds[spr.selected_sound].name = state.input_buffer;
+                        }
+                        else if (state.active_input == INPUT_SOUND_VOLUME)
+                        {
+                            if (!state.input_buffer.empty() && spr.selected_sound >= 0 && spr.selected_sound < (int)spr.sounds.size())
+                            {
+                                int v = std::atoi(state.input_buffer.c_str());
+                                if (v < 0)
+                                    v = 0;
+                                if (v > 100)
+                                    v = 100;
+                                spr.sounds[spr.selected_sound].volume = v;
+                                if (v > 0)
+                                    spr.sounds[spr.selected_sound].prev_volume = v;
+                                audio_set_volume(v);
+                            }
+                        }
                     }
                     if (state.active_input == INPUT_BLOCK_FIELD)
                         workspace_commit_active_input(state);
@@ -555,7 +653,6 @@ int main(int /*argc*/, char * /*argv*/[])
             SDL_Rect nav_bg = {0, 0, WINDOW_WIDTH, NAVBAR_HEIGHT + 20};
             SDL_SetRenderDrawColor(renderer, 76, 151, 255, 255);
             SDL_RenderFillRect(renderer, &nav_bg);
-
             render_simple_text(renderer, font_large, "< Back", 30, 20, {255, 255, 255});
 
             for (size_t i = 0; i < global_sprite_lib.size(); i++)
@@ -566,7 +663,6 @@ int main(int /*argc*/, char * /*argv*/[])
                 renderer_fill_rounded_rect(renderer, &box, 12, 255, 255, 255);
                 SDL_SetRenderDrawColor(renderer, 220, 220, 220, 255);
                 SDL_RenderDrawRect(renderer, &box);
-
                 if (global_sprite_lib[i].second)
                 {
                     SDL_Rect img_dst = {x + 30, y + 20, 100, 100};
@@ -584,7 +680,6 @@ int main(int /*argc*/, char * /*argv*/[])
             SDL_Rect nav_bg = {0, 0, WINDOW_WIDTH, NAVBAR_HEIGHT + 20};
             SDL_SetRenderDrawColor(renderer, 76, 151, 255, 255);
             SDL_RenderFillRect(renderer, &nav_bg);
-
             render_simple_text(renderer, font_large, "< Back", 30, 20, {255, 255, 255});
 
             for (size_t i = 0; i < global_backdrop_lib.size(); i++)
@@ -595,10 +690,9 @@ int main(int /*argc*/, char * /*argv*/[])
                 renderer_fill_rounded_rect(renderer, &box, 12, 255, 255, 255);
                 SDL_SetRenderDrawColor(renderer, 220, 220, 220, 255);
                 SDL_RenderDrawRect(renderer, &box);
-
                 if (global_backdrop_lib[i].second)
                 {
-                    SDL_Rect img_dst = {x + 10, y + 20, 140, 100}; // Wider for backdrops
+                    SDL_Rect img_dst = {x + 10, y + 20, 140, 100};
                     SDL_RenderCopy(renderer, global_backdrop_lib[i].second, NULL, &img_dst);
                 }
                 int tw = 0;
@@ -621,7 +715,7 @@ int main(int /*argc*/, char * /*argv*/[])
             }
             else if (state.current_tab == TAB_SOUNDS)
             {
-                sounds_tab_draw(renderer, font, state);
+                sounds_tab_draw(renderer, font, state, tex);
             }
 
             stage_draw(renderer, font, state, stage_rects, tex);

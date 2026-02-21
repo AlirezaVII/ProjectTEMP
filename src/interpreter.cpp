@@ -591,17 +591,18 @@ void interpreter_tick(AppState &state)
                     audio_stop_all();
                     frame.cur_node = b->next_id;
                 }
-                else if (b->subtype == SB_START_SOUND)
+                else if (b->subtype == SB_START_SOUND || b->subtype == SB_PLAY_SOUND_UNTIL_DONE)
                 {
-                    audio_play_meow();
+                    if (b->opt >= 0 && b->opt < (int)spr.sounds.size())
+                    {
+                        audio_play_chunk(spr.sounds[b->opt].chunk, spr.sounds[b->opt].volume);
+                    }
+                    if (b->subtype == SB_PLAY_SOUND_UNTIL_DONE)
+                    {
+                        g_threads[i].waiting_for_sound = true;
+                        yielded = true;
+                    }
                     frame.cur_node = b->next_id;
-                }
-                else if (b->subtype == SB_PLAY_SOUND_UNTIL_DONE)
-                {
-                    audio_play_meow();
-                    g_threads[i].waiting_for_sound = true;
-                    frame.cur_node = b->next_id;
-                    yielded = true;
                 }
             }
             else if (b->kind == BK_CONTROL)

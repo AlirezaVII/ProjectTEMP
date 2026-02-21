@@ -53,6 +53,11 @@ bool textures_load(Textures &tex, SDL_Renderer *r)
     // NEW CLOUD TEXTURE
     tex.cloud           = load(r, "cloud.png"); 
 
+    tex.vol_up      = load(r, "volume_up.png");
+    tex.vol_down    = load(r, "volume_down.png");
+    tex.vol_mute    = load(r, "volume_mute.png");
+    tex.play_icon   = load(r, "play_icon.png");
+
     return true;
 }
 
@@ -84,4 +89,9 @@ void textures_free(Textures &tex)
     if (tex.scratch_cat)       SDL_DestroyTexture(tex.scratch_cat);
     if (tex.delete_sprite)     SDL_DestroyTexture(tex.delete_sprite);
     if (tex.cloud)             SDL_DestroyTexture(tex.cloud); // FREE CLOUD
+    if (tex.vol_up)             SDL_DestroyTexture(tex.vol_up); // FREE CLOUD
+    if (tex.vol_down)             SDL_DestroyTexture(tex.vol_down); // FREE CLOUD
+    if (tex.vol_mute)             SDL_DestroyTexture(tex.vol_mute); // FREE CLOUD
+    if (tex.play_icon)             SDL_DestroyTexture(tex.play_icon); // FREE CLOUD
+
 }

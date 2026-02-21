@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include <SDL.h>
 
+struct Mix_Chunk; // ---> NEW: Forward declaration for audio chunks
+
 enum Tab
 {
     TAB_CODE = 0,
@@ -29,7 +31,9 @@ enum ActiveInput
     INPUT_DIRECTION,
     INPUT_SIZE,
     INPUT_BLOCK_FIELD,
-    INPUT_VAR_MODAL
+    INPUT_VAR_MODAL,
+    INPUT_SOUND_NAME,
+    INPUT_SOUND_VOLUME // ---> NEW
 };
 
 enum MotionBlockType
@@ -64,9 +68,9 @@ enum LooksBlockType
     LB_HIDE,
     LB_GO_TO_LAYER,
     LB_GO_LAYERS,
-    LB_SIZE,               // NEW
-    LB_BACKDROP_NUM_NAME,  // NEW
-    LB_COSTUME_NUM_NAME    // NEW
+    LB_SIZE,
+    LB_BACKDROP_NUM_NAME,
+    LB_COSTUME_NUM_NAME
 };
 enum SoundBlockType
 {
@@ -164,7 +168,6 @@ struct BlockInstance
     int next_id = -1, parent_id = -1, child_id = -1, child2_id = -1, condition_id = -1;
     int arg0_id = -1, arg1_id = -1, arg2_id = -1;
 };
-
 enum SnapType
 {
     SNAP_NONE = 0,
@@ -177,7 +180,6 @@ enum SnapType
     SNAP_INPUT_2,
     SNAP_INPUT_3
 };
-
 struct DragState
 {
     bool active, from_palette, snap_valid, snap_above;
@@ -188,12 +190,21 @@ struct DragState
     SnapType snap_type;
     DragState() : active(false), from_palette(false), palette_kind(BK_MOTION), palette_subtype(0), dragged_block_id(-1), off_x(0), off_y(0), ghost_x(0), ghost_y(0), mouse_x(0), mouse_y(0), snap_valid(false), snap_above(false), snap_x(0), snap_y(0), snap_target_id(-1), snap_type(SNAP_NONE) {}
 };
-
 struct BlockInputState
 {
     int block_id, field_index;
     BlockFieldType type;
     BlockInputState() : block_id(-1), field_index(0), type(BFT_INT) {}
+};
+
+// ---> NEW: SOUND MEMORY STRUCT <---
+struct SoundData
+{
+    std::string name;
+    Mix_Chunk *chunk;
+    int volume;
+    int prev_volume;
+    SoundData(std::string n, Mix_Chunk *c) : name(n), chunk(c), volume(100), prev_volume(100) {}
 };
 
 struct Sprite
@@ -207,14 +218,22 @@ struct Sprite
     unsigned int say_end_time;
     int volume;
     bool draggable;
-    int layer_order; // ---> NEW: TRACKS Z-INDEX LAYER <---
+    int layer_order;
     SDL_Texture *texture;
+
+    std::vector<SoundData> sounds; // ---> NEW
+    int selected_sound;            // ---> NEW
+
     std::vector<BlockInstance> blocks;
     std::vector<int> top_level_blocks;
-    Sprite(std::string n, SDL_Texture *tex) : name(n), x(0), y(0), direction(90), visible(true), size(100), say_text(""), is_thinking(false), say_end_time(0), volume(100), draggable(true), texture(tex) {}
+    Sprite(std::string n, SDL_Texture *tex) : name(n), x(0), y(0), direction(90), visible(true), size(100), say_text(""), is_thinking(false), say_end_time(0), volume(100), draggable(true), layer_order(get_next_layer()), texture(tex), selected_sound(0) {}
+    static int get_next_layer()
+    {
+        static int l = 0;
+        return l++;
+    }
 };
 
-// ---> NEW: BACKDROP STRUCT <---
 struct Backdrop
 {
     std::string name;
@@ -229,17 +248,12 @@ struct AppState
     bool sprite_menu_open, backdrop_menu_open;
     Tab current_tab;
     bool start_hover, stop_hover, running;
-
     AppMode mode;
-
     std::vector<Sprite> sprites;
     int selected_sprite;
     bool add_sprite_hover;
-
-    // ---> NEW: BACKDROP MEMORY <---
     std::vector<Backdrop> backdrops;
     int selected_backdrop;
-
     int selected_tab, selected_category;
     std::string project_name;
     DragState drag;
@@ -247,19 +261,16 @@ struct AppState
     ActiveInput active_input;
     std::string input_buffer;
     BlockInputState block_input;
-
     std::vector<std::string> variables;
     std::unordered_map<std::string, std::string> variable_values;
     std::unordered_map<std::string, bool> variable_visible;
     bool var_modal_active;
     bool stage_drag_active;
     int stage_drag_off_x, stage_drag_off_y;
-
     bool ask_active;
     std::string ask_msg;
     std::string ask_reply;
     std::string global_answer;
-
     AppState() : file_menu_open(false), file_menu_hover(-1), sprite_menu_open(false), backdrop_menu_open(false), current_tab(TAB_CODE), start_hover(false), stop_hover(false), running(false), mode(MODE_EDITOR), selected_sprite(0), add_sprite_hover(false), selected_backdrop(0), selected_tab(TAB_CODE), selected_category(0), project_name("Untitled"), drag(), next_block_id(1), active_input(INPUT_NONE), input_buffer(""), block_input(), variables({"my variable"}), variable_values({{"my variable", "0"}}), variable_visible({{"my variable", true}}), var_modal_active(false), stage_drag_active(false), stage_drag_off_x(0), stage_drag_off_y(0), ask_active(false), ask_msg(""), ask_reply(""), global_answer("") {}
 };
 

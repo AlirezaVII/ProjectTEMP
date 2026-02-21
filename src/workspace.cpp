@@ -224,7 +224,7 @@ static SDL_Rect get_capsule_rect(TTF_Font *font, const AppState &state, const Bl
         else if (b.kind == BK_LOOKS)
             field = looks_block_hittest_field(font, state, (LooksBlockType)b.subtype, b.x, b.y, b.text, b.a, b.b, b.opt, px, cy);
         else if (b.kind == BK_SOUND)
-            field = sound_block_hittest_field(font, (SoundBlockType)b.subtype, b.x, b.y, b.a, b.opt, px, cy);
+            field = sound_block_hittest_field(font, state, (SoundBlockType)b.subtype, b.x, b.y, b.a, b.opt, px, cy);
         else if (b.kind == BK_EVENTS)
             field = events_block_hittest_field(font, (EventsBlockType)b.subtype, b.x, b.y, b.opt, px, cy);
         else if (b.kind == BK_CONTROL)
@@ -666,7 +666,7 @@ static void compute_snap(AppState &state, TTF_Font *font)
                     // ---> FIXED: THIS LINE WAS MISSING THE STATE PARAMETER! <---
                     field = looks_block_hittest_field(font, state, (LooksBlockType)b->subtype, b->x, b->y, b->text, b->a, b->b, b->opt, px, py);
                 else if (b->kind == BK_SOUND)
-                    field = sound_block_hittest_field(font, (SoundBlockType)b->subtype, b->x, b->y, b->a, b->opt, px, py);
+                    field = sound_block_hittest_field(font, state, (SoundBlockType)b->subtype, b->x, b->y, b->a, b->opt, px, py);
                 else if (b->kind == BK_EVENTS)
                     field = events_block_hittest_field(font, (EventsBlockType)b->subtype, b->x, b->y, b->opt, px, py);
                 else if (b->kind == BK_CONTROL)
@@ -803,7 +803,7 @@ static void draw_chain(SDL_Renderer *r, TTF_Font *font, const Textures &tex, con
         else if (b->kind == BK_LOOKS)
             looks_block_draw(r, font, state, (LooksBlockType)b->subtype, bx, by, b->text, b->a, b->b, b->opt, ghost, bg, sel, ov0, ov1);
         else if (b->kind == BK_SOUND)
-            sound_block_draw(r, font, (SoundBlockType)b->subtype, bx, by, b->a, b->opt, ghost, bg, sel, ov0);
+            sound_block_draw(r, font, state, (SoundBlockType)b->subtype, bx, by, b->a, b->opt, ghost, bg, sel, ov0);
         else if (b->kind == BK_EVENTS)
             events_block_draw(r, font, tex, (EventsBlockType)b->subtype, bx, by, b->opt, ghost, bg, -1);
         else if (b->kind == BK_SENSING)
@@ -1321,7 +1321,7 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
         else if (b->kind == BK_EVENTS)
             field = events_block_hittest_field(font, (EventsBlockType)b->subtype, b->x, b->y, b->opt, e.button.x, e.button.y);
         else if (b->kind == BK_SOUND)
-            field = sound_block_hittest_field(font, (SoundBlockType)b->subtype, b->x, b->y, b->a, b->opt, e.button.x, e.button.y);
+            field = sound_block_hittest_field(font, state, (SoundBlockType)b->subtype, b->x, b->y, b->a, b->opt, e.button.x, e.button.y);
         else if (b->kind == BK_CONTROL)
             field = control_block_hittest_field(font, (ControlBlockType)b->subtype, b->x, b->y, chain_height(state, b->child_id), chain_height(state, b->child2_id), b->a, e.button.x, e.button.y);
         else if (b->kind == BK_SENSING)
@@ -1378,6 +1378,8 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
             else if (b->kind == BK_MOTION && b->subtype == MB_GO_TO_TARGET)
                 max_opt = 2;
             else if (b->kind == BK_SOUND && (b->subtype == SB_START_SOUND || b->subtype == SB_PLAY_SOUND_UNTIL_DONE))
+                max_opt = state.sprites[state.selected_sprite].sounds.size();
+            if (max_opt == 0)
                 max_opt = 1;
             else if (b->kind == BK_SENSING && b->subtype == SENSB_DISTANCE_TO)
                 max_opt = 1;
