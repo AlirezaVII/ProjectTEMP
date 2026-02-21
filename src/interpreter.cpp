@@ -467,7 +467,7 @@ void interpreter_tick(AppState &state)
                 {
                     spr.say_text = eval_string(state, spr, b->arg0_id, b->text);
                     spr.is_thinking = false;
-                    float sec = eval_value(state, spr, b->arg1_id, b->a, b->text2);
+                    float sec = eval_value(state, spr, b->arg1_id, b->b, b->text2); // <--- FIXED: read b->b
                     spr.say_end_time = SDL_GetTicks() + (unsigned int)(sec * 1000);
                     g_threads[i].wait_until = spr.say_end_time;
                     frame.cur_node = b->next_id;
@@ -477,7 +477,7 @@ void interpreter_tick(AppState &state)
                 {
                     spr.say_text = eval_string(state, spr, b->arg0_id, b->text);
                     spr.is_thinking = true;
-                    float sec = eval_value(state, spr, b->arg1_id, b->a, b->text2);
+                    float sec = eval_value(state, spr, b->arg1_id, b->b, b->text2); // <--- FIXED: read b->b
                     spr.say_end_time = SDL_GetTicks() + (unsigned int)(sec * 1000);
                     g_threads[i].wait_until = spr.say_end_time;
                     frame.cur_node = b->next_id;

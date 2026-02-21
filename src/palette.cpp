@@ -93,7 +93,11 @@ void palette_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const 
                 motion_block_draw(r, font, tex, (MotionBlockType)defs[i].subtype, bx, by, def.a, def.b, (GoToTarget)def.opt, false, bg, -1);
             }
             else if (defs[i].kind == BK_LOOKS)
+            {
+                // ---> FIXED: Grab the default texts and numbers before drawing! <---
+                def = workspace_make_default_looks((LooksBlockType)defs[i].subtype);
                 looks_block_draw(r, font, state, (LooksBlockType)defs[i].subtype, bx, by, def.text, def.a, def.b, def.opt, false, bg, -1, nullptr, nullptr);
+            }
             else if (defs[i].kind == BK_SOUND)
             {
                 def = workspace_make_default_sound((SoundBlockType)defs[i].subtype);

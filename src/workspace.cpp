@@ -297,14 +297,14 @@ BlockInstance workspace_make_default_looks(LooksBlockType type)
         break;
     case LB_SAY_FOR:
         b.text = "Hello!";
-        b.a = 2;
+        b.b = 2; // <--- FIXED: Map to b.b
         break;
     case LB_THINK:
         b.text = "Hmm...";
         break;
     case LB_THINK_FOR:
         b.text = "Hmm...";
-        b.a = 2;
+        b.b = 2; // <--- FIXED: Map to b.b
         break;
     case LB_CHANGE_SIZE_BY:
         b.a = 10;

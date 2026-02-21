@@ -564,6 +564,8 @@ void looks_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, Lo
     Color txt_col = {255, 255, 255};
     char bufA[32];
     std::snprintf(bufA, sizeof(bufA), "%d", a);
+    char bufB[32];                               // <--- FIXED: Add bufB
+    std::snprintf(bufB, sizeof(bufB), "%d", b);  // <--- FIXED: Add bufB
     int cap_h = 22;
     int cap_y = br.y + (br.h - cap_h) / 2;
     int cur_x = br.x + padding_x;
@@ -582,7 +584,7 @@ void looks_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, Lo
         draw_word("say");
         draw_text_caps(text.c_str(), override_field0_text, 0, 110);
         draw_word("for");
-        draw_num_caps(bufA, override_field1_text, 1, 48);
+        draw_num_caps(bufB, override_field1_text, 1, 48); // <--- FIXED: Draw bufB!
         draw_word("seconds");
         break;
     case LB_SAY:
@@ -593,7 +595,7 @@ void looks_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, Lo
         draw_word("think");
         draw_text_caps(text.c_str(), override_field0_text, 0, 120);
         draw_word("for");
-        draw_num_caps(bufA, override_field1_text, 1, 48);
+        draw_num_caps(bufB, override_field1_text, 1, 48); // <--- FIXED: Draw bufB!
         draw_word("seconds");
         break;
     case LB_THINK:
