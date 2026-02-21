@@ -7,7 +7,8 @@
 #include "textures.h"
 #include <vector>
 
-struct CostumesRects {
+struct CostumesRects
+{
     SDL_Rect name_box;
     SDL_Rect tools[7];
     SDL_Rect del_tool;
@@ -21,6 +22,7 @@ struct CostumesRects {
 
 CostumesRects get_costumes_rects(const AppState &state);
 void costumes_tab_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const Textures &tex);
-bool costumes_tab_handle_event(const SDL_Event &e, AppState &state);
+bool costumes_tab_handle_event(const SDL_Event &e, AppState &state, SDL_Renderer *renderer, TTF_Font *font);
+void update_composed_texture(GraphicItem &item, SDL_Renderer *r, TTF_Font *font); // <-- EXPORT COMPOSITOR
 
 #endif

@@ -36,10 +36,10 @@ enum ActiveInput
     INPUT_SOUND_NAME,
     INPUT_SOUND_VOLUME,
     INPUT_PEN_COLOR_PICKER,
-    INPUT_COSTUME_NAME // Added for costume naming
+    INPUT_COSTUME_NAME,
+    INPUT_COSTUME_TEXT
 };
 
-// Block Types...
 enum MotionBlockType
 {
     MB_MOVE_STEPS = 0,
@@ -224,7 +224,6 @@ struct SoundData
     SoundData(std::string n, Mix_Chunk *c) : name(n), chunk(c), volume(100), prev_volume(100) {}
 };
 
-// ---> NEW: EDITOR TOOLS & GRAPHIC SHAPES <---
 enum EditTool
 {
     TOOL_POINTER = 0,
@@ -250,14 +249,17 @@ struct GraphicShape
     std::string text;
 };
 
-// Shared structure for both Costumes and Backdrops
 struct GraphicItem
 {
     std::string name;
-    SDL_Texture *texture;             // The original loaded image
-    SDL_Texture *paint_layer;         // Freehand brush/eraser layer
-    std::vector<GraphicShape> shapes; // Draggable shapes
-    GraphicItem(std::string n, SDL_Texture *t) : name(n), texture(t), paint_layer(nullptr) {}
+    SDL_Texture *original_texture; // ---> FIXED: Prevents infinite composite glitch! <---
+    SDL_Texture *texture;
+    SDL_Texture *paint_layer;
+    std::vector<GraphicShape> shapes;
+    SDL_Texture *composed_texture;
+    bool flip_h;
+    bool flip_v;
+    GraphicItem(std::string n, SDL_Texture *t) : name(n), original_texture(t), texture(t), paint_layer(nullptr), composed_texture(nullptr), flip_h(false), flip_v(false) {}
 };
 
 typedef GraphicItem Costume;
@@ -275,16 +277,14 @@ struct Sprite
     int volume;
     bool draggable;
     int layer_order;
-    SDL_Texture *texture; // Cached output layer
+    SDL_Texture *texture;
 
     std::vector<SoundData> sounds;
     int selected_sound;
 
-    // ---> NEW: COSTUMES <---
     std::vector<Costume> costumes;
     int selected_costume;
 
-    // Pen memory
     bool pen_down;
     int pen_size;
     SDL_Color pen_color;
@@ -338,13 +338,13 @@ struct AppState
     std::string global_answer;
     bool pen_extension_enabled;
 
-    // ---> NEW: EDITOR STATE <---
     bool editing_target_is_stage;
     EditTool active_tool;
     SDL_Color active_color;
     int active_shape_index;
+    bool trigger_costume_import;
 
-    AppState() : file_menu_open(false), file_menu_hover(-1), sprite_menu_open(false), backdrop_menu_open(false), current_tab(TAB_CODE), start_hover(false), stop_hover(false), running(false), mode(MODE_EDITOR), selected_sprite(0), add_sprite_hover(false), selected_backdrop(0), selected_tab(TAB_CODE), selected_category(0), project_name("Untitled"), drag(), next_block_id(1), active_input(INPUT_NONE), input_buffer(""), block_input(), variables({"my variable"}), variable_values({{"my variable", "0"}}), variable_visible({{"my variable", true}}), var_modal_active(false), stage_drag_active(false), stage_drag_off_x(0), stage_drag_off_y(0), ask_active(false), ask_msg(""), ask_reply(""), global_answer(""), pen_extension_enabled(false), editing_target_is_stage(false), active_tool(TOOL_POINTER), active_color({255, 0, 0, 255}), active_shape_index(-1) {}
+    AppState() : file_menu_open(false), file_menu_hover(-1), sprite_menu_open(false), backdrop_menu_open(false), current_tab(TAB_CODE), start_hover(false), stop_hover(false), running(false), mode(MODE_EDITOR), selected_sprite(0), add_sprite_hover(false), selected_backdrop(0), selected_tab(TAB_CODE), selected_category(0), project_name("Untitled"), drag(), next_block_id(1), active_input(INPUT_NONE), input_buffer(""), block_input(), variables({"my variable"}), variable_values({{"my variable", "0"}}), variable_visible({{"my variable", true}}), var_modal_active(false), stage_drag_active(false), stage_drag_off_x(0), stage_drag_off_y(0), ask_active(false), ask_msg(""), ask_reply(""), global_answer(""), pen_extension_enabled(false), editing_target_is_stage(false), active_tool(TOOL_POINTER), active_color({0, 0, 0, 255}), active_shape_index(-1), trigger_costume_import(false) {}
 };
 
 #endif

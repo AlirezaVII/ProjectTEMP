@@ -288,8 +288,14 @@ int main(int /*argc*/, char * /*argv*/[])
                         SDL_Rect c_rect = {mod_x + 30 + (i % 3) * 80, mod_y + 80 + (i / 3) * 50, 70, 40};
                         if (mx >= c_rect.x && mx < c_rect.x + c_rect.w && my >= c_rect.y && my < c_rect.y + c_rect.h)
                         {
-                            if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
+                            if (state.current_tab == TAB_COSTUMES)
+                            {
+                                state.active_color = {(Uint8)palette[i].r, (Uint8)palette[i].g, (Uint8)palette[i].b, 255};
+                            }
+                            else if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
+                            {
                                 state.sprites[state.selected_sprite].pen_color = {(Uint8)palette[i].r, (Uint8)palette[i].g, (Uint8)palette[i].b, 255};
+                            }
                             state.active_input = INPUT_NONE;
                             clicked_color = true;
                             break;
@@ -301,8 +307,46 @@ int main(int /*argc*/, char * /*argv*/[])
                 continue;
             }
 
-            // ---> FIXED: COSTUME NAME EVENT HANDLING ROUTING <---
-            if (state.active_input == INPUT_SOUND_NAME || state.active_input == INPUT_SOUND_VOLUME || state.active_input == INPUT_COSTUME_NAME)
+            // ---> FIXED: THIS BLOCK NO LONGER HIJACKS AND DESTROYS MOUSE CLICKS! <---
+            if (state.active_input == INPUT_COSTUME_TEXT)
+            {
+                bool is_key = false;
+                if (e.type == SDL_KEYDOWN)
+                {
+                    if (e.key.keysym.sym == SDLK_BACKSPACE && !state.input_buffer.empty())
+                        state.input_buffer.pop_back();
+                    else if (e.key.keysym.sym == SDLK_RETURN || e.key.keysym.sym == SDLK_ESCAPE)
+                    {
+                        state.active_input = INPUT_NONE;
+                    }
+                    is_key = true;
+                }
+                else if (e.type == SDL_TEXTINPUT)
+                {
+                    state.input_buffer += e.text.text;
+                    is_key = true;
+                }
+
+                if (is_key)
+                {
+                    GraphicItem *item = nullptr;
+                    if (state.editing_target_is_stage && state.selected_backdrop >= 0 && state.selected_backdrop < (int)state.backdrops.size())
+                        item = &state.backdrops[state.selected_backdrop];
+                    else if (!state.editing_target_is_stage && state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
+                    {
+                        auto &spr = state.sprites[state.selected_sprite];
+                        if (spr.selected_costume >= 0 && spr.selected_costume < (int)spr.costumes.size())
+                            item = &spr.costumes[spr.selected_costume];
+                    }
+                    if (item && state.active_shape_index >= 0 && state.active_shape_index < (int)item->shapes.size())
+                    {
+                        item->shapes[state.active_shape_index].text = state.input_buffer;
+                    }
+                    continue;
+                }
+                // Mouse clicks safely fall through to the rest of the engine!
+            }
+            else if (state.active_input == INPUT_SOUND_NAME || state.active_input == INPUT_SOUND_VOLUME || state.active_input == INPUT_COSTUME_NAME)
             {
                 if (e.type == SDL_KEYDOWN)
                 {
@@ -580,8 +624,8 @@ int main(int /*argc*/, char * /*argv*/[])
             }
             else if (state.current_tab == TAB_COSTUMES)
             {
-                // ---> NEW ROUTING <---
-                costumes_tab_handle_event(e, state);
+                if (costumes_tab_handle_event(e, state, renderer, font))
+                    continue;
             }
             else if (state.current_tab == TAB_SOUNDS)
             {
@@ -589,9 +633,10 @@ int main(int /*argc*/, char * /*argv*/[])
                     continue;
             }
 
+            // ---> FIXED: UNFOCUS INPUTS PROPERLY WHEN CLICKING OUTSIDE <---
             if (e.type == SDL_MOUSEBUTTONDOWN)
             {
-                if (state.active_input != INPUT_NONE && state.active_input != INPUT_PROJECT_NAME && state.active_input != INPUT_COSTUME_NAME)
+                if (state.active_input != INPUT_NONE && state.active_input != INPUT_PROJECT_NAME)
                 {
                     if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
                     {
@@ -643,26 +688,73 @@ int main(int /*argc*/, char * /*argv*/[])
                     }
                     if (state.active_input == INPUT_BLOCK_FIELD)
                         workspace_commit_active_input(state);
+
                     state.active_input = INPUT_NONE;
                     state.input_buffer.clear();
                 }
             }
         }
 
+        if (state.trigger_costume_import)
+        {
+            state.trigger_costume_import = false;
+            char buffer[2048];
+            std::string result = "";
+            FILE *pipe = popen("osascript -e 'set f to choose file with prompt \"Choose\" of type {\"png\", \"jpg\", \"jpeg\"} multiple selections allowed true' -e 'set p to \"\"' -e 'repeat with i in f' -e 'set p to p & POSIX path of i & \"\\n\"' -e 'end repeat' -e 'p'", "r");
+            if (pipe)
+            {
+                while (fgets(buffer, sizeof(buffer), pipe) != NULL)
+                    result += buffer;
+                pclose(pipe);
+            }
+            size_t pos = 0;
+            while ((pos = result.find('\n')) != std::string::npos)
+            {
+                std::string path = result.substr(0, pos);
+                result.erase(0, pos + 1);
+                if (!path.empty())
+                {
+                    SDL_Texture *t = IMG_LoadTexture(renderer, path.c_str());
+                    if (t)
+                    {
+                        size_t slash = path.find_last_of('/');
+                        std::string fname = (slash == std::string::npos) ? path : path.substr(slash + 1);
+                        size_t dot = fname.find_last_of('.');
+                        if (dot != std::string::npos)
+                            fname = fname.substr(0, dot);
+                        if (state.editing_target_is_stage)
+                        {
+                            state.backdrops.push_back(Backdrop(fname, t));
+                            state.selected_backdrop = state.backdrops.size() - 1;
+                        }
+                        else
+                        {
+                            if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
+                            {
+                                auto &spr = state.sprites[state.selected_sprite];
+                                spr.costumes.push_back(Costume(fname, t));
+                                spr.selected_costume = spr.costumes.size() - 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         interpreter_tick(state);
 
-        // ---> NATIVE COSTUME SYNC ENGINE <---
-        // This flawlessly syncs the Stage without altering stage.cpp or drag_area.cpp!
         for (auto &spr : state.sprites)
         {
             if (!spr.costumes.empty() && spr.selected_costume >= 0 && spr.selected_costume < (int)spr.costumes.size())
             {
-                spr.texture = spr.costumes[spr.selected_costume].texture;
+                update_composed_texture(spr.costumes[spr.selected_costume], renderer, font);
+                spr.texture = spr.costumes[spr.selected_costume].composed_texture;
             }
         }
         if (!state.backdrops.empty() && state.selected_backdrop >= 0 && state.selected_backdrop < (int)state.backdrops.size())
         {
-            state.backdrops[state.selected_backdrop].texture = state.backdrops[state.selected_backdrop].texture;
+            update_composed_texture(state.backdrops[state.selected_backdrop], renderer, font);
+            state.backdrops[state.selected_backdrop].texture = state.backdrops[state.selected_backdrop].composed_texture;
         }
 
         SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
@@ -762,7 +854,7 @@ int main(int /*argc*/, char * /*argv*/[])
             }
             else if (state.current_tab == TAB_COSTUMES)
             {
-                costumes_tab_draw(renderer, font, state, tex); // ---> PASSED TEX <---
+                costumes_tab_draw(renderer, font, state, tex);
             }
             else if (state.current_tab == TAB_SOUNDS)
             {
@@ -823,7 +915,7 @@ int main(int /*argc*/, char * /*argv*/[])
             renderer_fill_rounded_rect(renderer, &modal_rect, 8, 255, 255, 255);
             SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
             SDL_RenderDrawRect(renderer, &modal_rect);
-            render_simple_text(renderer, font_large, "Pick Pen Color", modal_rect.x + 60, modal_rect.y + 20, {40, 40, 40});
+            render_simple_text(renderer, font_large, "Pick Color", modal_rect.x + 100, modal_rect.y + 20, {40, 40, 40});
             Color palette[9] = {{255, 0, 0}, {0, 255, 0}, {0, 0, 255}, {255, 255, 0}, {0, 255, 255}, {255, 0, 255}, {0, 0, 0}, {128, 128, 128}, {255, 255, 255}};
             for (int i = 0; i < 9; i++)
             {
