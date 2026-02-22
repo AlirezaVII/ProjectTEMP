@@ -180,7 +180,8 @@ bool sounds_tab_handle_event(const SDL_Event &e, AppState &state)
 
         if (!result.empty())
         {
-            Mix_Chunk *c = audio_load_sound(result);
+            std::string new_path = copy_asset_to_project(state.project_name, result);
+            Mix_Chunk *c = audio_load_sound(new_path);
             if (c)
             {
                 size_t slash = result.find_last_of('/');
@@ -188,7 +189,7 @@ bool sounds_tab_handle_event(const SDL_Event &e, AppState &state)
                 size_t dot = fname.find_last_of('.');
                 if (dot != std::string::npos)
                     fname = fname.substr(0, dot);
-                spr.sounds.push_back(SoundData(fname, c));
+                spr.sounds.push_back(SoundData(fname, c, new_path));
                 spr.selected_sound = spr.sounds.size() - 1;
             }
         }
@@ -206,6 +207,10 @@ bool sounds_tab_handle_event(const SDL_Event &e, AppState &state)
             if ((int)i == spr.selected_sound && point_in(del_r, mx, my))
             {
                 audio_stop_all();
+                
+                // Uses the smart shielded delete function!
+                delete_asset_from_project(spr.sounds[i].source_path);
+                
                 spr.sounds.erase(spr.sounds.begin() + i);
                 if (spr.selected_sound >= (int)spr.sounds.size())
                     spr.selected_sound = spr.sounds.size() - 1;

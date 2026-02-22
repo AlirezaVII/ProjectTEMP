@@ -15,6 +15,6 @@ void filemenu_layout(FileMenuRects &rects, int file_btn_x);
 void filemenu_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state,
                    const FileMenuRects &rects);
 bool filemenu_handle_event(const SDL_Event &e, AppState &state,
-                           const FileMenuRects &rects);
+                           const FileMenuRects &rects, SDL_Renderer *r); // ---> NEW: Renderer added!
 
 #endif

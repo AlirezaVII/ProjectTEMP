@@ -217,10 +217,9 @@ bool sprite_panel_handle_event(const SDL_Event &e, AppState &state, const Sprite
 
         if (sp_point_in(rects.backdrop_area, mx, my))
         {
-            if (sp_point_in(rects.backdrop_thumb, mx, my))
+            if (!sp_point_in(rects.backdrop_btn, mx, my) && !state.backdrop_menu_open)
             {
                 state.editing_target_is_stage = true;
-                // ---> FIXED: FORCE TAB SWITCH TO AVOID BEING TRAPPED IN DISABLED TABS <---
                 state.current_tab = TAB_COSTUMES;
                 return true;
             }
@@ -239,6 +238,12 @@ bool sprite_panel_handle_event(const SDL_Event &e, AppState &state, const Sprite
                     SDL_Rect del_r = {border.x + border.w - 22, border.y - 10, 24, 24};
                     if (sp_point_in(del_r, mx, my))
                     {
+                        // ---> DELETE OS FILES FOR THIS SPRITE <---
+                        for (auto &c : state.sprites[i].costumes)
+                            delete_asset_from_project(c.source_path);
+                        for (auto &s : state.sprites[i].sounds)
+                            delete_asset_from_project(s.source_path);
+
                         state.sprites.erase(state.sprites.begin() + i);
                         if (state.selected_sprite >= (int)state.sprites.size())
                             state.selected_sprite = state.sprites.size() - 1;
@@ -261,6 +266,14 @@ bool sprite_panel_handle_event(const SDL_Event &e, AppState &state, const Sprite
                 }
             }
             return true;
+        }
+
+        if (state.backdrop_menu_open)
+        {
+            if (sp_point_in(rects.backdrop_menu_items[0], mx, my) || sp_point_in(rects.backdrop_menu_items[1], mx, my))
+            {
+                state.current_tab = TAB_COSTUMES;
+            }
         }
     }
     return false;

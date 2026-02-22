@@ -47,7 +47,6 @@ static void draw_text_left(SDL_Renderer *r, TTF_Font *font, const char *txt, int
     SDL_FreeSurface(s);
 }
 
-// Helper to allow dragging rectangles backwards!
 static SDL_Rect get_normalized_rect(SDL_Rect r)
 {
     if (r.w < 0)
@@ -151,7 +150,6 @@ void update_composed_texture(GraphicItem &item, SDL_Renderer *r, TTF_Font *font)
 
     SDL_RendererFlip flip = (SDL_RendererFlip)((item.flip_h ? SDL_FLIP_HORIZONTAL : 0) | (item.flip_v ? SDL_FLIP_VERTICAL : 0));
 
-    // ---> FIXED: READ FROM ORIGINAL_TEXTURE TO PREVENT LOOP GLITCH <---
     if (item.original_texture)
     {
         int img_w, img_h;
@@ -179,14 +177,13 @@ void update_composed_texture(GraphicItem &item, SDL_Renderer *r, TTF_Font *font)
 
     for (auto &sh : item.shapes)
     {
-        // Compute text width naturally to prevent squishing
         if (sh.type == SHAPE_TEXT && !sh.text.empty() && font)
         {
             int tw = 0, th = 0;
             TTF_SizeUTF8(font, sh.text.c_str(), &tw, &th);
             float aspect = (float)tw / (float)th;
             if (sh.rect.h < 0)
-                sh.rect.h = -sh.rect.h; // Text can't have negative height
+                sh.rect.h = -sh.rect.h;
             sh.rect.w = (int)(sh.rect.h * aspect);
         }
 
@@ -378,6 +375,7 @@ void costumes_tab_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, c
             SDL_SetRenderDrawColor(r, 150, 150, 150, 255);
             SDL_RenderDrawRect(r, &btn);
         }
+
         if (icon)
         {
             SDL_Rect ic = {btn.x + 4, btn.y + 4, 24, 24};
@@ -551,8 +549,10 @@ bool costumes_tab_handle_event(const SDL_Event &e, AppState &state, SDL_Renderer
         {
             if (point_in(rects.thumb_dels[i], mx, my) && selected_idx == (int)i)
             {
+                // ---> REMOVE RAW ASSETS FROM OS DISK ON DELETE! <---
                 if (state.editing_target_is_stage && state.backdrops.size() > 1)
                 {
+                    delete_asset_from_project(state.backdrops[i].source_path);
                     state.backdrops.erase(state.backdrops.begin() + i);
                     if (state.selected_backdrop >= (int)state.backdrops.size())
                         state.selected_backdrop = state.backdrops.size() - 1;
@@ -560,6 +560,7 @@ bool costumes_tab_handle_event(const SDL_Event &e, AppState &state, SDL_Renderer
                 else if (!state.editing_target_is_stage && state.sprites[state.selected_sprite].costumes.size() > 1)
                 {
                     auto &spr = state.sprites[state.selected_sprite];
+                    delete_asset_from_project(spr.costumes[i].source_path);
                     spr.costumes.erase(spr.costumes.begin() + i);
                     if (spr.selected_costume >= (int)spr.costumes.size())
                         spr.selected_costume = spr.costumes.size() - 1;
@@ -608,7 +609,6 @@ bool costumes_tab_handle_event(const SDL_Event &e, AppState &state, SDL_Renderer
             return true;
         }
 
-        // Rect and Circle do not trigger the color picker!
         if (point_in(rects.tools[5], mx, my))
         {
             state.active_tool = TOOL_RECT;
