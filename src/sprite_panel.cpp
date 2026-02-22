@@ -1,5 +1,6 @@
 #include "sprite_panel.h"
 #include "config.h"
+#include "renderer.h" // Added for Pen Layer Cleanup
 #include <cstdio>
 #include <cmath>
 #include <string>
@@ -201,6 +202,8 @@ void sprite_panel_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, c
     }
 }
 
+extern SDL_Renderer* g_main_renderer;
+
 bool sprite_panel_handle_event(const SDL_Event &e, AppState &state, const SpritePanelRects &rects)
 {
     if (e.type == SDL_MOUSEMOTION)
@@ -238,15 +241,16 @@ bool sprite_panel_handle_event(const SDL_Event &e, AppState &state, const Sprite
                     SDL_Rect del_r = {border.x + border.w - 22, border.y - 10, 24, 24};
                     if (sp_point_in(del_r, mx, my))
                     {
-                        // ---> DELETE OS FILES FOR THIS SPRITE <---
-                        for (auto &c : state.sprites[i].costumes)
-                            delete_asset_from_project(c.source_path);
-                        for (auto &s : state.sprites[i].sounds)
-                            delete_asset_from_project(s.source_path);
+                        for (auto &c : state.sprites[i].costumes) delete_asset_from_project(c.source_path);
+                        for (auto &s : state.sprites[i].sounds) delete_asset_from_project(s.source_path);
 
                         state.sprites.erase(state.sprites.begin() + i);
                         if (state.selected_sprite >= (int)state.sprites.size())
                             state.selected_sprite = state.sprites.size() - 1;
+                        
+                        // ---> CLEAR PEN LAYER WHEN DELETING SPRITE <---
+                        extern SDL_Renderer* g_main_renderer; // Using a safe workaround or pass generic clear
+                        renderer_init_pen_layer(nullptr); 
                         return true;
                     }
                 }

@@ -5,14 +5,11 @@
 #include "types.h"
 
 /* Circle drawing */
-void renderer_fill_circle(SDL_Renderer *r, int cx, int cy, int radius,
-                          int red, int green, int blue);
-void renderer_draw_circle(SDL_Renderer *r, int cx, int cy, int radius,
-                          int red, int green, int blue);
+void renderer_fill_circle(SDL_Renderer *r, int cx, int cy, int radius, int red, int green, int blue);
+void renderer_draw_circle(SDL_Renderer *r, int cx, int cy, int radius, int red, int green, int blue);
 
 /* Rounded rect */
-void renderer_fill_rounded_rect(SDL_Renderer *r, const SDL_Rect *rect,
-                                int radius, int red, int green, int blue);
+void renderer_fill_rounded_rect(SDL_Renderer *r, const SDL_Rect *rect, int radius, int red, int green, int blue);
 
 /* Texture loading (PNG via SDL2_image) */
 SDL_Texture* renderer_load_texture(SDL_Renderer *r, const char *path);
@@ -23,8 +20,10 @@ void renderer_draw_texture(SDL_Renderer *r, SDL_Texture *tex, const SDL_Rect *ds
 /* Draw texture keeping aspect ratio, centered in dst rect */
 void renderer_draw_texture_fit(SDL_Renderer *r, SDL_Texture *tex, const SDL_Rect *dst);
 
-// ---> NEW: PEN LAYER EXPORTS <---
+// ---> PEN LAYER ENGINE <---
 extern SDL_Texture* g_pen_layer;
+extern SDL_Renderer* g_main_renderer;
+
 void renderer_init_pen_layer(SDL_Renderer* r);
 void renderer_clear_pen_layer();
 void renderer_draw_line_on_pen_layer(int x1, int y1, int x2, int y2, int size, SDL_Color color);

@@ -42,13 +42,22 @@ void palette_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const 
     int bx = rects.panel.x + 12;
     int by = rects.panel.y + 60;
 
-    if (state.selected_category == 7)
+    if (state.selected_category == 7) // Variables
     {
         SDL_Rect btn_rect = {bx, by, 130, 30};
         renderer_fill_rounded_rect(r, &btn_rect, 4, 240, 240, 240);
         SDL_SetRenderDrawColor(r, 180, 180, 180, 255);
         SDL_RenderDrawRect(r, &btn_rect);
         render_simple_text(r, font, "Make a Variable", btn_rect.x + 14, btn_rect.y + 7, (Color){40, 40, 40});
+        by += 50;
+    }
+    else if (state.selected_category == 3) // Events -> Make a Message
+    {
+        SDL_Rect btn_rect = {bx, by, 130, 30};
+        renderer_fill_rounded_rect(r, &btn_rect, 4, 240, 240, 240);
+        SDL_SetRenderDrawColor(r, 180, 180, 180, 255);
+        SDL_RenderDrawRect(r, &btn_rect);
+        render_simple_text(r, font, "Make a Message", btn_rect.x + 12, btn_rect.y + 7, (Color){40, 40, 40});
         by += 50;
     }
 
@@ -66,7 +75,7 @@ void palette_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const 
             br = sound_block_rect((SoundBlockType)defs[i].subtype, bx, by, 0, 0);
         else if (defs[i].kind == BK_EVENTS)
             br = events_block_rect((EventsBlockType)defs[i].subtype, bx, by, 0);
-        else if (defs[i].kind == BK_PEN) // ---> ADDED MISSING PEN RECT ROUTING <---
+        else if (defs[i].kind == BK_PEN)
             br = pen_block_rect((PenBlockType)defs[i].subtype, bx, by);
         else if (defs[i].kind == BK_SENSING)
         {
@@ -107,9 +116,9 @@ void palette_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const 
             else if (defs[i].kind == BK_EVENTS)
             {
                 def = workspace_make_default_events((EventsBlockType)defs[i].subtype);
-                events_block_draw(r, font, tex, (EventsBlockType)defs[i].subtype, bx, by, def.opt, false, bg, -1);
+                events_block_draw(r, font, tex, state, (EventsBlockType)defs[i].subtype, bx, by, def.opt, false, bg, -1);
             }
-            else if (defs[i].kind == BK_PEN) // ---> ADDED MISSING PEN DRAW ROUTING <---
+            else if (defs[i].kind == BK_PEN)
             {
                 def = workspace_make_default_pen((PenBlockType)defs[i].subtype);
                 pen_block_draw(r, font, state, (PenBlockType)defs[i].subtype, bx, by, def.a, def.opt, false, bg, -1, nullptr);
@@ -184,6 +193,7 @@ bool palette_handle_event(const SDL_Event &e, AppState &state, const PaletteRect
         {
             int bx = rects.panel.x + 12;
             int by = rects.panel.y + 60;
+
             if (state.selected_category == 7)
             {
                 SDL_Rect btn_rect = {bx, by, 130, 30};
@@ -191,6 +201,18 @@ bool palette_handle_event(const SDL_Event &e, AppState &state, const PaletteRect
                 {
                     state.var_modal_active = true;
                     state.active_input = INPUT_VAR_MODAL;
+                    state.input_buffer.clear();
+                    return true;
+                }
+                by += 50;
+            }
+            else if (state.selected_category == 3)
+            {
+                SDL_Rect btn_rect = {bx, by, 130, 30};
+                if (point_in_rect(mx, my, btn_rect))
+                {
+                    state.msg_modal_active = true;
+                    state.active_input = INPUT_MSG_MODAL;
                     state.input_buffer.clear();
                     return true;
                 }
@@ -211,7 +233,7 @@ bool palette_handle_event(const SDL_Event &e, AppState &state, const PaletteRect
                     br = sound_block_rect((SoundBlockType)defs[i].subtype, bx, by, 0, 0);
                 else if (defs[i].kind == BK_EVENTS)
                     br = events_block_rect((EventsBlockType)defs[i].subtype, bx, by, 0);
-                else if (defs[i].kind == BK_PEN) // ---> ADDED MISSING PEN HITTEST ROUTING <---
+                else if (defs[i].kind == BK_PEN)
                     br = pen_block_rect((PenBlockType)defs[i].subtype, bx, by);
                 else if (defs[i].kind == BK_SENSING)
                 {

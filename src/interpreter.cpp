@@ -14,6 +14,19 @@
 
 void interpreter_trigger_message(AppState &state, int msg_opt);
 
+// ---> STOP SPRITES FROM GOING OFF SCREEN <---
+static void constrain_sprite_to_stage(Sprite &spr)
+{
+    if (spr.x < -240)
+        spr.x = -240;
+    if (spr.x > 240)
+        spr.x = 240;
+    if (spr.y < -180)
+        spr.y = -180;
+    if (spr.y > 180)
+        spr.y = 180;
+}
+
 static void commit_active_typing(AppState &state)
 {
     if (state.active_input == INPUT_BLOCK_FIELD)
@@ -24,7 +37,6 @@ static void commit_active_typing(AppState &state)
     }
 }
 
-// ---> Helper: Convert Scratch Hue value to RGB <---
 static void update_pen_rgb(Sprite &spr)
 {
     float h = spr.pen_color_val / 100.0f * 360.0f;
@@ -84,7 +96,6 @@ struct StackFrame
     int loop_block_id;
     int loop_count;
 };
-
 struct ScriptThread
 {
     std::vector<StackFrame> stack;
@@ -92,7 +103,7 @@ struct ScriptThread
     bool waiting_for_sound;
     bool waiting_for_ask;
     std::string sprite_name;
-    int root_node; // Added to track which hat block spawned this thread
+    int root_node;
 };
 static std::vector<ScriptThread> g_threads;
 
@@ -104,6 +115,7 @@ static BlockInstance *interpreter_find_block(Sprite &spr, int id)
     return nullptr;
 }
 
+// ---> FIXED: Mathematically perfect scaling to map the screen to Scratch's 480x360 stage
 static void get_sprite_screen_rect(Sprite &spr, int &cx, int &cy, int &w, int &h)
 {
     int col_x = WINDOW_WIDTH - RIGHT_COLUMN_WIDTH;
@@ -114,12 +126,20 @@ static void get_sprite_screen_rect(Sprite &spr, int &cx, int &cy, int &w, int &h
     int stage_area_y = NAVBAR_HEIGHT + margin;
     int stage_area_w = RIGHT_COLUMN_WIDTH - margin * 2;
     int stage_area_h = stage_h - margin * 2;
-    cx = stage_area_x + stage_area_w / 2 + spr.x;
-    cy = stage_area_y + stage_area_h / 2 - spr.y;
+
+    int stage_cx = stage_area_x + stage_area_w / 2;
+    int stage_cy = stage_area_y + stage_area_h / 2;
+
+    float scale_x = (float)stage_area_w / 480.0f;
+    float scale_y = (float)stage_area_h / 360.0f;
+
+    cx = stage_cx + (int)(spr.x * scale_x);
+    cy = stage_cy - (int)(spr.y * scale_y);
+
     int base_w = 100;
     int base_h = 100;
-    w = (base_w * spr.size) / 100;
-    h = (base_h * spr.size) / 100;
+    w = (int)((base_w * spr.size / 100.0f) * scale_x);
+    h = (int)((base_h * spr.size / 100.0f) * scale_y);
 }
 
 static float eval_value(AppState &state, Sprite &spr, int block_id, float default_val, const std::string &text_val);
@@ -160,6 +180,7 @@ static float eval_value(AppState &state, Sprite &spr, int block_id, float defaul
         BlockInstance *b = interpreter_find_block(spr, block_id);
         if (!b)
             return default_val;
+
         if (b->kind == BK_OPERATORS)
         {
             if (b->subtype == OP_ADD)
@@ -199,17 +220,57 @@ static float eval_value(AppState &state, Sprite &spr, int block_id, float defaul
         {
             if (b->subtype == SENSB_ANSWER)
                 return std::atof(state.global_answer.c_str());
+
+            // ---> FIXED: MOUSE TRACKING NOW PERFECTLY ALIGNS WITH SCRATCH COORDINATES <---
+            if (b->subtype == SENSB_MOUSE_X)
+            {
+                int mx, my;
+                SDL_GetMouseState(&mx, &my);
+                int col_x = WINDOW_WIDTH - RIGHT_COLUMN_WIDTH;
+                int margin = 8;
+                int stage_area_w = RIGHT_COLUMN_WIDTH - margin * 2;
+                int stage_cx = col_x + margin + stage_area_w / 2;
+                float scale_x = 480.0f / stage_area_w;
+                return (mx - stage_cx) * scale_x;
+            }
+            if (b->subtype == SENSB_MOUSE_Y)
+            {
+                int mx, my;
+                SDL_GetMouseState(&mx, &my);
+                int col_h = WINDOW_HEIGHT - NAVBAR_HEIGHT;
+                int stage_h = col_h * STAGE_HEIGHT_RATIO / 100;
+                int margin = 8;
+                int stage_area_h = stage_h - margin * 2;
+                int stage_cy = NAVBAR_HEIGHT + margin + stage_area_h / 2;
+                float scale_y = 360.0f / stage_area_h;
+                return (stage_cy - my) * scale_y;
+            }
+
             if (b->subtype == SENSB_DISTANCE_TO)
             {
                 int mx, my;
                 SDL_GetMouseState(&mx, &my);
-                int cx, cy, w, h;
-                get_sprite_screen_rect(spr, cx, cy, w, h);
-                float dx = mx - cx;
-                float dy = my - cy;
+                int col_x = WINDOW_WIDTH - RIGHT_COLUMN_WIDTH;
+                int col_h = WINDOW_HEIGHT - NAVBAR_HEIGHT;
+                int stage_h = col_h * STAGE_HEIGHT_RATIO / 100;
+                int margin = 8;
+                int stage_area_w = RIGHT_COLUMN_WIDTH - margin * 2;
+                int stage_area_h = stage_h - margin * 2;
+
+                int stage_cx = col_x + margin + stage_area_w / 2;
+                int stage_cy = NAVBAR_HEIGHT + margin + stage_area_h / 2;
+
+                float scale_x = 480.0f / stage_area_w;
+                float scale_y = 360.0f / stage_area_h;
+
+                float mouse_scratch_x = (mx - stage_cx) * scale_x;
+                float mouse_scratch_y = (stage_cy - my) * scale_y;
+
+                float dx = mouse_scratch_x - spr.x;
+                float dy = mouse_scratch_y - spr.y;
                 return std::sqrt(dx * dx + dy * dy);
             }
-            if (b->subtype == SENSB_TOUCHING || b->subtype == SENSB_KEY_PRESSED || b->subtype == SENSB_MOUSE_DOWN)
+            if (b->subtype == SENSB_TOUCHING || b->subtype == SENSB_KEY_PRESSED || b->subtype == SENSB_MOUSE_DOWN || b->subtype == SENSB_TOUCHING_COLOR || b->subtype == SENSB_COLOR_IS_TOUCHING_COLOR)
                 return eval_bool(state, spr, block_id) ? 1.0f : 0.0f;
         }
     }
@@ -225,6 +286,7 @@ static std::string eval_string(AppState &state, Sprite &spr, int block_id, const
         BlockInstance *b = interpreter_find_block(spr, block_id);
         if (!b)
             return text_val;
+
         if (b->kind == BK_VARIABLES && b->subtype == VB_VARIABLE)
             return state.variable_values[b->text];
         if (b->kind == BK_LOOKS)
@@ -246,14 +308,14 @@ static std::string eval_string(AppState &state, Sprite &spr, int block_id, const
         {
             if (b->subtype == SENSB_ANSWER)
                 return state.global_answer;
-            if (b->subtype == SENSB_DISTANCE_TO)
+            if (b->subtype == SENSB_DISTANCE_TO || b->subtype == SENSB_MOUSE_X || b->subtype == SENSB_MOUSE_Y)
             {
                 float val = eval_value(state, spr, block_id, 0, "");
                 char buf[32];
                 std::snprintf(buf, sizeof(buf), "%g", val);
                 return std::string(buf);
             }
-            if (b->subtype == SENSB_TOUCHING || b->subtype == SENSB_KEY_PRESSED || b->subtype == SENSB_MOUSE_DOWN)
+            if (b->subtype == SENSB_TOUCHING || b->subtype == SENSB_KEY_PRESSED || b->subtype == SENSB_MOUSE_DOWN || b->subtype == SENSB_TOUCHING_COLOR || b->subtype == SENSB_COLOR_IS_TOUCHING_COLOR)
                 return eval_bool(state, spr, block_id) ? "true" : "false";
         }
         if (b->kind == BK_OPERATORS)
@@ -290,6 +352,7 @@ static bool eval_bool(AppState &state, Sprite &spr, int block_id)
     BlockInstance *b = interpreter_find_block(spr, block_id);
     if (!b)
         return false;
+
     if (b->kind == BK_OPERATORS)
     {
         if (b->subtype == OP_GT)
@@ -304,6 +367,7 @@ static bool eval_bool(AppState &state, Sprite &spr, int block_id)
             return eval_bool(state, spr, b->arg0_id) || eval_bool(state, spr, b->arg1_id);
         if (b->subtype == OP_NOT)
             return !eval_bool(state, spr, b->arg0_id);
+
         std::string s = eval_string(state, spr, block_id, "");
         std::string ls = s;
         std::transform(ls.begin(), ls.end(), ls.begin(), ::tolower);
@@ -365,8 +429,12 @@ static bool eval_bool(AppState &state, Sprite &spr, int block_id)
             else if (b->opt == TOUCHING_SPRITE)
                 return false;
         }
+        if (b->subtype == SENSB_TOUCHING_COLOR || b->subtype == SENSB_COLOR_IS_TOUCHING_COLOR)
+        {
+            return false;
+        }
     }
-    if (b->kind == BK_VARIABLES || (b->kind == BK_SENSING && (b->subtype == SENSB_ANSWER || b->subtype == SENSB_DISTANCE_TO)))
+    if (b->kind == BK_VARIABLES || b->kind == BK_EVENTS || (b->kind == BK_SENSING && (b->subtype == SENSB_ANSWER || b->subtype == SENSB_DISTANCE_TO || b->subtype == SENSB_MOUSE_X || b->subtype == SENSB_MOUSE_Y)))
     {
         std::string s = eval_string(state, spr, block_id, "");
         std::string ls = s;
@@ -394,6 +462,7 @@ void interpreter_tick(AppState &state)
             i++;
             continue;
         }
+
         if (g_threads[i].waiting_for_sound)
         {
             if (audio_is_playing())
@@ -404,6 +473,7 @@ void interpreter_tick(AppState &state)
             else
                 g_threads[i].waiting_for_sound = false;
         }
+
         if (g_threads[i].waiting_for_ask)
         {
             if (state.ask_active)
@@ -424,6 +494,7 @@ void interpreter_tick(AppState &state)
                 break;
             }
         }
+
         if (!spr_ptr)
         {
             g_threads.erase(g_threads.begin() + i);
@@ -436,6 +507,7 @@ void interpreter_tick(AppState &state)
         {
             StackFrame &frame = g_threads[i].stack.back();
             int cur = frame.cur_node;
+
             if (cur == -1)
             {
                 if (frame.loop_block_id != -1)
@@ -502,13 +574,30 @@ void interpreter_tick(AppState &state)
                     {
                         int mx, my;
                         SDL_GetMouseState(&mx, &my);
-                        int cx, cy, tw, th;
-                        get_sprite_screen_rect(spr, cx, cy, tw, th);
-                        spr.x += (mx - cx);
-                        spr.y += (cy - my);
+
+                        int col_x = WINDOW_WIDTH - RIGHT_COLUMN_WIDTH;
+                        int col_h = WINDOW_HEIGHT - NAVBAR_HEIGHT;
+                        int stage_h = col_h * STAGE_HEIGHT_RATIO / 100;
+                        int margin = 8;
+                        int stage_area_w = RIGHT_COLUMN_WIDTH - margin * 2;
+                        int stage_area_h = stage_h - margin * 2;
+
+                        int stage_cx = col_x + margin + stage_area_w / 2;
+                        int stage_cy = NAVBAR_HEIGHT + margin + stage_area_h / 2;
+
+                        float scale_x = 480.0f / stage_area_w;
+                        float scale_y = 360.0f / stage_area_h;
+
+                        // Target Scratch X and Y
+                        spr.x = (int)((mx - stage_cx) * scale_x);
+                        spr.y = (int)((stage_cy - my) * scale_y);
                     }
                 }
 
+                // ---> KEEPS THEM ON SCREEN <---
+                constrain_sprite_to_stage(spr);
+
+                // ---> DRAW LINE IF MOVED <---
                 if (spr.pen_down && (spr.x != old_x || spr.y != old_y))
                 {
                     renderer_draw_line_on_pen_layer(old_x, old_y, spr.x, spr.y, spr.pen_size, spr.pen_color);
@@ -522,7 +611,11 @@ void interpreter_tick(AppState &state)
                 else if (b->subtype == PB_STAMP)
                     renderer_stamp_on_pen_layer(spr);
                 else if (b->subtype == PB_PEN_DOWN)
+                {
                     spr.pen_down = true;
+                    // ---> FIXED: Draw an immediate "dot" at the starting position so it isn't missing!
+                    renderer_draw_line_on_pen_layer(spr.x, spr.y, spr.x, spr.y, spr.pen_size, spr.pen_color);
+                }
                 else if (b->subtype == PB_PEN_UP)
                     spr.pen_down = false;
                 else if (b->subtype == PB_CHANGE_ATTRIB_BY)
@@ -678,7 +771,9 @@ void interpreter_tick(AppState &state)
                     frame.cur_node = b->next_id;
                 }
                 else
+                {
                     frame.cur_node = b->next_id;
+                }
             }
             else if (b->kind == BK_SOUND)
             {
@@ -808,12 +903,18 @@ void interpreter_tick(AppState &state)
             }
             else if (b->kind == BK_EVENTS)
             {
+
+                // ---> FIXED: Trigger the matching receive blocks!
                 if (b->subtype == EB_BROADCAST)
+                {
                     interpreter_trigger_message(state, b->opt);
+                }
                 frame.cur_node = b->next_id;
             }
             else
+            {
                 frame.cur_node = b->next_id;
+            }
         }
 
         if (i < g_threads.size())
@@ -830,7 +931,7 @@ void interpreter_trigger_flag(AppState &state)
 {
     static Uint32 last_flag_trigger = 0;
     if (SDL_GetTicks() - last_flag_trigger < 100)
-        return; // Prevent double execution bounce
+        return;
     last_flag_trigger = SDL_GetTicks();
 
     commit_active_typing(state);
@@ -851,7 +952,7 @@ void interpreter_trigger_key(AppState &state, SDL_Keycode sym)
 {
     static std::unordered_map<SDL_Keycode, Uint32> last_key_trigger;
     if (SDL_GetTicks() - last_key_trigger[sym] < 100)
-        return; // Prevent double execution bounce from key repeat
+        return;
     last_key_trigger[sym] = SDL_GetTicks();
 
     commit_active_typing(state);
@@ -881,11 +982,9 @@ void interpreter_trigger_key(AppState &state, SDL_Keycode sym)
             BlockInstance *b = interpreter_find_block(spr, root_id);
             if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_KEY_PRESSED && b->opt == opt)
             {
-                // Kill identical thread if already running (Standard Scratch behavior)
                 g_threads.erase(std::remove_if(g_threads.begin(), g_threads.end(), [&](const ScriptThread &th)
                                                { return th.sprite_name == spr.name && th.root_node == root_id; }),
                                 g_threads.end());
-
                 g_threads.push_back({{{{b->next_id, -1, 0}}}, 0, false, false, spr.name, root_id});
             }
         }
@@ -896,7 +995,7 @@ void interpreter_trigger_sprite_click(AppState &state)
 {
     static Uint32 last_click_trigger = 0;
     if (SDL_GetTicks() - last_click_trigger < 100)
-        return; // Prevent double execution bounce
+        return;
     last_click_trigger = SDL_GetTicks();
 
     commit_active_typing(state);
@@ -911,7 +1010,6 @@ void interpreter_trigger_sprite_click(AppState &state)
                 g_threads.erase(std::remove_if(g_threads.begin(), g_threads.end(), [&](const ScriptThread &th)
                                                { return th.sprite_name == spr.name && th.root_node == root_id; }),
                                 g_threads.end());
-
                 g_threads.push_back({{{{b->next_id, -1, 0}}}, 0, false, false, spr.name, root_id});
             }
         }
@@ -921,6 +1019,7 @@ void interpreter_trigger_sprite_click(AppState &state)
 void interpreter_trigger_message(AppState &state, int msg_opt)
 {
     commit_active_typing(state);
+    state.running = true;
     for (auto &spr : state.sprites)
     {
         for (int root_id : spr.top_level_blocks)
@@ -931,7 +1030,6 @@ void interpreter_trigger_message(AppState &state, int msg_opt)
                 g_threads.erase(std::remove_if(g_threads.begin(), g_threads.end(), [&](const ScriptThread &th)
                                                { return th.sprite_name == spr.name && th.root_node == root_id; }),
                                 g_threads.end());
-
                 g_threads.push_back({{{{b->next_id, -1, 0}}}, 0, false, false, spr.name, root_id});
             }
         }

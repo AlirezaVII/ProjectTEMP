@@ -114,19 +114,22 @@ int main(int /*argc*/, char * /*argv*/[])
 
     load_dotenv();
 
-    const char* debug_ptr = std::getenv("DEBUG_MODE");
+    const char *debug_ptr = std::getenv("DEBUG_MODE");
 
-    if (debug_ptr){   
+    if (debug_ptr)
+    {
         std::string debug_mode = debug_ptr;
-        if (debug_mode == "1"){
+        if (debug_mode == "1")
+        {
             std::cout << "[SYSTEM] : WE ARE ON PRODUCTION STAGE!" << std::endl;
-        } else {
+        }
+        else
+        {
             std::cout << "[SYSTEM] : WE ARE ON DEBUG STAGE!" << std::endl;
         }
     }
 
     std::cout << SCRATCH_ASCII_ART << std::endl;
-
     std::cout << "Designed by Alireza Mosavi" << std::endl;
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
@@ -209,11 +212,8 @@ int main(int /*argc*/, char * /*argv*/[])
     sprite_panel_layout(sprite_panel_rects);
 
     AppState state;
-
     state.sprites.push_back(Sprite("Sprite1", tex.scratch_cat, "assets/sprites/scratch_cat.png"));
     Mix_Chunk *def_snd = audio_load_sound("assets/sounds/meow.wav");
-
-    // ---> FIXED: Unconditionally push the default sound at engine boot! <---
     state.sprites[0].sounds.push_back(SoundData("meow", def_snd, "assets/sounds/meow.wav"));
     state.backdrops.push_back(Backdrop("backdrop1", nullptr, ""));
 
@@ -324,6 +324,121 @@ int main(int /*argc*/, char * /*argv*/[])
                         state.active_input = INPUT_NONE;
                         state.input_buffer.clear();
                     }
+                }
+                continue;
+            }
+
+            // ---> FIXED: MESSAGE MODAL LOGIC <---
+            if (state.msg_modal_active)
+            {
+                if (e.type == SDL_KEYDOWN)
+                {
+                    if (e.key.keysym.sym == SDLK_ESCAPE)
+                    {
+                        state.msg_modal_active = false;
+                        state.active_input = INPUT_NONE;
+                        state.input_buffer.clear();
+                    }
+                    else if (e.key.keysym.sym == SDLK_RETURN || e.key.keysym.sym == SDLK_KP_ENTER)
+                    {
+                        bool unique = true;
+                        for (const auto &v : state.messages)
+                            if (v == state.input_buffer)
+                            {
+                                unique = false;
+                                break;
+                            }
+                        if (unique && !state.input_buffer.empty())
+                        {
+                            state.messages.push_back(state.input_buffer);
+                        }
+                        state.msg_modal_active = false;
+                        state.active_input = INPUT_NONE;
+                        state.input_buffer.clear();
+                    }
+                    else if (e.key.keysym.sym == SDLK_BACKSPACE)
+                    {
+                        if (!state.input_buffer.empty())
+                            state.input_buffer.pop_back();
+                    }
+                }
+                else if (e.type == SDL_TEXTINPUT)
+                {
+                    state.input_buffer += e.text.text;
+                }
+                else if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
+                {
+                    int mw = 400, mh = 200, mx = WINDOW_WIDTH / 2 - mw / 2, my = WINDOW_HEIGHT / 2 - mh / 2;
+                    SDL_Rect submit_btn = {mx + mw - 120, my + mh - 60, 90, 40};
+                    SDL_Rect cancel_btn = {mx + mw - 220, my + mh - 60, 90, 40};
+                    auto in_rect = [](int px, int py, const SDL_Rect &r)
+                    { return px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h; };
+                    if (in_rect(e.button.x, e.button.y, submit_btn))
+                    {
+                        bool unique = true;
+                        for (const auto &v : state.messages)
+                            if (v == state.input_buffer)
+                            {
+                                unique = false;
+                                break;
+                            }
+                        if (unique && !state.input_buffer.empty())
+                        {
+                            state.messages.push_back(state.input_buffer);
+                        }
+                        state.msg_modal_active = false;
+                        state.active_input = INPUT_NONE;
+                        state.input_buffer.clear();
+                    }
+                    else if (in_rect(e.button.x, e.button.y, cancel_btn))
+                    {
+                        state.msg_modal_active = false;
+                        state.active_input = INPUT_NONE;
+                        state.input_buffer.clear();
+                    }
+                }
+                continue;
+            }
+
+            // ---> FIXED: BLOCK COLOR PICKER MODAL (TOUCHING COLOR) <---
+            if (state.active_input == INPUT_BLOCK_COLOR_PICKER_1 || state.active_input == INPUT_BLOCK_COLOR_PICKER_2)
+            {
+                if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
+                {
+                    int mx = e.button.x, my = e.button.y;
+                    int mw = 300, mh = 250, mod_x = WINDOW_WIDTH / 2 - mw / 2, mod_y = WINDOW_HEIGHT / 2 - mh / 2;
+                    bool clicked_color = false;
+                    Color palette[9] = {{255, 0, 0}, {0, 255, 0}, {0, 0, 255}, {255, 255, 0}, {0, 255, 255}, {255, 0, 255}, {0, 0, 0}, {128, 128, 128}, {255, 255, 255}};
+                    for (int i = 0; i < 9; i++)
+                    {
+                        SDL_Rect c_rect = {mod_x + 30 + (i % 3) * 80, mod_y + 80 + (i / 3) * 50, 70, 40};
+                        if (mx >= c_rect.x && mx < c_rect.x + c_rect.w && my >= c_rect.y && my < c_rect.y + c_rect.h)
+                        {
+                            if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
+                            {
+                                for (auto &blk : state.sprites[state.selected_sprite].blocks)
+                                {
+                                    if (blk.id == state.block_input.block_id)
+                                    {
+                                        if (state.active_input == INPUT_BLOCK_COLOR_PICKER_1)
+                                        {
+                                            blk.color1 = {(Uint8)palette[i].r, (Uint8)palette[i].g, (Uint8)palette[i].b, 255};
+                                        }
+                                        else
+                                        {
+                                            blk.color2 = {(Uint8)palette[i].r, (Uint8)palette[i].g, (Uint8)palette[i].b, 255};
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                            state.active_input = INPUT_NONE;
+                            clicked_color = true;
+                            break;
+                        }
+                    }
+                    if (!clicked_color && (mx < mod_x || mx > mod_x + mw || my < mod_y || my > mod_y + mh))
+                        state.active_input = INPUT_NONE;
                 }
                 continue;
             }
@@ -495,10 +610,7 @@ int main(int /*argc*/, char * /*argv*/[])
                                 new_name += std::to_string(count);
                             state.sprites.push_back(Sprite(new_name, global_sprite_lib[i].texture, global_sprite_lib[i].path));
                             Mix_Chunk *ds = audio_load_sound("assets/sounds/meow.wav");
-
-                            // ---> FIXED: Unconditionally push the default sound for Library sprites <---
                             state.sprites.back().sounds.push_back(SoundData("meow", ds, "assets/sounds/meow.wav"));
-
                             state.selected_sprite = state.sprites.size() - 1;
                             state.editing_target_is_stage = false;
                             state.mode = MODE_EDITOR;
@@ -532,7 +644,7 @@ int main(int /*argc*/, char * /*argv*/[])
                 continue;
             }
 
-            if (e.type == SDL_KEYDOWN && state.active_input == INPUT_NONE && !state.file_menu_open && !state.var_modal_active)
+            if (e.type == SDL_KEYDOWN && state.active_input == INPUT_NONE && !state.file_menu_open && !state.var_modal_active && !state.msg_modal_active)
                 interpreter_trigger_key(state, e.key.keysym.sym);
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE && state.active_input == INPUT_NONE && !state.file_menu_open)
             {
@@ -744,7 +856,6 @@ int main(int /*argc*/, char * /*argv*/[])
 
             if (filemenu_handle_event(e, state, filemenu_rects, renderer))
                 continue;
-
             if (navbar_handle_event(e, state, navbar_rects))
                 continue;
             if (tab_bar_handle_event(e, state, tab_bar_rects))
@@ -856,13 +967,11 @@ int main(int /*argc*/, char * /*argv*/[])
             int tw = 0;
             TTF_SizeUTF8(font_large, "Choose an Extension", &tw, NULL);
             render_simple_text(renderer, font_large, "Choose an Extension", (WINDOW_WIDTH - tw) / 2, (NAVBAR_HEIGHT - 24) / 2, {255, 255, 255});
-
             int box_w = WINDOW_WIDTH / 3, box_h = 320, box_x = 60, box_y = NAVBAR_HEIGHT + 40;
             SDL_Rect box_rect = {box_x, box_y, box_w, box_h};
             renderer_fill_rounded_rect(renderer, &box_rect, 10, 255, 255, 255);
             SDL_SetRenderDrawColor(renderer, 210, 210, 210, 255);
             SDL_RenderDrawRect(renderer, &box_rect);
-
             int img_h = 210;
             if (pen_poster)
             {
@@ -954,7 +1063,8 @@ int main(int /*argc*/, char * /*argv*/[])
             filemenu_draw(renderer, font, state, filemenu_rects);
         }
 
-        if (state.var_modal_active)
+        // ---> MODALS RENDERER <---
+        if (state.var_modal_active || state.msg_modal_active)
         {
             SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 150);
@@ -967,7 +1077,8 @@ int main(int /*argc*/, char * /*argv*/[])
             SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
             SDL_RenderDrawRect(renderer, &modal_rect);
             Color textCol = {40, 40, 40};
-            render_simple_text(renderer, font, "New variable name:", modal_rect.x + 30, modal_rect.y + 30, textCol);
+            std::string modal_title = state.var_modal_active ? "New variable name:" : "New message name:";
+            render_simple_text(renderer, font, modal_title.c_str(), modal_rect.x + 30, modal_rect.y + 30, textCol);
             SDL_Rect input_rect = {modal_rect.x + 30, modal_rect.y + 70, mw - 60, 40};
             renderer_fill_rounded_rect(renderer, &input_rect, 4, 240, 240, 240);
             SDL_SetRenderDrawColor(renderer, 76, 151, 255, 255);
@@ -988,7 +1099,7 @@ int main(int /*argc*/, char * /*argv*/[])
             render_simple_text(renderer, font, "Cancel", cancel_btn.x + 22, cancel_btn.y + 12, (Color){40, 40, 40});
         }
 
-        if (state.active_input == INPUT_PEN_COLOR_PICKER)
+        if (state.active_input == INPUT_PEN_COLOR_PICKER || state.active_input == INPUT_BLOCK_COLOR_PICKER_1 || state.active_input == INPUT_BLOCK_COLOR_PICKER_2)
         {
             SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 150);

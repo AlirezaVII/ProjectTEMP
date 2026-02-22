@@ -946,71 +946,61 @@ int sound_block_hittest_field(TTF_Font *font, const AppState &state, SoundBlockT
 
 /* ---------------- Events ---------------- */
 
+/* ---------------- Events ---------------- */
+
 static const char *events_key_label(int opt)
 {
-    static char buf[8];
-    if (opt == 0)
-        return "space";
-    if (opt == 1)
-        return "up";
-    if (opt == 2)
-        return "down";
-    if (opt == 3)
-        return "left";
-    if (opt == 4)
-        return "right";
-
-    if (opt >= 5 && opt <= 30)
-    {
-        char c = (char)('a' + (opt - 5));
-        buf[0] = c;
-        buf[1] = 0;
+    if (opt == 0) return "space";
+    if (opt == 1) return "up arrow";
+    if (opt == 2) return "down arrow";
+    if (opt == 3) return "left arrow";
+    if (opt == 4) return "right arrow";
+    if (opt >= 5 && opt <= 30) {
+        static char buf[2] = {0};
+        buf[0] = 'a' + (opt - 5);
         return buf;
     }
-    if (opt >= 31 && opt <= 40)
-    {
-        char c = (char)('0' + (opt - 31));
-        buf[0] = c;
-        buf[1] = 0;
+    if (opt >= 31 && opt <= 40) {
+        static char buf[2] = {0};
+        buf[0] = '0' + (opt - 31);
         return buf;
     }
-    return "space";
+    return "any";
 }
 
-static const char *events_message_label(int /*opt*/)
+static const char *events_message_label(const AppState &state, int opt)
 {
-    return "message1";
+    if (state.messages.empty()) return "message1";
+    if (opt >= 0 && opt < (int)state.messages.size()) return state.messages[opt].c_str();
+    return state.messages[0].c_str();
 }
 
 int events_block_width(EventsBlockType type)
 {
     switch (type)
     {
-    case EB_WHEN_FLAG_CLICKED:
-        return 260;
-    case EB_WHEN_KEY_PRESSED:
-        return 330;
-    case EB_WHEN_SPRITE_CLICKED:
-        return 280;
-    case EB_WHEN_I_RECEIVE:
-        return 320;
-    case EB_BROADCAST:
-        return 260;
-    default:
-        return 260;
+    case EB_WHEN_FLAG_CLICKED: return 260;
+    case EB_WHEN_KEY_PRESSED: return 330;
+    case EB_WHEN_SPRITE_CLICKED: return 280;
+    case EB_WHEN_I_RECEIVE: return 320;
+    case EB_BROADCAST: return 260;
+    default: return 260;
     }
 }
 
 SDL_Rect events_block_rect(EventsBlockType type, int x, int y, int opt)
 {
     (void)opt;
-    MotionBlockMetrics m = motion_block_metrics();
-    SDL_Rect r{x, y, events_block_width(type), m.h};
-    return r;
+    int w = events_block_width(type);
+    
+    // ---> FIXED: Broadcast is a normal block height, others are Hats <---
+    if (type == EB_BROADCAST) return {x, y, w, 40};
+    return {x, y, w, 48};
 }
 
 static void draw_events_hat(SDL_Renderer *r, const SDL_Rect &br, Color col, Color panel_bg, bool ghost)
 {
+    (void)panel_bg;
     int cap_h = 22;
     int cap_w = std::min(170, br.w - 40);
     SDL_Rect cap{br.x, br.y - (cap_h / 2), cap_w, cap_h};
@@ -1022,40 +1012,50 @@ static void draw_events_hat(SDL_Renderer *r, const SDL_Rect &br, Color col, Colo
     renderer_fill_rounded_rect(r, &cap, cap.h / 2, border.r, border.g, border.b);
     SDL_Rect inner{cap.x + 1, cap.y + 1, cap.w - 2, cap.h - 2};
     renderer_fill_rounded_rect(r, &inner, std::max(0, inner.h / 2), fill.r, fill.g, fill.b);
-    (void)panel_bg;
 }
 
-void events_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex,
+void events_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex, const AppState &state,
                        EventsBlockType type, int x, int y, int opt,
                        bool ghost, Color panel_bg, int selected_field)
 {
     (void)selected_field;
-
-    Color events_col = {255, 191, 0};
     SDL_Rect br = events_block_rect(type, x, y, opt);
+    Color col = {255, 191, 38};
 
-    draw_events_hat(r, br, events_col, panel_bg, ghost);
-    draw_stack_shape_custom(r, br, events_col, panel_bg, ghost, false, true);
+    // Draw the main stack body for ALL blocks
+    draw_stack_shape(r, br, col, panel_bg, ghost);
+
+    // If it is NOT a broadcast block, draw the Hat cap on top
+    if (type != EB_BROADCAST) {
+        draw_events_hat(r, br, col, panel_bg, ghost);
+    }
 
     int padding_x = 12;
     int cy = br.y + (br.h - 16) / 2;
     int cap_h = 22;
     int cap_y = br.y + (br.h - cap_h) / 2;
+    
+    // Shift text down slightly for Hat blocks so it centers nicely
+    if (type != EB_BROADCAST) {
+        cy += 4;
+        cap_y += 4;
+    }
+
     int cur_x = br.x + padding_x;
     Color txt_col = {255, 255, 255};
 
-    auto draw_word = [&](const char *w)
-    { draw_text(r, font, w, cur_x, cy, txt_col); cur_x += text_w(font, w) + 6; };
-    auto draw_dd = [&](const char *txt)
-    {
-        int tw = text_w(font, txt);
+    auto draw_word = [&](const char *w) {
+        draw_text(r, font, w, cur_x, cy, txt_col);
+        cur_x += text_w(font, w) + 6;
+    };
+    
+    auto draw_dd = [&](const char *lbl) {
+        int tw = text_w(font, lbl);
         int cap_w = std::max(90, tw + 26);
         SDL_Rect dd{cur_x, cap_y, cap_w, cap_h};
-        draw_dropdown_capsule(r, dd, (Color){220, 160, 0});
-        int tx = dd.x + 10;
-        int ty = dd.y + (dd.h - 16) / 2;
-        draw_text(r, font, txt, tx, ty, (Color){255, 255, 255});
-        draw_caret(r, dd.x + dd.w - 12, dd.y + dd.h / 2, (Color){255, 255, 255});
+        draw_dropdown_capsule(r, dd, (Color){214, 152, 15});
+        draw_text(r, font, lbl, dd.x + 10, dd.y + (dd.h - 16) / 2, txt_col);
+        draw_caret(r, dd.x + dd.w - 12, dd.y + dd.h / 2, txt_col);
         cur_x += cap_w + 6;
     };
 
@@ -1064,34 +1064,23 @@ void events_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex,
     case EB_WHEN_FLAG_CLICKED:
     {
         draw_word("when");
-        SDL_Rect ic{cur_x, br.y + 10, 18, 18};
-        if (tex.green_flag)
-            renderer_draw_texture_fit(r, tex.green_flag, &ic);
-        cur_x += 18 + 6;
+        SDL_Rect ic{cur_x, br.y + 12, 24, 24};
+        if (tex.green_flag) renderer_draw_texture_fit(r, tex.green_flag, &ic);
+        cur_x += 24 + 6;
         draw_word("clicked");
     }
     break;
     case EB_WHEN_KEY_PRESSED:
-        draw_word("when");
-        draw_dd(events_key_label(opt));
-        draw_word("key");
-        draw_word("pressed");
+        draw_word("when"); draw_dd(events_key_label(opt)); draw_word("key"); draw_word("pressed");
         break;
     case EB_WHEN_SPRITE_CLICKED:
-        draw_word("when");
-        draw_word("this");
-        draw_word("sprite");
-        draw_word("clicked");
+        draw_word("when"); draw_word("this"); draw_word("sprite"); draw_word("clicked");
         break;
     case EB_WHEN_I_RECEIVE:
-        draw_word("when");
-        draw_word("I");
-        draw_word("receive");
-        draw_dd(events_message_label(opt));
+        draw_word("when"); draw_word("I"); draw_word("receive"); draw_dd(events_message_label(state, opt)); 
         break;
     case EB_BROADCAST:
-        draw_word("broadcast");
-        draw_dd(events_message_label(opt));
+        draw_word("broadcast"); draw_dd(events_message_label(state, opt));
         break;
     default:
         draw_word("events");
@@ -1099,55 +1088,43 @@ void events_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex,
     }
 }
 
-int events_block_hittest_field(TTF_Font *font, EventsBlockType type, int x, int y, int opt, int px, int py)
+int events_block_hittest_field(TTF_Font *font, const AppState &state, EventsBlockType type, int x, int y, int opt, int px, int py)
 {
-    (void)opt;
     SDL_Rect br = events_block_rect(type, x, y, opt);
-    if (!(px >= br.x && px < br.x + br.w && py >= br.y && py < br.y + br.h))
-        return -1;
+    if (!(px >= br.x && px < br.x + br.w && py >= br.y && py < br.y + br.h)) return -1;
+    
     int padding_x = 12;
+    int cur_x = br.x + padding_x;
     int cap_h = 22;
     int cap_y = br.y + (br.h - cap_h) / 2;
-    int cur_x = br.x + padding_x;
-    auto adv_word = [&](const char *w)
-    { cur_x += text_w(font, w) + 6; };
-    auto cap_rect = [&](int w)
-    { SDL_Rect rc{cur_x, cap_y, w, cap_h}; cur_x += w + 6; return rc; };
-    auto in = [&](const SDL_Rect &rc)
-    { return px >= rc.x && px < rc.x + rc.w && py >= rc.y && py < rc.y + rc.h; };
-    auto dd_w = [&](const char *txt)
-    { int tw = text_w(font, txt); return std::max(90, tw + 26); };
+    if (type != EB_BROADCAST) cap_y += 4;
+
+    auto adv_word = [&](const char *w) { cur_x += text_w(font, w) + 6; };
+    auto cap_rect = [&](int w) {
+        SDL_Rect rc{cur_x, cap_y, w, cap_h};
+        cur_x += w + 6;
+        return rc;
+    };
+    auto dd_w = [&](const char *txt) { return std::max(90, text_w(font, txt) + 26); };
+    auto in = [&](const SDL_Rect &rc) { return px >= rc.x && px < rc.x + rc.w && py >= rc.y && py < rc.y + rc.h; };
 
     switch (type)
     {
-    case EB_WHEN_FLAG_CLICKED:
-        return -1;
     case EB_WHEN_KEY_PRESSED:
         adv_word("when");
-        if (in(cap_rect(dd_w(events_key_label(opt)))))
-            return -2;
-        adv_word("key");
-        adv_word("pressed");
-        return -1;
-    case EB_WHEN_SPRITE_CLICKED:
+        if (in(cap_rect(dd_w(events_key_label(opt))))) return -2;
         return -1;
     case EB_WHEN_I_RECEIVE:
-        adv_word("when");
-        adv_word("I");
-        adv_word("receive");
-        if (in(cap_rect(dd_w(events_message_label(opt)))))
-            return -2;
+        adv_word("when"); adv_word("I"); adv_word("receive");
+        if (in(cap_rect(dd_w(events_message_label(state, opt))))) return -2;
         return -1;
     case EB_BROADCAST:
         adv_word("broadcast");
-        if (in(cap_rect(dd_w(events_message_label(opt)))))
-            return -2;
+        if (in(cap_rect(dd_w(events_message_label(state, opt))))) return -2;
         return -1;
-    default:
-        return -1;
+    default: return -1;
     }
 }
-
 /* ================================================================ */
 /* ================       S E N S I N G       ==================== */
 /* ================================================================ */
@@ -1491,14 +1468,12 @@ int sensing_boolean_block_width(SensingBlockType type)
 {
     switch (type)
     {
-    case SENSB_TOUCHING:
-        return 280;
-    case SENSB_KEY_PRESSED:
-        return 280;
-    case SENSB_MOUSE_DOWN:
-        return 240;
-    default:
-        return 260;
+    case SENSB_TOUCHING: return 280;
+    case SENSB_KEY_PRESSED: return 280;
+    case SENSB_MOUSE_DOWN: return 240;
+    case SENSB_TOUCHING_COLOR: return 180;
+    case SENSB_COLOR_IS_TOUCHING_COLOR: return 240;
+    default: return 260;
     }
 }
 
@@ -1510,7 +1485,7 @@ SDL_Rect sensing_boolean_block_rect(SensingBlockType type, int x, int y, int opt
 
 void sensing_boolean_block_draw(SDL_Renderer *r, TTF_Font *font,
                                 SensingBlockType type, int x, int y,
-                                int opt, int a, int b, int c, int d, int e, int f,
+                                int opt, int r1, int g1, int b1, int r2, int g2, int b2,
                                 bool ghost, Color panel_bg, int selected_field, const char *override_field0_text)
 {
     Color sensing_col = {74, 189, 211};
@@ -1540,21 +1515,35 @@ void sensing_boolean_block_draw(SDL_Renderer *r, TTF_Font *font,
         cur_x += cap_w + 6;
     };
 
+    auto draw_color_picker = [&](int col_r, int col_g, int col_b) {
+        SDL_Rect cap = input_capsule_rect(cur_x, cap_y, 32, cap_h);
+        renderer_fill_rounded_rect(r, &cap, cap.h / 2, col_r, col_g, col_b);
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(r, 0, 0, 0, 50);
+        SDL_RenderDrawRect(r, &cap);
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_NONE);
+        cur_x += 38;
+    };
+
     switch (type)
     {
     case SENSB_TOUCHING:
-        draw_word("touching");
-        draw_dd(sensing_touching_label(opt));
-        draw_word("?");
+        draw_word("touching"); draw_dd(sensing_touching_label(opt)); draw_word("?");
         break;
     case SENSB_KEY_PRESSED:
-        draw_word("key");
-        draw_dd(sensing_key_label(opt));
-        draw_word("pressed?");
+        draw_word("key"); draw_dd(sensing_key_label(opt)); draw_word("pressed?");
         break;
     case SENSB_MOUSE_DOWN:
-        draw_word("mouse");
-        draw_word("down?");
+        draw_word("mouse"); draw_word("down?");
+        break;
+    
+    // ---> FIXED: COLOR BLOCK RENDERING <---
+    case SENSB_TOUCHING_COLOR:
+        draw_word("touching color"); draw_color_picker(r1, g1, b1); draw_word("?");
+        break;
+    case SENSB_COLOR_IS_TOUCHING_COLOR:
+        draw_word("color"); draw_color_picker(r1, g1, b1); 
+        draw_word("is touching"); draw_color_picker(r2, g2, b2); draw_word("?");
         break;
     default:
         draw_word("sensing");
@@ -1562,9 +1551,7 @@ void sensing_boolean_block_draw(SDL_Renderer *r, TTF_Font *font,
     }
 }
 
-int sensing_boolean_block_hittest_field(TTF_Font *font, SensingBlockType type, int x, int y,
-                                        int opt, int a, int b, int c, int d, int e, int f, int px, int py)
-{
+int sensing_boolean_block_hittest_field(TTF_Font *font, SensingBlockType type, int x, int y,int opt, int a, int b, int c, int d, int e, int f, int px, int py){
     SDL_Rect br = sensing_boolean_block_rect(type, x, y, opt);
     if (!(px >= br.x && px < br.x + br.w && py >= br.y && py < br.y + br.h))
         return -1;
@@ -1586,15 +1573,25 @@ int sensing_boolean_block_hittest_field(TTF_Font *font, SensingBlockType type, i
     {
     case SENSB_TOUCHING:
         adv_word("touching");
-        if (in(cap_rect(dd_w(sensing_touching_label(opt)))))
-            return -2;
+        if (in(cap_rect(dd_w(sensing_touching_label(opt))))) return -2;
         return -1;
     case SENSB_KEY_PRESSED:
         adv_word("key");
-        if (in(cap_rect(dd_w(sensing_key_label(opt)))))
-            return -2;
+        if (in(cap_rect(dd_w(sensing_key_label(opt))))) return -2;
         return -1;
     case SENSB_MOUSE_DOWN:
+        return -1;
+    
+    // ---> FIXED: COLOR BLOCK HIT ZONES <---
+    case SENSB_TOUCHING_COLOR:
+        adv_word("touching color");
+        if (in(cap_rect(32))) return -5; // Magic number -5 for color picker 1
+        return -1;
+    case SENSB_COLOR_IS_TOUCHING_COLOR:
+        adv_word("color");
+        if (in(cap_rect(32))) return -5; // Magic number -5 for color picker 1
+        adv_word("is touching");
+        if (in(cap_rect(32))) return -6; // Magic number -6 for color picker 2
         return -1;
     default:
         return -1;
@@ -2623,6 +2620,8 @@ SDL_Rect sensing_reporter_block_rect(SensingBlockType type, int x, int y)
         return {x, y, 80, 40};
     if (type == SENSB_DISTANCE_TO)
         return {x, y, 220, 40};
+    if (type == SENSB_MOUSE_X || type == SENSB_MOUSE_Y)
+        return {x, y, 100, 40}; // ---> FIXED: Proper width for Mouse X/Y
     return {x, y, 100, 40};
 }
 
@@ -2631,18 +2630,24 @@ void sensing_reporter_block_draw(SDL_Renderer *r, TTF_Font *font, SensingBlockTy
     Color c = {90, 188, 216};
     SDL_Rect br = sensing_reporter_block_rect(type, x, y);
     draw_reporter_shape(r, br, c, ghost);
-    if (type == SENSB_ANSWER)
-    {
+    
+    if (type == SENSB_ANSWER) {
         draw_text(r, font, "answer", br.x + 16, br.y + 12, {255, 255, 255});
     }
-    else if (type == SENSB_DISTANCE_TO)
-    {
+    else if (type == SENSB_DISTANCE_TO) {
         draw_text(r, font, "distance to", br.x + 16, br.y + 12, {255, 255, 255});
         int cx = br.x + 16 + text_w(font, "distance to") + 8;
         SDL_Rect drop_r = {cx, br.y + 8, 100, 24};
         draw_dropdown_capsule(r, drop_r, {70, 150, 175});
         draw_text(r, font, "mouse-pointer", drop_r.x + 6, drop_r.y + 4, {255, 255, 255});
         draw_caret(r, drop_r.x + drop_r.w - 12, drop_r.y + 12, {255, 255, 255});
+    }
+    // ---> FIXED: Draw text for Mouse X and Mouse Y <---
+    else if (type == SENSB_MOUSE_X) {
+        draw_text(r, font, "mouse x", br.x + 16, br.y + 12, {255, 255, 255});
+    }
+    else if (type == SENSB_MOUSE_Y) {
+        draw_text(r, font, "mouse y", br.x + 16, br.y + 12, {255, 255, 255});
     }
 }
 

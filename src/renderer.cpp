@@ -144,7 +144,7 @@ void renderer_draw_texture_fit(SDL_Renderer *r, SDL_Texture *tex, const SDL_Rect
     SDL_RenderCopy(r, tex, NULL, &fit);
 }
 
-// ---> NEW: PEN ENGINE IMPLEMENTATION <---
+// ---> PEN ENGINE IMPLEMENTATION (Using your exact math!) <---
 SDL_Renderer *g_pen_renderer = nullptr;
 SDL_Texture *g_pen_layer = nullptr;
 
@@ -153,6 +153,8 @@ void renderer_init_pen_layer(SDL_Renderer *r)
     g_pen_renderer = r;
     if (g_pen_layer)
         SDL_DestroyTexture(g_pen_layer);
+
+    // Explicit fixed 480x360 coordinate system
     g_pen_layer = SDL_CreateTexture(r, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 480, 360);
     SDL_SetTextureBlendMode(g_pen_layer, SDL_BLENDMODE_BLEND);
     renderer_clear_pen_layer();
@@ -162,16 +164,20 @@ void renderer_clear_pen_layer()
 {
     if (!g_pen_layer || !g_pen_renderer)
         return;
+
+    SDL_Texture *prev_target = SDL_GetRenderTarget(g_pen_renderer);
     SDL_SetRenderTarget(g_pen_renderer, g_pen_layer);
     SDL_SetRenderDrawColor(g_pen_renderer, 0, 0, 0, 0); // Transparent Background
     SDL_RenderClear(g_pen_renderer);
-    SDL_SetRenderTarget(g_pen_renderer, NULL);
+    SDL_SetRenderTarget(g_pen_renderer, prev_target); // Safely restore
 }
 
 void renderer_draw_line_on_pen_layer(int x1, int y1, int x2, int y2, int size, SDL_Color color)
 {
     if (!g_pen_layer || !g_pen_renderer)
         return;
+
+    SDL_Texture *prev_target = SDL_GetRenderTarget(g_pen_renderer);
     SDL_SetRenderTarget(g_pen_renderer, g_pen_layer);
 
     // Convert Scratch coordinates to Window screen coordinates
@@ -202,13 +208,15 @@ void renderer_draw_line_on_pen_layer(int x1, int y1, int x2, int y2, int size, S
             cy += y_inc;
         }
     }
-    SDL_SetRenderTarget(g_pen_renderer, NULL);
+    SDL_SetRenderTarget(g_pen_renderer, prev_target);
 }
 
 void renderer_stamp_on_pen_layer(const Sprite &spr)
 {
     if (!g_pen_layer || !g_pen_renderer || !spr.texture)
         return;
+        
+    SDL_Texture *prev_target = SDL_GetRenderTarget(g_pen_renderer);
     SDL_SetRenderTarget(g_pen_renderer, g_pen_layer);
 
     int cx = 240 + spr.x;
@@ -216,6 +224,7 @@ void renderer_stamp_on_pen_layer(const Sprite &spr)
     int tex_w = 100, tex_h = 100;
     SDL_QueryTexture(spr.texture, NULL, NULL, &tex_w, &tex_h);
 
+    // YOUR EXACT MATH
     int base_w = tex_w, base_h = tex_h;
     int MAX_DEFAULT = 120;
     if (base_w > MAX_DEFAULT || base_h > MAX_DEFAULT)
@@ -236,6 +245,23 @@ void renderer_stamp_on_pen_layer(const Sprite &spr)
     SDL_Rect dest = {cx - w / 2, cy - h / 2, w, h};
 
     double angle = spr.direction - 90.0;
-    SDL_RenderCopyEx(g_pen_renderer, spr.texture, NULL, &dest, angle, NULL, SDL_FLIP_NONE);
-    SDL_SetRenderTarget(g_pen_renderer, NULL);
+    
+    // 1. Check Flips
+    SDL_RendererFlip flip = SDL_FLIP_NONE;
+    if (!spr.costumes.empty() && spr.selected_costume >= 0 && spr.selected_costume < (int)spr.costumes.size()) {
+        if (spr.costumes[spr.selected_costume].flip_h) flip = (SDL_RendererFlip)(flip | SDL_FLIP_HORIZONTAL);
+        if (spr.costumes[spr.selected_costume].flip_v) flip = (SDL_RendererFlip)(flip | SDL_FLIP_VERTICAL);
+    }
+
+    // 2. Safely apply Blend Mode so backgrounds stay transparent!
+    SDL_BlendMode oldMode;
+    SDL_GetTextureBlendMode(spr.texture, &oldMode);
+    SDL_SetTextureBlendMode(spr.texture, SDL_BLENDMODE_BLEND);
+
+    // 3. Draw!
+    SDL_RenderCopyEx(g_pen_renderer, spr.texture, NULL, &dest, angle, NULL, flip);
+    
+    // 4. Safely restore
+    SDL_SetTextureBlendMode(spr.texture, oldMode);
+    SDL_SetRenderTarget(g_pen_renderer, prev_target);
 }

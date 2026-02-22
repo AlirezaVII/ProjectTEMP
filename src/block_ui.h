@@ -53,10 +53,11 @@ int sound_block_hittest_field(TTF_Font *font, const AppState &state, SoundBlockT
 
 int events_block_width(EventsBlockType type);
 SDL_Rect events_block_rect(EventsBlockType type, int x, int y, int opt);
-void events_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex,
+void events_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex, const AppState &state,
                        EventsBlockType type, int x, int y, int opt,
                        bool ghost, Color panel_bg, int selected_field);
-int events_block_hittest_field(TTF_Font *font, EventsBlockType type, int x, int y, int opt, int px, int py);
+                       
+int events_block_hittest_field(TTF_Font *font, const AppState &state, EventsBlockType type, int x, int y, int opt, int px, int py);
 
 int  sensing_block_width(SensingBlockType type);
 SDL_Rect sensing_block_rect(SensingBlockType type, int x, int y);

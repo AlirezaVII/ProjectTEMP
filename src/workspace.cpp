@@ -183,9 +183,10 @@ static SDL_Rect block_rect(const AppState &state, const BlockInstance &b)
     if (b.kind == BK_SENSING)
     {
         SensingBlockType sbt = (SensingBlockType)b.subtype;
-        if (sbt == SENSB_TOUCHING || sbt == SENSB_KEY_PRESSED || sbt == SENSB_MOUSE_DOWN)
+        // ---> FIXED: ADDED COLOR BLOCKS AND MOUSE X/Y REPORTERS <---
+        if (sbt == SENSB_TOUCHING || sbt == SENSB_KEY_PRESSED || sbt == SENSB_MOUSE_DOWN || sbt == SENSB_TOUCHING_COLOR || sbt == SENSB_COLOR_IS_TOUCHING_COLOR)
             return sensing_boolean_block_rect(sbt, b.x, b.y, b.opt);
-        else if (sbt == SENSB_ANSWER || sbt == SENSB_DISTANCE_TO)
+        else if (sbt == SENSB_ANSWER || sbt == SENSB_DISTANCE_TO || sbt == SENSB_MOUSE_X || sbt == SENSB_MOUSE_Y)
             return sensing_reporter_block_rect(sbt, b.x, b.y);
         else
             return sensing_stack_block_rect(sbt, b.x, b.y, b.opt);
@@ -230,16 +231,17 @@ static SDL_Rect get_capsule_rect(TTF_Font *font, const AppState &state, const Bl
         else if (b.kind == BK_SOUND)
             field = sound_block_hittest_field(font, state, (SoundBlockType)b.subtype, b.x, b.y, b.a, b.opt, px, cy);
         else if (b.kind == BK_EVENTS)
-            field = events_block_hittest_field(font, (EventsBlockType)b.subtype, b.x, b.y, b.opt, px, cy);
+            field = events_block_hittest_field(font, state, (EventsBlockType)b.subtype, b.x, b.y, b.opt, px, cy);
         else if (b.kind == BK_PEN)
             field = pen_block_hittest_field(font, (PenBlockType)b.subtype, b.x, b.y, b.opt, px, cy);
         else if (b.kind == BK_CONTROL)
             field = control_block_hittest_field(font, (ControlBlockType)b.subtype, b.x, b.y, chain_height(state, b.child_id), chain_height(state, b.child2_id), b.a, px, cy);
         else if (b.kind == BK_SENSING)
         {
-            if (b.subtype == SENSB_TOUCHING || b.subtype == SENSB_KEY_PRESSED || b.subtype == SENSB_MOUSE_DOWN)
+            // ---> FIXED: ADDED COLOR BLOCKS AND MOUSE X/Y REPORTERS <---
+            if (b.subtype == SENSB_TOUCHING || b.subtype == SENSB_KEY_PRESSED || b.subtype == SENSB_MOUSE_DOWN || b.subtype == SENSB_TOUCHING_COLOR || b.subtype == SENSB_COLOR_IS_TOUCHING_COLOR)
                 field = sensing_boolean_block_hittest_field(font, (SensingBlockType)b.subtype, b.x, b.y, b.opt, b.a, b.b, b.c, b.d, b.e, b.f, px, cy);
-            else if (b.subtype == SENSB_ANSWER || b.subtype == SENSB_DISTANCE_TO)
+            else if (b.subtype == SENSB_ANSWER || b.subtype == SENSB_DISTANCE_TO || b.subtype == SENSB_MOUSE_X || b.subtype == SENSB_MOUSE_Y)
                 field = sensing_reporter_block_hittest_field(font, (SensingBlockType)b.subtype, b.x, b.y, px, cy);
             else
                 field = sensing_stack_block_hittest_field(font, (SensingBlockType)b.subtype, b.x, b.y, b.text, b.opt, px, cy);
@@ -627,14 +629,29 @@ static void compute_snap(AppState &state, TTF_Font *font)
         return;
     const int SNAP_DIST = 20;
     SDL_Rect dr = {state.drag.ghost_x, state.drag.ghost_y, 200, 40};
+
+    // ---> FIXED: INCORPORATED ALL NEW SENSING BOOLS <---
     auto is_bool = [](BlockKind k, int sub)
-    { if (k == BK_SENSING && (sub == SENSB_TOUCHING || sub == SENSB_KEY_PRESSED || sub == SENSB_MOUSE_DOWN)) return true; if (k == BK_OPERATORS && (sub == OP_GT || sub == OP_LT || sub == OP_EQ || sub == OP_AND || sub == OP_OR || sub == OP_NOT)) return true; return false; };
+    {
+        if (k == BK_SENSING && (sub == SENSB_TOUCHING || sub == SENSB_KEY_PRESSED || sub == SENSB_MOUSE_DOWN || sub == SENSB_TOUCHING_COLOR || sub == SENSB_COLOR_IS_TOUCHING_COLOR))
+            return true;
+        if (k == BK_OPERATORS && (sub == OP_GT || sub == OP_LT || sub == OP_EQ || sub == OP_AND || sub == OP_OR || sub == OP_NOT))
+            return true;
+        return false;
+    };
+
     bool dragging_bool = false;
     bool dragging_reporter = false;
+
     if (state.drag.from_palette)
     {
         dragging_bool = is_bool(state.drag.palette_kind, state.drag.palette_subtype);
-        dragging_reporter = (state.drag.palette_kind == BK_OPERATORS) || (state.drag.palette_kind == BK_VARIABLES && state.drag.palette_subtype == VB_VARIABLE) || dragging_bool || (state.drag.palette_kind == BK_SENSING && (state.drag.palette_subtype == SENSB_ANSWER || state.drag.palette_subtype == SENSB_DISTANCE_TO)) || (state.drag.palette_kind == BK_LOOKS && (state.drag.palette_subtype == LB_SIZE || state.drag.palette_subtype == LB_BACKDROP_NUM_NAME || state.drag.palette_subtype == LB_COSTUME_NUM_NAME));
+        // ---> FIXED: INCORPORATED ALL NEW SENSING REPORTERS <---
+        dragging_reporter = (state.drag.palette_kind == BK_OPERATORS) ||
+                            (state.drag.palette_kind == BK_VARIABLES && state.drag.palette_subtype == VB_VARIABLE) ||
+                            dragging_bool ||
+                            (state.drag.palette_kind == BK_SENSING && (state.drag.palette_subtype == SENSB_ANSWER || state.drag.palette_subtype == SENSB_DISTANCE_TO || state.drag.palette_subtype == SENSB_MOUSE_X || state.drag.palette_subtype == SENSB_MOUSE_Y)) ||
+                            (state.drag.palette_kind == BK_LOOKS && (state.drag.palette_subtype == LB_SIZE || state.drag.palette_subtype == LB_BACKDROP_NUM_NAME || state.drag.palette_subtype == LB_COSTUME_NUM_NAME));
     }
     else
     {
@@ -645,7 +662,12 @@ static void compute_snap(AppState &state, TTF_Font *font)
             dr.x = state.drag.ghost_x;
             dr.y = state.drag.ghost_y;
             dragging_bool = is_bool(rb->kind, rb->subtype);
-            dragging_reporter = (rb->kind == BK_OPERATORS) || (rb->kind == BK_VARIABLES && rb->subtype == VB_VARIABLE) || dragging_bool || (rb->kind == BK_SENSING && (rb->subtype == SENSB_ANSWER || rb->subtype == SENSB_DISTANCE_TO)) || (rb->kind == BK_LOOKS && (rb->subtype == LB_SIZE || rb->subtype == LB_BACKDROP_NUM_NAME || rb->subtype == LB_COSTUME_NUM_NAME));
+            // ---> FIXED: INCORPORATED ALL NEW SENSING REPORTERS <---
+            dragging_reporter = (rb->kind == BK_OPERATORS) ||
+                                (rb->kind == BK_VARIABLES && rb->subtype == VB_VARIABLE) ||
+                                dragging_bool ||
+                                (rb->kind == BK_SENSING && (rb->subtype == SENSB_ANSWER || rb->subtype == SENSB_DISTANCE_TO || rb->subtype == SENSB_MOUSE_X || rb->subtype == SENSB_MOUSE_Y)) ||
+                                (rb->kind == BK_LOOKS && (rb->subtype == LB_SIZE || rb->subtype == LB_BACKDROP_NUM_NAME || rb->subtype == LB_COSTUME_NUM_NAME));
         }
     }
 
@@ -687,16 +709,17 @@ static void compute_snap(AppState &state, TTF_Font *font)
                 else if (b->kind == BK_SOUND)
                     field = sound_block_hittest_field(font, state, (SoundBlockType)b->subtype, b->x, b->y, b->a, b->opt, px, py);
                 else if (b->kind == BK_EVENTS)
-                    field = events_block_hittest_field(font, (EventsBlockType)b->subtype, b->x, b->y, b->opt, px, py);
+                    field = events_block_hittest_field(font, state, (EventsBlockType)b->subtype, b->x, b->y, b->opt, px, py);
                 else if (b->kind == BK_PEN)
                     field = pen_block_hittest_field(font, (PenBlockType)b->subtype, b->x, b->y, b->opt, px, py);
                 else if (b->kind == BK_CONTROL)
                     field = control_block_hittest_field(font, (ControlBlockType)b->subtype, b->x, b->y, chain_height(state, b->child_id), chain_height(state, b->child2_id), b->a, px, py);
                 else if (b->kind == BK_SENSING)
                 {
-                    if (b->subtype == SENSB_TOUCHING || b->subtype == SENSB_KEY_PRESSED || b->subtype == SENSB_MOUSE_DOWN)
+                    // ---> FIXED: ADDED COLOR BLOCKS AND MOUSE X/Y REPORTERS <---
+                    if (b->subtype == SENSB_TOUCHING || b->subtype == SENSB_KEY_PRESSED || b->subtype == SENSB_MOUSE_DOWN || b->subtype == SENSB_TOUCHING_COLOR || b->subtype == SENSB_COLOR_IS_TOUCHING_COLOR)
                         field = sensing_boolean_block_hittest_field(font, (SensingBlockType)b->subtype, b->x, b->y, b->opt, b->a, b->b, b->c, b->d, b->e, b->f, px, py);
-                    else if (b->subtype == SENSB_ANSWER || b->subtype == SENSB_DISTANCE_TO)
+                    else if (b->subtype == SENSB_ANSWER || b->subtype == SENSB_DISTANCE_TO || b->subtype == SENSB_MOUSE_X || b->subtype == SENSB_MOUSE_Y)
                         field = sensing_reporter_block_hittest_field(font, (SensingBlockType)b->subtype, b->x, b->y, px, py);
                     else
                         field = sensing_stack_block_hittest_field(font, (SensingBlockType)b->subtype, b->x, b->y, b->text, b->opt, px, py);
@@ -712,6 +735,8 @@ static void compute_snap(AppState &state, TTF_Font *font)
                 {
                     field = variables_block_hittest_field(font, state, (VariablesBlockType)b->subtype, b->x, b->y, b->text, b->opt, px, py);
                 }
+
+                // Color pickers map to -5 and -6, not reporters!
                 if (field >= 0 && field <= 2)
                 {
                     best_dist = 0;
@@ -825,15 +850,16 @@ static void draw_chain(SDL_Renderer *r, TTF_Font *font, const Textures &tex, con
         else if (b->kind == BK_SOUND)
             sound_block_draw(r, font, state, (SoundBlockType)b->subtype, bx, by, b->a, b->opt, ghost, bg, sel, ov0);
         else if (b->kind == BK_EVENTS)
-            events_block_draw(r, font, tex, (EventsBlockType)b->subtype, bx, by, b->opt, ghost, bg, -1);
+            events_block_draw(r, font, tex, state, (EventsBlockType)b->subtype, bx, by, b->opt, ghost, bg, -1);
         else if (b->kind == BK_PEN)
             pen_block_draw(r, font, state, (PenBlockType)b->subtype, bx, by, b->a, b->opt, ghost, bg, sel, ov0);
         else if (b->kind == BK_SENSING)
         {
             SensingBlockType sbt = (SensingBlockType)b->subtype;
-            if (sbt == SENSB_TOUCHING || sbt == SENSB_KEY_PRESSED || sbt == SENSB_MOUSE_DOWN)
-                sensing_boolean_block_draw(r, font, sbt, bx, by, b->opt, b->a, b->b, b->c, b->d, b->e, b->f, ghost, bg, sel, ov0);
-            else if (sbt == SENSB_ANSWER || sbt == SENSB_DISTANCE_TO)
+            // ---> FIXED: ADDED COLOR BLOCKS AND MOUSE X/Y REPORTERS <---
+            if (sbt == SENSB_TOUCHING || sbt == SENSB_KEY_PRESSED || sbt == SENSB_MOUSE_DOWN || sbt == SENSB_TOUCHING_COLOR || sbt == SENSB_COLOR_IS_TOUCHING_COLOR)
+                sensing_boolean_block_draw(r, font, sbt, bx, by, b->opt, b->color1.r, b->color1.g, b->color1.b, b->color2.r, b->color2.g, b->color2.b, ghost, bg, sel, ov0);
+            else if (sbt == SENSB_ANSWER || sbt == SENSB_DISTANCE_TO || sbt == SENSB_MOUSE_X || sbt == SENSB_MOUSE_Y)
                 sensing_reporter_block_draw(r, font, sbt, bx, by, ghost);
             else
                 sensing_stack_block_draw(r, font, sbt, bx, by, b->text, b->opt, ghost, bg, sel, ov0);
@@ -972,6 +998,7 @@ void workspace_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex, const 
             def.id = 9999;
             def.x = state.drag.ghost_x;
             def.y = state.drag.ghost_y;
+
             if (state.selected_sprite >= 0)
                 ((AppState &)state).sprites[state.selected_sprite].blocks.push_back(def);
             draw_chain(r, font, tex, state, bg, 9999, true, dx, dy);
@@ -1044,6 +1071,7 @@ static void finish_drag(AppState &state)
         }
         b.x = state.drag.snap_valid ? state.drag.snap_x : state.drag.ghost_x;
         b.y = state.drag.snap_valid ? state.drag.snap_y : state.drag.ghost_y;
+
         new_root_id = workspace_add_top_level(state, b);
     }
     else
@@ -1343,7 +1371,7 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
         else if (b->kind == BK_LOOKS)
             field = looks_block_hittest_field(font, state, (LooksBlockType)b->subtype, b->x, b->y, b->text, b->a, b->b, b->opt, e.button.x, e.button.y);
         else if (b->kind == BK_EVENTS)
-            field = events_block_hittest_field(font, (EventsBlockType)b->subtype, b->x, b->y, b->opt, e.button.x, e.button.y);
+            field = events_block_hittest_field(font, state, (EventsBlockType)b->subtype, b->x, b->y, b->opt, e.button.x, e.button.y);
         else if (b->kind == BK_SOUND)
             field = sound_block_hittest_field(font, state, (SoundBlockType)b->subtype, b->x, b->y, b->a, b->opt, e.button.x, e.button.y);
         else if (b->kind == BK_PEN)
@@ -1353,9 +1381,10 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
         else if (b->kind == BK_SENSING)
         {
             SensingBlockType sbt = (SensingBlockType)b->subtype;
-            if (sbt == SENSB_TOUCHING || sbt == SENSB_KEY_PRESSED || sbt == SENSB_MOUSE_DOWN)
+            // ---> FIXED: ADDED COLOR BLOCKS AND MOUSE X/Y REPORTERS <---
+            if (sbt == SENSB_TOUCHING || sbt == SENSB_KEY_PRESSED || sbt == SENSB_MOUSE_DOWN || sbt == SENSB_TOUCHING_COLOR || sbt == SENSB_COLOR_IS_TOUCHING_COLOR)
                 field = sensing_boolean_block_hittest_field(font, sbt, b->x, b->y, b->opt, b->a, b->b, b->c, b->d, b->e, b->f, e.button.x, e.button.y);
-            else if (sbt == SENSB_ANSWER || sbt == SENSB_DISTANCE_TO)
+            else if (sbt == SENSB_ANSWER || sbt == SENSB_DISTANCE_TO || sbt == SENSB_MOUSE_X || sbt == SENSB_MOUSE_Y)
                 field = sensing_reporter_block_hittest_field(font, sbt, b->x, b->y, e.button.x, e.button.y);
             else
                 field = sensing_stack_block_hittest_field(font, sbt, b->x, b->y, b->text, b->opt, e.button.x, e.button.y);
@@ -1370,9 +1399,22 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
         else if (b->kind == BK_VARIABLES)
             field = variables_block_hittest_field(font, state, (VariablesBlockType)b->subtype, b->x, b->y, b->text, b->opt, e.button.x, e.button.y);
 
+        // ---> FIXED: COLOR PICKERS FOR SENSING BLOCKS ADDED <---
         if (field == -4)
         {
             state.active_input = INPUT_PEN_COLOR_PICKER;
+            return true;
+        }
+        else if (field == -5)
+        {
+            state.active_input = INPUT_BLOCK_COLOR_PICKER_1;
+            state.block_input.block_id = b->id;
+            return true;
+        }
+        else if (field == -6)
+        {
+            state.active_input = INPUT_BLOCK_COLOR_PICKER_2;
+            state.block_input.block_id = b->id;
             return true;
         }
         else if (field == -2)
@@ -1390,6 +1432,11 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
                 max_opt = 41;
             else if (b->kind == BK_EVENTS && b->subtype == EB_WHEN_KEY_PRESSED)
                 max_opt = 41;
+
+            // ---> FIXED: Dynamic limits for Event Broadcast/Receive messages <---
+            else if (b->kind == BK_EVENTS && (b->subtype == EB_WHEN_I_RECEIVE || b->subtype == EB_BROADCAST))
+                max_opt = state.messages.size();
+
             else if (b->kind == BK_LOOKS && b->subtype == LB_SWITCH_COSTUME_TO)
                 max_opt = 3;
             else if (b->kind == BK_LOOKS && b->subtype == LB_SWITCH_BACKDROP_TO)

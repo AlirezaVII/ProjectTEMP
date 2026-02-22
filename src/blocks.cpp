@@ -1,8 +1,8 @@
 #include "blocks.h"
 #include <cstring>
 #include <algorithm>
+#include <string>
 
-// 'My Blocks' MUST be at Index 8, and 'Pen' MUST be at Index 9 to match main.cpp
 static const char *CAT_NAMES[] = {
     "Motion", "Looks", "Sound", "Events",
     "Control", "Sensing", "Operators", "Variables", "My Blocks", "Pen"};
@@ -92,11 +92,7 @@ int blocks_get_for_category(const AppState &state, int cat, BlockDef *out, int m
     int n = 0;
 
     auto push = [&](BlockDef b)
-    {
-        if (out && n < max_out)
-            out[n] = b;
-        n++;
-    };
+    { if (out && n < max_out) out[n] = b; n++; };
 
     switch (cat)
     {
@@ -137,10 +133,11 @@ int blocks_get_for_category(const AppState &state, int cat, BlockDef *out, int m
         push(make_stack(BK_SOUND, (int)SB_PLAY_SOUND_UNTIL_DONE, c, 330, 40, "play sound until done"));
         break;
     case 3: /* Events */
-        push(make_stack(BK_EVENTS, (int)EB_WHEN_FLAG_CLICKED, c, 260, 40, "when flag clicked"));
-        push(make_stack(BK_EVENTS, (int)EB_WHEN_KEY_PRESSED, c, 330, 40, "when key pressed"));
-        push(make_stack(BK_EVENTS, (int)EB_WHEN_SPRITE_CLICKED, c, 280, 40, "when sprite clicked"));
-        push(make_stack(BK_EVENTS, (int)EB_WHEN_I_RECEIVE, c, 320, 40, "when I receive"));
+        // ---> FIXED: Hat blocks use height 48, Broadcast is a normal stack block height 40 <---
+        push(make_stack(BK_EVENTS, (int)EB_WHEN_FLAG_CLICKED, c, 260, 48, "when flag clicked"));
+        push(make_stack(BK_EVENTS, (int)EB_WHEN_KEY_PRESSED, c, 330, 48, "when key pressed"));
+        push(make_stack(BK_EVENTS, (int)EB_WHEN_SPRITE_CLICKED, c, 280, 48, "when sprite clicked"));
+        push(make_stack(BK_EVENTS, (int)EB_WHEN_I_RECEIVE, c, 320, 48, "when I receive"));
         push(make_stack(BK_EVENTS, (int)EB_BROADCAST, c, 260, 40, "broadcast"));
         break;
     case 4: /* Control */
@@ -153,10 +150,14 @@ int blocks_get_for_category(const AppState &state, int cat, BlockDef *out, int m
         break;
     case 5: /* Sensing */
         push(make_boolean(BK_SENSING, (int)SENSB_TOUCHING, c, 280, 36, "touching"));
+        push(make_boolean(BK_SENSING, (int)SENSB_TOUCHING_COLOR, c, 160, 36, "touching color"));
+        push(make_boolean(BK_SENSING, (int)SENSB_COLOR_IS_TOUCHING_COLOR, c, 260, 36, "color is touching color"));
         push(make_stack(BK_SENSING, (int)SENSB_ASK_AND_WAIT, c, 320, 40, "ask and wait"));
         push(make_reporter(BK_SENSING, (int)SENSB_ANSWER, c, 80, 40, "answer"));
         push(make_boolean(BK_SENSING, (int)SENSB_KEY_PRESSED, c, 280, 36, "key pressed"));
         push(make_boolean(BK_SENSING, (int)SENSB_MOUSE_DOWN, c, 220, 36, "mouse down"));
+        push(make_reporter(BK_SENSING, (int)SENSB_MOUSE_X, c, 100, 40, "mouse x"));
+        push(make_reporter(BK_SENSING, (int)SENSB_MOUSE_Y, c, 100, 40, "mouse y"));
         push(make_stack(BK_SENSING, (int)SENSB_SET_DRAG_MODE, c, 300, 40, "set drag mode"));
         push(make_reporter(BK_SENSING, (int)SENSB_DISTANCE_TO, c, 180, 40, "distance to"));
         break;
@@ -185,7 +186,7 @@ int blocks_get_for_category(const AppState &state, int cat, BlockDef *out, int m
         break;
     case 8: /* My Blocks */
         break;
-    case 9: /* ---> PEN IS NOW AT INDEX 9 <--- */
+    case 9: /* Pen */
         push(make_stack(BK_PEN, (int)PB_ERASE_ALL, c, 160, 40, "erase all"));
         push(make_stack(BK_PEN, (int)PB_STAMP, c, 140, 40, "stamp"));
         push(make_stack(BK_PEN, (int)PB_PEN_DOWN, c, 160, 40, "pen down"));

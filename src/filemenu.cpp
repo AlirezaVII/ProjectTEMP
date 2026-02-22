@@ -296,11 +296,19 @@ bool filemenu_handle_event(const SDL_Event &e, AppState &state, const FileMenuRe
             state.variable_values.clear();
             state.variable_visible.clear();
 
+            // Clear messages
+            state.messages.clear();
+            state.messages.push_back("message1");
+
             state.sprites.push_back(Sprite("Sprite1", IMG_LoadTexture(r, "assets/sprites/scratch_cat.png"), "assets/sprites/scratch_cat.png"));
             Mix_Chunk *ds = audio_load_sound("assets/sounds/meow.wav");
             state.sprites.back().sounds.push_back(SoundData("meow", ds, "assets/sounds/meow.wav"));
 
             state.backdrops.push_back(Backdrop("backdrop1", nullptr, ""));
+            
+            // ---> CLEARS PEN LAYER ON NEW FILE <---
+            extern void renderer_init_pen_layer(SDL_Renderer*);
+            renderer_init_pen_layer(r);
 
             state.selected_sprite = 0;
             state.selected_backdrop = 0;
