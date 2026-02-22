@@ -1,6 +1,7 @@
 #include "sprite_panel.h"
 #include "config.h"
-#include "renderer.h" // Added for Pen Layer Cleanup
+#include "renderer.h"
+#include "logger.h" // ---> Logger Integrated!
 #include <cstdio>
 #include <cmath>
 #include <string>
@@ -202,7 +203,7 @@ void sprite_panel_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, c
     }
 }
 
-extern SDL_Renderer* g_main_renderer;
+extern SDL_Renderer *g_main_renderer;
 
 bool sprite_panel_handle_event(const SDL_Event &e, AppState &state, const SpritePanelRects &rects)
 {
@@ -224,6 +225,7 @@ bool sprite_panel_handle_event(const SDL_Event &e, AppState &state, const Sprite
             {
                 state.editing_target_is_stage = true;
                 state.current_tab = TAB_COSTUMES;
+                LogSimple(LOG_INFO, 0, -1, "SELECT_STAGE", "User selected the Stage."); // ---> LOGGED
                 return true;
             }
         }
@@ -241,16 +243,21 @@ bool sprite_panel_handle_event(const SDL_Event &e, AppState &state, const Sprite
                     SDL_Rect del_r = {border.x + border.w - 22, border.y - 10, 24, 24};
                     if (sp_point_in(del_r, mx, my))
                     {
-                        for (auto &c : state.sprites[i].costumes) delete_asset_from_project(c.source_path);
-                        for (auto &s : state.sprites[i].sounds) delete_asset_from_project(s.source_path);
+                        std::string deleted_name = state.sprites[i].name;
+
+                        for (auto &c : state.sprites[i].costumes)
+                            delete_asset_from_project(c.source_path);
+                        for (auto &s : state.sprites[i].sounds)
+                            delete_asset_from_project(s.source_path);
 
                         state.sprites.erase(state.sprites.begin() + i);
+
+                        LogSimple(LOG_INFO, 0, -1, "DELETE_SPRITE", "Deleted Sprite: " + deleted_name); // ---> LOGGED
+
                         if (state.selected_sprite >= (int)state.sprites.size())
                             state.selected_sprite = state.sprites.size() - 1;
-                        
-                        // ---> CLEAR PEN LAYER WHEN DELETING SPRITE <---
-                        extern SDL_Renderer* g_main_renderer; // Using a safe workaround or pass generic clear
-                        renderer_init_pen_layer(nullptr); 
+
+                        renderer_init_pen_layer(nullptr);
                         return true;
                     }
                 }
@@ -259,6 +266,7 @@ bool sprite_panel_handle_event(const SDL_Event &e, AppState &state, const Sprite
                 {
                     state.selected_sprite = i;
                     state.editing_target_is_stage = false;
+                    LogSimple(LOG_INFO, 0, -1, "SELECT_SPRITE", "Selected Sprite: " + state.sprites[i].name); // ---> LOGGED
                     return true;
                 }
 

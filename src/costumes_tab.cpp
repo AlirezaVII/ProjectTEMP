@@ -1,6 +1,7 @@
 #include "costumes_tab.h"
 #include "config.h"
 #include "renderer.h"
+#include "logger.h" // ---> Logger Integrated!
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -477,6 +478,7 @@ bool costumes_tab_handle_event(const SDL_Event &e, AppState &state, SDL_Renderer
             {
                 item->shapes.erase(item->shapes.begin() + state.active_shape_index);
                 state.active_shape_index = -1;
+                LogSimple(LOG_INFO, 0, -1, "EDIT_COSTUME", "Deleted a shape."); // ---> LOGGED
                 return true;
             }
         }
@@ -537,6 +539,9 @@ bool costumes_tab_handle_event(const SDL_Event &e, AppState &state, SDL_Renderer
     }
     else if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT)
     {
+        if (g_is_drawing) {
+            LogSimple(LOG_INFO, 0, -1, "DRAW_SHAPE", "Used Brush/Eraser to draw on canvas."); // ---> LOGGED
+        }
         g_is_drawing = false;
         g_is_dragging = false;
         return false;
@@ -549,7 +554,6 @@ bool costumes_tab_handle_event(const SDL_Event &e, AppState &state, SDL_Renderer
         {
             if (point_in(rects.thumb_dels[i], mx, my) && selected_idx == (int)i)
             {
-                // ---> REMOVE RAW ASSETS FROM OS DISK ON DELETE! <---
                 if (state.editing_target_is_stage && state.backdrops.size() > 1)
                 {
                     delete_asset_from_project(state.backdrops[i].source_path);
@@ -565,6 +569,7 @@ bool costumes_tab_handle_event(const SDL_Event &e, AppState &state, SDL_Renderer
                     if (spr.selected_costume >= (int)spr.costumes.size())
                         spr.selected_costume = spr.costumes.size() - 1;
                 }
+                LogSimple(LOG_INFO, 0, -1, "DELETE_COSTUME", "Deleted a Backdrop/Costume"); // ---> LOGGED
                 return true;
             }
             if (point_in(rects.thumbs[i], mx, my))
@@ -586,37 +591,33 @@ bool costumes_tab_handle_event(const SDL_Event &e, AppState &state, SDL_Renderer
 
         if (point_in(rects.tools[1], mx, my))
         {
-            if (state.active_tool == TOOL_BRUSH)
-                state.active_input = INPUT_PEN_COLOR_PICKER;
-            else
-                state.active_tool = TOOL_BRUSH;
+            if (state.active_tool == TOOL_BRUSH) state.active_input = INPUT_PEN_COLOR_PICKER;
+            else { state.active_tool = TOOL_BRUSH; LogSimple(LOG_INFO, 0, -1, "SELECT_TOOL", "Selected Brush Tool"); } // ---> LOGGED
             return true;
         }
         if (point_in(rects.tools[3], mx, my))
         {
-            if (state.active_tool == TOOL_TEXT)
-                state.active_input = INPUT_PEN_COLOR_PICKER;
-            else
-                state.active_tool = TOOL_TEXT;
+            if (state.active_tool == TOOL_TEXT) state.active_input = INPUT_PEN_COLOR_PICKER;
+            else { state.active_tool = TOOL_TEXT; LogSimple(LOG_INFO, 0, -1, "SELECT_TOOL", "Selected Text Tool"); } // ---> LOGGED
             return true;
         }
         if (point_in(rects.tools[4], mx, my))
         {
-            if (state.active_tool == TOOL_FILL)
-                state.active_input = INPUT_PEN_COLOR_PICKER;
-            else
-                state.active_tool = TOOL_FILL;
+            if (state.active_tool == TOOL_FILL) state.active_input = INPUT_PEN_COLOR_PICKER;
+            else { state.active_tool = TOOL_FILL; LogSimple(LOG_INFO, 0, -1, "SELECT_TOOL", "Selected Fill Tool"); } // ---> LOGGED
             return true;
         }
 
         if (point_in(rects.tools[5], mx, my))
         {
             state.active_tool = TOOL_RECT;
+            LogSimple(LOG_INFO, 0, -1, "SELECT_TOOL", "Selected Rectangle Tool"); // ---> LOGGED
             return true;
         }
         if (point_in(rects.tools[6], mx, my))
         {
             state.active_tool = TOOL_CIRCLE;
+            LogSimple(LOG_INFO, 0, -1, "SELECT_TOOL", "Selected Circle Tool"); // ---> LOGGED
             return true;
         }
         for (int i = 0; i < 7; ++i)
@@ -629,11 +630,13 @@ bool costumes_tab_handle_event(const SDL_Event &e, AppState &state, SDL_Renderer
         if (point_in(rects.flip_h, mx, my) && item)
         {
             item->flip_h = !item->flip_h;
+            LogSimple(LOG_INFO, 0, -1, "FLIP_COSTUME", "Flipped horizontally."); // ---> LOGGED
             return true;
         }
         if (point_in(rects.flip_v, mx, my) && item)
         {
             item->flip_v = !item->flip_v;
+            LogSimple(LOG_INFO, 0, -1, "FLIP_COSTUME", "Flipped vertically."); // ---> LOGGED
             return true;
         }
         if (point_in(rects.del_tool, mx, my) && item)
@@ -644,6 +647,7 @@ bool costumes_tab_handle_event(const SDL_Event &e, AppState &state, SDL_Renderer
                 SDL_DestroyTexture(item->paint_layer);
                 item->paint_layer = nullptr;
             }
+            LogSimple(LOG_INFO, 0, -1, "CLEAR_COSTUME", "Cleared all drawing edits."); // ---> LOGGED
             return true;
         }
         if (point_in(rects.add_btn, mx, my))
@@ -716,6 +720,7 @@ bool costumes_tab_handle_event(const SDL_Event &e, AppState &state, SDL_Renderer
                 state.active_shape_index = item->shapes.size() - 1;
                 state.active_input = INPUT_COSTUME_TEXT;
                 state.input_buffer = "Text";
+                LogSimple(LOG_INFO, 0, -1, "DRAW_SHAPE", "Added Text shape"); // ---> LOGGED
                 return true;
             }
             else if (state.active_tool == TOOL_RECT || state.active_tool == TOOL_CIRCLE)
@@ -730,6 +735,7 @@ bool costumes_tab_handle_event(const SDL_Event &e, AppState &state, SDL_Renderer
                 g_is_dragging = true;
                 g_last_mouse_x = real_tx;
                 g_last_mouse_y = real_ty;
+                LogSimple(LOG_INFO, 0, -1, "DRAW_SHAPE", "Added Rect/Circle shape"); // ---> LOGGED
                 return true;
             }
             else if (state.active_tool == TOOL_FILL)
@@ -740,6 +746,7 @@ bool costumes_tab_handle_event(const SDL_Event &e, AppState &state, SDL_Renderer
                     if (real_tx >= norm_sr.x && real_tx <= norm_sr.x + norm_sr.w && real_ty >= norm_sr.y && real_ty <= norm_sr.y + norm_sr.h)
                     {
                         item->shapes[i].color = state.active_color;
+                        LogSimple(LOG_INFO, 0, -1, "DRAW_SHAPE", "Filled shape with color"); // ---> LOGGED
                         return true;
                     }
                 }

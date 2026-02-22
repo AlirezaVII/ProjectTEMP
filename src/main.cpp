@@ -4,6 +4,7 @@
 
 #include "config.h"
 #include "types.h"
+#include "logger.h"
 #include "textures.h"
 #include "navbar.h"
 #include "filemenu.h"
@@ -113,6 +114,8 @@ int main(int /*argc*/, char * /*argv*/[])
     std::srand(static_cast<unsigned>(std::time(nullptr)));
 
     load_dotenv();
+
+    InitLogger();
 
     const char *debug_ptr = std::getenv("DEBUG_MODE");
 
@@ -528,6 +531,18 @@ int main(int /*argc*/, char * /*argv*/[])
                     }
                     else if (e.key.keysym.sym == SDLK_RETURN || e.key.keysym.sym == SDLK_KP_ENTER || e.key.keysym.sym == SDLK_ESCAPE)
                     {
+
+                        if (state.active_input == INPUT_SOUND_NAME)
+                        {
+                            if (state.selected_sprite >= 0 && state.sprites[state.selected_sprite].selected_sound >= 0)
+                            {
+                                LogEvent(LOG_INFO, 0, -1, "RENAME_SOUND", "Sound Name", state.sprites[state.selected_sprite].sounds[state.sprites[state.selected_sprite].selected_sound].name, state.input_buffer);
+                            }
+                        }
+                        else if (state.active_input == INPUT_COSTUME_NAME)
+                        {
+                            LogSimple(LOG_INFO, 0, -1, "RENAME_COSTUME", "Renamed costume to: " + state.input_buffer);
+                        }
                         if (state.active_input == INPUT_COSTUME_NAME && !state.input_buffer.empty())
                         {
                             if (state.editing_target_is_stage)
@@ -559,6 +574,7 @@ int main(int /*argc*/, char * /*argv*/[])
                         }
                         state.active_input = INPUT_NONE;
                         state.input_buffer.clear();
+                        
                         continue;
                     }
                 }
