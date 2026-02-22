@@ -27,6 +27,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <ctime>
+#include "dotenv.h"
 
 struct LibAsset
 {
@@ -37,6 +38,33 @@ struct LibAsset
 
 static std::vector<LibAsset> global_sprite_lib;
 static std::vector<LibAsset> global_backdrop_lib;
+
+const std::string SCRATCH_ASCII_ART = R"(
+                                                                                                                          
+                                                                                                     .                    
+                                                                                           -                              
+                               .                         ....                                                             
+                 .::::.                            :----::::::-                                      .-----------.      . 
+           .----::::::::           .::--------:.  :..:::....:..::---------------:::-:       .-------::.::---::::.::       
+         :::::--:::  ..::        :::::::----::::::...        :...::----------::::::..:   .:::.::-----::         ..:.      
+        .:.:.     -  ....     :-::..           .::...::--:    :...                 ...::::::::         ::-.  =::.:-       
+        :...  .-:    ...:::-::::::::  .  .::...  .......:     .:.:   -::-  .-::=  .:::--:::  ::::.  -::..:   :..:.        
+        :.:.  :.::   :..::::::--  .:::-  .:::--   ......:  :.  .::.  :..-  .:..:  .-.     :  ...:.  :....:   :..:      .  
+        :.:   -:.:   ..::         .:.:-  :-:     :.....:.  --   -::  ...:  .:..:..-   ::     :..:.  :...:-   :..:         
+        ....   ::-==-:.:   ---.   ...          :-......:  ....   :::::..:  .:....:.  ::::-:  ...:.  -::...   :..:         
+        :.:--       .::.  -...::. .....  ----.  ......::     .:   --::..:  .:....:.  :....::-:..:.           :..:         
+       :...  -:---.   -.  -.....:--:..:  :...:   :....:.  -:::--      ..:  .:....:.  :.....:. ..:.  =-----.  :..:         
+       :...  ::...:=  ..  -.....:   ..:  ::..:   :.        ...   .::::..:  .:......  :.....:   .:.  -....:.  :..:         
+       -.:.   ::-::   -.  -.....:  .::-  :...:   --: .---::...::::...:::-  .-::....  :-:::-:  :--.  =::..:.  -..::        
+       -.:.          :::  .-----.  -        .:.      :..::---::::::..          ...::         :.        ::-.  -::..-       
+       -.:   --:.::-::..:         ::::----::..::: .::..:.      .   -:::------::..:::::.   .::::::::...:.        ..:.      
+       ::.:::..::----:::::::::::::::::::------::::::::-.            .-----------: .-::::::::::-----::.:  .:::::::::       
+ .      :-:::::.        :--::::::-::           .::::.                                ..:::..        :-:::-----:::       . 
+                                                                                                       ..                 
+                                                                  .                                                  =    
+                                    =                                                                            =        
+                                                                                                                          
+)";
 
 static void load_library_sprites(SDL_Renderer *renderer)
 {
@@ -83,6 +111,23 @@ static void render_simple_text(SDL_Renderer *r, TTF_Font *font, const char *text
 int main(int /*argc*/, char * /*argv*/[])
 {
     std::srand(static_cast<unsigned>(std::time(nullptr)));
+
+    load_dotenv();
+
+    const char* debug_ptr = std::getenv("DEBUG_MODE");
+
+    if (debug_ptr){   
+        std::string debug_mode = debug_ptr;
+        if (debug_mode == "1"){
+            std::cout << "[SYSTEM] : WE ARE ON PRODUCTION STAGE!" << std::endl;
+        } else {
+            std::cout << "[SYSTEM] : WE ARE ON DEBUG STAGE!" << std::endl;
+        }
+    }
+
+    std::cout << SCRATCH_ASCII_ART << std::endl;
+
+    std::cout << "Designed by Alireza Mosavi" << std::endl;
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
         return 1;

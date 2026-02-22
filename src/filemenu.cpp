@@ -298,8 +298,6 @@ bool filemenu_handle_event(const SDL_Event &e, AppState &state, const FileMenuRe
 
             state.sprites.push_back(Sprite("Sprite1", IMG_LoadTexture(r, "assets/sprites/scratch_cat.png"), "assets/sprites/scratch_cat.png"));
             Mix_Chunk *ds = audio_load_sound("assets/sounds/meow.wav");
-
-            // ---> FIXED: Unconditionally push the sound so the UI is NEVER empty! <---
             state.sprites.back().sounds.push_back(SoundData("meow", ds, "assets/sounds/meow.wav"));
 
             state.backdrops.push_back(Backdrop("backdrop1", nullptr, ""));
@@ -341,6 +339,10 @@ bool filemenu_handle_event(const SDL_Event &e, AppState &state, const FileMenuRe
                         cleanup_project(state);
                         state.project_name = root.o["project_name"].s;
                         state.next_block_id = root.o["next_block_id"].n;
+
+                        // RESTORE ACTIVE BACKDROP
+                        state.selected_backdrop = (int)root.o["selected_backdrop"].n;
+
                         if (state.next_block_id <= 0)
                             state.next_block_id = 1;
 
@@ -409,6 +411,9 @@ bool filemenu_handle_event(const SDL_Event &e, AppState &state, const FileMenuRe
                             spr.direction = s_val.o["direction"].n;
                             spr.size = s_val.o["size"].n;
                             spr.visible = s_val.o["visible"].b;
+
+                            // RESTORE ACTIVE COSTUME
+                            spr.selected_costume = (int)s_val.o["selected_costume"].n;
 
                             for (auto &c_val : s_val.o["costumes"].a)
                             {
@@ -496,8 +501,11 @@ bool filemenu_handle_event(const SDL_Event &e, AppState &state, const FileMenuRe
                                 spr.top_level_blocks.push_back((int)tl_val.n);
                             }
 
-                            if (!spr.costumes.empty())
+                            if (!spr.costumes.empty() && spr.selected_costume >= 0 && spr.selected_costume < (int)spr.costumes.size())
+                                spr.texture = spr.costumes[spr.selected_costume].texture;
+                            else if (!spr.costumes.empty())
                                 spr.texture = spr.costumes[0].texture;
+
                             state.sprites.push_back(spr);
                         }
 
@@ -507,7 +515,9 @@ bool filemenu_handle_event(const SDL_Event &e, AppState &state, const FileMenuRe
                         }
 
                         state.selected_sprite = 0;
-                        state.selected_backdrop = 0;
+                        if (state.selected_backdrop < 0 || state.selected_backdrop >= (int)state.backdrops.size())
+                            state.selected_backdrop = 0;
+
                         std::cout << "SUCCESS: Workspace fully loaded from " << result << "\n";
                     }
                 }
@@ -532,6 +542,7 @@ bool filemenu_handle_event(const SDL_Event &e, AppState &state, const FileMenuRe
             out << "{\n";
             out << "  \"project_name\": \"" << escape_json(state.project_name) << "\",\n";
             out << "  \"next_block_id\": " << state.next_block_id << ",\n";
+            out << "  \"selected_backdrop\": " << state.selected_backdrop << ",\n";
 
             out << "  \"variables\": [";
             for (size_t vi = 0; vi < state.variables.size(); vi++)
@@ -586,6 +597,7 @@ bool filemenu_handle_event(const SDL_Event &e, AppState &state, const FileMenuRe
                 out << "      \"direction\": " << s.direction << ",\n";
                 out << "      \"size\": " << s.size << ",\n";
                 out << "      \"visible\": " << (s.visible ? "true" : "false") << ",\n";
+                out << "      \"selected_costume\": " << s.selected_costume << ",\n";
 
                 out << "      \"costumes\": [\n";
                 for (size_t c = 0; c < s.costumes.size(); c++)

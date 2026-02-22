@@ -26,7 +26,8 @@ SRC = src/main.cpp \
       src/sprite_panel.cpp\
       src/workspace.cpp\
       src/interpreter.cpp\
-      src/audio.cpp
+      src/audio.cpp\
+      src/dotenv.cpp
 
 OBJ = $(SRC:.cpp=.o)
 TARGET = scratch_clone
