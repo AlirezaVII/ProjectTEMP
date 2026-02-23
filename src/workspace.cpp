@@ -1436,9 +1436,8 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
             // ---> FIXED: Dynamic limits for Event Broadcast/Receive messages <---
             else if (b->kind == BK_EVENTS && (b->subtype == EB_WHEN_I_RECEIVE || b->subtype == EB_BROADCAST))
                 max_opt = state.messages.size();
-
             else if (b->kind == BK_LOOKS && b->subtype == LB_SWITCH_COSTUME_TO)
-                max_opt = 3;
+                max_opt = state.sprites[state.selected_sprite].costumes.size();
             else if (b->kind == BK_LOOKS && b->subtype == LB_SWITCH_BACKDROP_TO)
                 max_opt = state.backdrops.size();
             else if (b->kind == BK_LOOKS && b->subtype == LB_GO_TO_LAYER)

@@ -542,7 +542,7 @@ bool filemenu_handle_event(const SDL_Event &e, AppState &state, const FileMenuRe
                 state.file_menu_open = false;
                 return true;
             }
-            std::string dir = "Projects/" + state.project_name;
+            std::string dir = "projects/" + state.project_name;
             std::filesystem::create_directories(dir + "/assets");
             std::string filepath = dir + "/project.json";
             std::ofstream out(filepath);

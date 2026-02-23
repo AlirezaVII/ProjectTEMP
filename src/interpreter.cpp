@@ -2,7 +2,7 @@
 #include "workspace.h"
 #include "audio.h"
 #include "renderer.h"
-#include "logger.h" 
+#include "logger.h"
 #include "SDL.h"
 #include "config.h"
 #include <cmath>
@@ -16,11 +16,16 @@
 void interpreter_trigger_message(AppState &state, int msg_opt);
 
 // ---> STOP SPRITES FROM GOING OFF SCREEN <---
-static void constrain_sprite_to_stage(Sprite& spr) {
-    if (spr.x < -240) spr.x = -240;
-    if (spr.x > 240) spr.x = 240;
-    if (spr.y < -180) spr.y = -180;
-    if (spr.y > 180) spr.y = 180;
+static void constrain_sprite_to_stage(Sprite &spr)
+{
+    if (spr.x < -240)
+        spr.x = -240;
+    if (spr.x > 240)
+        spr.x = 240;
+    if (spr.y < -180)
+        spr.y = -180;
+    if (spr.y > 180)
+        spr.y = 180;
 }
 
 static void commit_active_typing(AppState &state)
@@ -44,20 +49,56 @@ static void update_pen_rgb(Sprite &spr)
     float m = v - c;
 
     float r = 0, g = 0, b = 0;
-    if (h >= 0 && h < 60) { r = c; g = x; b = 0; }
-    else if (h >= 60 && h < 120) { r = x; g = c; b = 0; }
-    else if (h >= 120 && h < 180) { r = 0; g = c; b = x; }
-    else if (h >= 180 && h < 240) { r = 0; g = x; b = c; }
-    else if (h >= 240 && h < 300) { r = x; g = 0; b = c; }
-    else { r = c; g = 0; b = x; }
+    if (h >= 0 && h < 60)
+    {
+        r = c;
+        g = x;
+        b = 0;
+    }
+    else if (h >= 60 && h < 120)
+    {
+        r = x;
+        g = c;
+        b = 0;
+    }
+    else if (h >= 120 && h < 180)
+    {
+        r = 0;
+        g = c;
+        b = x;
+    }
+    else if (h >= 180 && h < 240)
+    {
+        r = 0;
+        g = x;
+        b = c;
+    }
+    else if (h >= 240 && h < 300)
+    {
+        r = x;
+        g = 0;
+        b = c;
+    }
+    else
+    {
+        r = c;
+        g = 0;
+        b = x;
+    }
 
     spr.pen_color.r = (Uint8)((r + m) * 255);
     spr.pen_color.g = (Uint8)((g + m) * 255);
     spr.pen_color.b = (Uint8)((b + m) * 255);
 }
 
-struct StackFrame { int cur_node; int loop_block_id; int loop_count; };
-struct ScriptThread {
+struct StackFrame
+{
+    int cur_node;
+    int loop_block_id;
+    int loop_count;
+};
+struct ScriptThread
+{
     std::vector<StackFrame> stack;
     unsigned int wait_until;
     bool waiting_for_sound;
@@ -67,12 +108,16 @@ struct ScriptThread {
 };
 static std::vector<ScriptThread> g_threads;
 
-static BlockInstance *interpreter_find_block(Sprite &spr, int id) {
-    for (auto &b : spr.blocks) if (b.id == id) return &b;
+static BlockInstance *interpreter_find_block(Sprite &spr, int id)
+{
+    for (auto &b : spr.blocks)
+        if (b.id == id)
+            return &b;
     return nullptr;
 }
 
-static void get_sprite_screen_rect(Sprite &spr, int &cx, int &cy, int &w, int &h) {
+static void get_sprite_screen_rect(Sprite &spr, int &cx, int &cy, int &w, int &h)
+{
     int col_x = WINDOW_WIDTH - RIGHT_COLUMN_WIDTH;
     int col_h = WINDOW_HEIGHT - NAVBAR_HEIGHT;
     int stage_h = col_h * STAGE_HEIGHT_RATIO / 100;
@@ -101,22 +146,30 @@ static float eval_value(AppState &state, Sprite &spr, int block_id, float defaul
 static std::string eval_string(AppState &state, Sprite &spr, int block_id, const std::string &text_val);
 static bool eval_bool(AppState &state, Sprite &spr, int block_id);
 
-static int compare_scratch(const std::string &s0, const std::string &s1) {
-    if (s0.empty() && s1.empty()) return 0;
+static int compare_scratch(const std::string &s0, const std::string &s1)
+{
+    if (s0.empty() && s1.empty())
+        return 0;
     std::string ts0 = s0.empty() ? "0" : s0;
     std::string ts1 = s1.empty() ? "0" : s1;
-    char *end0; char *end1;
+    char *end0;
+    char *end1;
     float v0 = std::strtof(ts0.c_str(), &end0);
     float v1 = std::strtof(ts1.c_str(), &end1);
     bool num0 = (end0 != ts0.c_str() && *end0 == '\0');
     bool num1 = (end1 != ts1.c_str() && *end1 == '\0');
-    if (num0 && num1) {
-        if (std::abs(v0 - v1) < 0.0001f) return 0;
+    if (num0 && num1)
+    {
+        if (std::abs(v0 - v1) < 0.0001f)
+            return 0;
         return (v0 < v1) ? -1 : 1;
     }
-    std::string ls0 = ts0; std::transform(ls0.begin(), ls0.end(), ls0.begin(), ::tolower);
-    std::string ls1 = ts1; std::transform(ls1.begin(), ls1.end(), ls1.begin(), ::tolower);
-    if (ls0 == ls1) return 0;
+    std::string ls0 = ts0;
+    std::transform(ls0.begin(), ls0.end(), ls0.begin(), ::tolower);
+    std::string ls1 = ts1;
+    std::transform(ls1.begin(), ls1.end(), ls1.begin(), ::tolower);
+    if (ls0 == ls1)
+        return 0;
     return (ls0 < ls1) ? -1 : 1;
 }
 
@@ -125,13 +178,19 @@ static float eval_value(AppState &state, Sprite &spr, int block_id, float defaul
     if (block_id != -1)
     {
         BlockInstance *b = interpreter_find_block(spr, block_id);
-        if (!b) return default_val;
+        if (!b)
+            return default_val;
 
-        if (b->kind == BK_OPERATORS) {
-            if (b->subtype == OP_ADD) return eval_value(state, spr, b->arg0_id, b->a, b->text) + eval_value(state, spr, b->arg1_id, b->b, b->text2);
-            if (b->subtype == OP_SUB) return eval_value(state, spr, b->arg0_id, b->a, b->text) - eval_value(state, spr, b->arg1_id, b->b, b->text2);
-            if (b->subtype == OP_MUL) return eval_value(state, spr, b->arg0_id, b->a, b->text) * eval_value(state, spr, b->arg1_id, b->b, b->text2);
-            if (b->subtype == OP_DIV) {
+        if (b->kind == BK_OPERATORS)
+        {
+            if (b->subtype == OP_ADD)
+                return eval_value(state, spr, b->arg0_id, b->a, b->text) + eval_value(state, spr, b->arg1_id, b->b, b->text2);
+            if (b->subtype == OP_SUB)
+                return eval_value(state, spr, b->arg0_id, b->a, b->text) - eval_value(state, spr, b->arg1_id, b->b, b->text2);
+            if (b->subtype == OP_MUL)
+                return eval_value(state, spr, b->arg0_id, b->a, b->text) * eval_value(state, spr, b->arg1_id, b->b, b->text2);
+            if (b->subtype == OP_DIV)
+            {
                 float denom = eval_value(state, spr, b->arg1_id, b->b, b->text2);
                 return (denom != 0) ? (eval_value(state, spr, b->arg0_id, b->a, b->text) / denom) : 0;
             }
@@ -140,21 +199,41 @@ static float eval_value(AppState &state, Sprite &spr, int block_id, float defaul
             if (b->subtype == OP_JOIN || b->subtype == OP_LETTER_OF || b->subtype == OP_LENGTH_OF)
                 return std::atof(eval_string(state, spr, block_id, "").c_str());
         }
-        if (b->kind == BK_VARIABLES && b->subtype == VB_VARIABLE) return std::atof(state.variable_values[b->text].c_str());
-        if (b->kind == BK_LOOKS) {
-            if (b->subtype == LB_SIZE) return spr.size;
-            if (b->subtype == LB_BACKDROP_NUM_NAME) {
-                if (b->opt == 0) return state.selected_backdrop + 1;
-                if (state.selected_backdrop >= 0 && state.selected_backdrop < (int)state.backdrops.size()) return std::atof(state.backdrops[state.selected_backdrop].name.c_str());
+        if (b->kind == BK_VARIABLES && b->subtype == VB_VARIABLE)
+            return std::atof(state.variable_values[b->text].c_str());
+        if (b->kind == BK_LOOKS)
+        {
+            if (b->subtype == LB_SIZE)
+                return spr.size;
+            if (b->subtype == LB_BACKDROP_NUM_NAME)
+            {
+                if (b->opt == 0)
+                    return state.selected_backdrop + 1;
+                if (state.selected_backdrop >= 0 && state.selected_backdrop < (int)state.backdrops.size())
+                    return std::atof(state.backdrops[state.selected_backdrop].name.c_str());
                 return 0.0f;
             }
-            if (b->subtype == LB_COSTUME_NUM_NAME) return 1.0f;
+            // ---> FIXED: Evaluate costume number and name as a value <---
+            if (b->subtype == LB_COSTUME_NUM_NAME)
+            {
+                if (b->opt == 0)
+                    return spr.selected_costume + 1; // Scratch uses 1-based indexing for costumes
+                if (spr.selected_costume >= 0 && spr.selected_costume < (int)spr.costumes.size())
+                {
+                    return std::atof(spr.costumes[spr.selected_costume].name.c_str());
+                }
+                return 0.0f;
+            }
         }
-        if (b->kind == BK_SENSING) {
-            if (b->subtype == SENSB_ANSWER) return std::atof(state.global_answer.c_str());
-            
-            if (b->subtype == SENSB_MOUSE_X) {
-                int mx, my; SDL_GetMouseState(&mx, &my);
+        if (b->kind == BK_SENSING)
+        {
+            if (b->subtype == SENSB_ANSWER)
+                return std::atof(state.global_answer.c_str());
+
+            if (b->subtype == SENSB_MOUSE_X)
+            {
+                int mx, my;
+                SDL_GetMouseState(&mx, &my);
                 int col_x = WINDOW_WIDTH - RIGHT_COLUMN_WIDTH;
                 int margin = 8;
                 int stage_area_w = RIGHT_COLUMN_WIDTH - margin * 2;
@@ -162,8 +241,10 @@ static float eval_value(AppState &state, Sprite &spr, int block_id, float defaul
                 float scale_x = 480.0f / stage_area_w;
                 return (mx - stage_cx) * scale_x;
             }
-            if (b->subtype == SENSB_MOUSE_Y) {
-                int mx, my; SDL_GetMouseState(&mx, &my);
+            if (b->subtype == SENSB_MOUSE_Y)
+            {
+                int mx, my;
+                SDL_GetMouseState(&mx, &my);
                 int col_h = WINDOW_HEIGHT - NAVBAR_HEIGHT;
                 int stage_h = col_h * STAGE_HEIGHT_RATIO / 100;
                 int margin = 8;
@@ -173,8 +254,10 @@ static float eval_value(AppState &state, Sprite &spr, int block_id, float defaul
                 return (stage_cy - my) * scale_y;
             }
 
-            if (b->subtype == SENSB_DISTANCE_TO) {
-                int mx, my; SDL_GetMouseState(&mx, &my);
+            if (b->subtype == SENSB_DISTANCE_TO)
+            {
+                int mx, my;
+                SDL_GetMouseState(&mx, &my);
                 int col_x = WINDOW_WIDTH - RIGHT_COLUMN_WIDTH;
                 int col_h = WINDOW_HEIGHT - NAVBAR_HEIGHT;
                 int stage_h = col_h * STAGE_HEIGHT_RATIO / 100;
@@ -199,49 +282,81 @@ static float eval_value(AppState &state, Sprite &spr, int block_id, float defaul
                 return eval_bool(state, spr, block_id) ? 1.0f : 0.0f;
         }
     }
-    if (!text_val.empty()) return std::atof(text_val.c_str());
+    if (!text_val.empty())
+        return std::atof(text_val.c_str());
     return default_val;
 }
 
 static std::string eval_string(AppState &state, Sprite &spr, int block_id, const std::string &text_val)
 {
-    if (block_id != -1) {
+    if (block_id != -1)
+    {
         BlockInstance *b = interpreter_find_block(spr, block_id);
-        if (!b) return text_val;
+        if (!b)
+            return text_val;
 
-        if (b->kind == BK_VARIABLES && b->subtype == VB_VARIABLE) return state.variable_values[b->text];
-        if (b->kind == BK_LOOKS) {
-            if (b->subtype == LB_SIZE) return std::to_string(spr.size);
-            if (b->subtype == LB_BACKDROP_NUM_NAME) {
-                if (b->opt == 0) return std::to_string(state.selected_backdrop + 1);
-                if (state.selected_backdrop >= 0 && state.selected_backdrop < (int)state.backdrops.size()) return state.backdrops[state.selected_backdrop].name;
+        if (b->kind == BK_VARIABLES && b->subtype == VB_VARIABLE)
+            return state.variable_values[b->text];
+        if (b->kind == BK_LOOKS)
+        {
+            if (b->subtype == LB_SIZE)
+                return std::to_string(spr.size);
+            if (b->subtype == LB_BACKDROP_NUM_NAME)
+            {
+                if (b->opt == 0)
+                    return std::to_string(state.selected_backdrop + 1);
+                if (state.selected_backdrop >= 0 && state.selected_backdrop < (int)state.backdrops.size())
+                    return state.backdrops[state.selected_backdrop].name;
                 return "";
             }
-            if (b->subtype == LB_COSTUME_NUM_NAME) return "costume1";
+            // ---> FIXED: Evaluate costume number and name as a string <---
+            if (b->subtype == LB_COSTUME_NUM_NAME)
+            {
+                if (b->opt == 0)
+                    return std::to_string(spr.selected_costume + 1);
+                if (spr.selected_costume >= 0 && spr.selected_costume < (int)spr.costumes.size())
+                {
+                    return spr.costumes[spr.selected_costume].name;
+                }
+                return "";
+            }
         }
-        if (b->kind == BK_SENSING) {
-            if (b->subtype == SENSB_ANSWER) return state.global_answer;
-            if (b->subtype == SENSB_DISTANCE_TO || b->subtype == SENSB_MOUSE_X || b->subtype == SENSB_MOUSE_Y) {
+        if (b->kind == BK_SENSING)
+        {
+            if (b->subtype == SENSB_ANSWER)
+                return state.global_answer;
+            if (b->subtype == SENSB_DISTANCE_TO || b->subtype == SENSB_MOUSE_X || b->subtype == SENSB_MOUSE_Y)
+            {
                 float val = eval_value(state, spr, block_id, 0, "");
-                char buf[32]; std::snprintf(buf, sizeof(buf), "%g", val); return std::string(buf);
+                char buf[32];
+                std::snprintf(buf, sizeof(buf), "%g", val);
+                return std::string(buf);
             }
             if (b->subtype == SENSB_TOUCHING || b->subtype == SENSB_KEY_PRESSED || b->subtype == SENSB_MOUSE_DOWN || b->subtype == SENSB_TOUCHING_COLOR || b->subtype == SENSB_COLOR_IS_TOUCHING_COLOR)
                 return eval_bool(state, spr, block_id) ? "true" : "false";
         }
-        if (b->kind == BK_OPERATORS) {
-            if (b->subtype == OP_JOIN) return eval_string(state, spr, b->arg0_id, b->text) + eval_string(state, spr, b->arg1_id, b->text2);
-            if (b->subtype == OP_LETTER_OF) {
+        if (b->kind == BK_OPERATORS)
+        {
+            if (b->subtype == OP_JOIN)
+                return eval_string(state, spr, b->arg0_id, b->text) + eval_string(state, spr, b->arg1_id, b->text2);
+            if (b->subtype == OP_LETTER_OF)
+            {
                 std::string s = eval_string(state, spr, b->arg1_id, b->text2);
                 int idx = (int)eval_value(state, spr, b->arg0_id, b->a, b->text) - 1;
-                if (idx >= 0 && idx < (int)s.length()) return std::string(1, s[idx]);
+                if (idx >= 0 && idx < (int)s.length())
+                    return std::string(1, s[idx]);
                 return "";
             }
-            if (b->subtype == OP_LENGTH_OF) return std::to_string(eval_string(state, spr, b->arg0_id, b->text).length());
+            if (b->subtype == OP_LENGTH_OF)
+                return std::to_string(eval_string(state, spr, b->arg0_id, b->text).length());
             if (b->subtype == OP_GT || b->subtype == OP_LT || b->subtype == OP_EQ || b->subtype == OP_AND || b->subtype == OP_OR || b->subtype == OP_NOT)
                 return eval_bool(state, spr, block_id) ? "true" : "false";
             float val = eval_value(state, spr, block_id, 0, "");
-            if (val == std::floor(val)) return std::to_string((int)val);
-            char buf[32]; std::snprintf(buf, sizeof(buf), "%g", val); return std::string(buf);
+            if (val == std::floor(val))
+                return std::to_string((int)val);
+            char buf[32];
+            std::snprintf(buf, sizeof(buf), "%g", val);
+            return std::string(buf);
         }
     }
     return text_val;
@@ -249,66 +364,102 @@ static std::string eval_string(AppState &state, Sprite &spr, int block_id, const
 
 static bool eval_bool(AppState &state, Sprite &spr, int block_id)
 {
-    if (block_id == -1) return false;
+    if (block_id == -1)
+        return false;
     BlockInstance *b = interpreter_find_block(spr, block_id);
-    if (!b) return false;
+    if (!b)
+        return false;
 
-    if (b->kind == BK_OPERATORS) {
-        if (b->subtype == OP_GT) return compare_scratch(eval_string(state, spr, b->arg0_id, b->text), eval_string(state, spr, b->arg1_id, b->text2)) > 0;
-        if (b->subtype == OP_LT) return compare_scratch(eval_string(state, spr, b->arg0_id, b->text), eval_string(state, spr, b->arg1_id, b->text2)) < 0;
-        if (b->subtype == OP_EQ) return compare_scratch(eval_string(state, spr, b->arg0_id, b->text), eval_string(state, spr, b->arg1_id, b->text2)) == 0;
-        if (b->subtype == OP_AND) return eval_bool(state, spr, b->arg0_id) && eval_bool(state, spr, b->arg1_id);
-        if (b->subtype == OP_OR) return eval_bool(state, spr, b->arg0_id) || eval_bool(state, spr, b->arg1_id);
-        if (b->subtype == OP_NOT) return !eval_bool(state, spr, b->arg0_id);
-        
+    if (b->kind == BK_OPERATORS)
+    {
+        if (b->subtype == OP_GT)
+            return compare_scratch(eval_string(state, spr, b->arg0_id, b->text), eval_string(state, spr, b->arg1_id, b->text2)) > 0;
+        if (b->subtype == OP_LT)
+            return compare_scratch(eval_string(state, spr, b->arg0_id, b->text), eval_string(state, spr, b->arg1_id, b->text2)) < 0;
+        if (b->subtype == OP_EQ)
+            return compare_scratch(eval_string(state, spr, b->arg0_id, b->text), eval_string(state, spr, b->arg1_id, b->text2)) == 0;
+        if (b->subtype == OP_AND)
+            return eval_bool(state, spr, b->arg0_id) && eval_bool(state, spr, b->arg1_id);
+        if (b->subtype == OP_OR)
+            return eval_bool(state, spr, b->arg0_id) || eval_bool(state, spr, b->arg1_id);
+        if (b->subtype == OP_NOT)
+            return !eval_bool(state, spr, b->arg0_id);
+
         std::string s = eval_string(state, spr, block_id, "");
-        std::string ls = s; std::transform(ls.begin(), ls.end(), ls.begin(), ::tolower);
-        if (ls == "true") return true;
-        if (ls == "false") return false;
+        std::string ls = s;
+        std::transform(ls.begin(), ls.end(), ls.begin(), ::tolower);
+        if (ls == "true")
+            return true;
+        if (ls == "false")
+            return false;
         return std::atof(s.c_str()) != 0.0f;
     }
-    if (b->kind == BK_SENSING) {
-        if (b->subtype == SENSB_KEY_PRESSED) {
+    if (b->kind == BK_SENSING)
+    {
+        if (b->subtype == SENSB_KEY_PRESSED)
+        {
             SDL_PumpEvents();
             const Uint8 *keys = SDL_GetKeyboardState(NULL);
-            int opt = b->opt; bool pressed = false;
-            if (opt == 0) pressed = keys[SDL_SCANCODE_SPACE];
-            else if (opt == 1) pressed = keys[SDL_SCANCODE_UP];
-            else if (opt == 2) pressed = keys[SDL_SCANCODE_DOWN];
-            else if (opt == 3) pressed = keys[SDL_SCANCODE_LEFT];
-            else if (opt == 4) pressed = keys[SDL_SCANCODE_RIGHT];
-            else if (opt >= 5 && opt <= 30) pressed = keys[SDL_SCANCODE_A + (opt - 5)];
-            else if (opt == 31) pressed = keys[SDL_SCANCODE_0];
-            else if (opt >= 32 && opt <= 40) pressed = keys[SDL_SCANCODE_1 + (opt - 32)];
+            int opt = b->opt;
+            bool pressed = false;
+            if (opt == 0)
+                pressed = keys[SDL_SCANCODE_SPACE];
+            else if (opt == 1)
+                pressed = keys[SDL_SCANCODE_UP];
+            else if (opt == 2)
+                pressed = keys[SDL_SCANCODE_DOWN];
+            else if (opt == 3)
+                pressed = keys[SDL_SCANCODE_LEFT];
+            else if (opt == 4)
+                pressed = keys[SDL_SCANCODE_RIGHT];
+            else if (opt >= 5 && opt <= 30)
+                pressed = keys[SDL_SCANCODE_A + (opt - 5)];
+            else if (opt == 31)
+                pressed = keys[SDL_SCANCODE_0];
+            else if (opt >= 32 && opt <= 40)
+                pressed = keys[SDL_SCANCODE_1 + (opt - 32)];
             return pressed;
         }
-        if (b->subtype == SENSB_MOUSE_DOWN) {
+        if (b->subtype == SENSB_MOUSE_DOWN)
+        {
             SDL_PumpEvents();
             return (SDL_GetMouseState(NULL, NULL) & SDL_BUTTON(SDL_BUTTON_LEFT)) != 0;
         }
-        if (b->subtype == SENSB_TOUCHING) {
-            if (b->opt == TOUCHING_MOUSE_POINTER) {
-                int mx, my; SDL_GetMouseState(&mx, &my);
-                int cx, cy, w, h; get_sprite_screen_rect(spr, cx, cy, w, h);
-                float half_w = w / 2.0f; float half_h = h / 2.0f;
+        if (b->subtype == SENSB_TOUCHING)
+        {
+            if (b->opt == TOUCHING_MOUSE_POINTER)
+            {
+                int mx, my;
+                SDL_GetMouseState(&mx, &my);
+                int cx, cy, w, h;
+                get_sprite_screen_rect(spr, cx, cy, w, h);
+                float half_w = w / 2.0f;
+                float half_h = h / 2.0f;
                 return (mx >= cx - half_w && mx <= cx + half_w && my >= cy - half_h && my <= cy + half_h);
             }
-            else if (b->opt == TOUCHING_EDGE) {
+            else if (b->opt == TOUCHING_EDGE)
+            {
                 float half_w = (100 * spr.size) / 200.0f;
                 float half_h = (100 * spr.size) / 200.0f;
                 return (spr.x - half_w <= -240 || spr.x + half_w >= 240 || spr.y - half_h <= -180 || spr.y + half_h >= 180);
             }
-            else if (b->opt == TOUCHING_SPRITE) return false;
+            else if (b->opt == TOUCHING_SPRITE)
+                return false;
         }
-        if (b->subtype == SENSB_TOUCHING_COLOR || b->subtype == SENSB_COLOR_IS_TOUCHING_COLOR) {
+        if (b->subtype == SENSB_TOUCHING_COLOR || b->subtype == SENSB_COLOR_IS_TOUCHING_COLOR)
+        {
             return false;
         }
     }
-    if (b->kind == BK_VARIABLES || b->kind == BK_EVENTS || (b->kind == BK_SENSING && (b->subtype == SENSB_ANSWER || b->subtype == SENSB_DISTANCE_TO || b->subtype == SENSB_MOUSE_X || b->subtype == SENSB_MOUSE_Y))) {
+    if (b->kind == BK_VARIABLES || b->kind == BK_EVENTS || (b->kind == BK_SENSING && (b->subtype == SENSB_ANSWER || b->subtype == SENSB_DISTANCE_TO || b->subtype == SENSB_MOUSE_X || b->subtype == SENSB_MOUSE_Y)))
+    {
         std::string s = eval_string(state, spr, block_id, "");
-        std::string ls = s; std::transform(ls.begin(), ls.end(), ls.begin(), ::tolower);
-        if (ls == "true") return true;
-        if (ls == "false") return false;
+        std::string ls = s;
+        std::transform(ls.begin(), ls.end(), ls.begin(), ::tolower);
+        if (ls == "true")
+            return true;
+        if (ls == "false")
+            return false;
         return std::atof(s.c_str()) != 0.0f;
     }
     return false;
@@ -316,7 +467,8 @@ static bool eval_bool(AppState &state, Sprite &spr, int block_id)
 
 void interpreter_tick(AppState &state)
 {
-    if (!state.running) return;
+    if (!state.running)
+        return;
 
     // ---> SYSTEM LOGGER CYCLE COUNTER <---
     static int execution_cycle = 0;
@@ -324,23 +476,51 @@ void interpreter_tick(AppState &state)
 
     for (size_t i = 0; i < g_threads.size();)
     {
-        if (!state.running) break;
-        if (SDL_GetTicks() < g_threads[i].wait_until) { i++; continue; }
-        
-        if (g_threads[i].waiting_for_sound) {
-            if (audio_is_playing()) { i++; continue; } else g_threads[i].waiting_for_sound = false;
+        if (!state.running)
+            break;
+        if (SDL_GetTicks() < g_threads[i].wait_until)
+        {
+            i++;
+            continue;
         }
-        
-        if (g_threads[i].waiting_for_ask) {
-            if (state.ask_active) { i++; continue; } else g_threads[i].waiting_for_ask = false;
+
+        if (g_threads[i].waiting_for_sound)
+        {
+            if (audio_is_playing())
+            {
+                i++;
+                continue;
+            }
+            else
+                g_threads[i].waiting_for_sound = false;
+        }
+
+        if (g_threads[i].waiting_for_ask)
+        {
+            if (state.ask_active)
+            {
+                i++;
+                continue;
+            }
+            else
+                g_threads[i].waiting_for_ask = false;
         }
 
         Sprite *spr_ptr = nullptr;
-        for (auto &s : state.sprites) {
-            if (s.name == g_threads[i].sprite_name) { spr_ptr = &s; break; }
+        for (auto &s : state.sprites)
+        {
+            if (s.name == g_threads[i].sprite_name)
+            {
+                spr_ptr = &s;
+                break;
+            }
         }
-        
-        if (!spr_ptr) { g_threads.erase(g_threads.begin() + i); continue; }
+
+        if (!spr_ptr)
+        {
+            g_threads.erase(g_threads.begin() + i);
+            continue;
+        }
         Sprite &spr = *spr_ptr;
 
         bool yielded = false;
@@ -348,80 +528,104 @@ void interpreter_tick(AppState &state)
         {
             StackFrame &frame = g_threads[i].stack.back();
             int cur = frame.cur_node;
-            
-            if (cur == -1) {
-                if (frame.loop_block_id != -1) {
+
+            if (cur == -1)
+            {
+                if (frame.loop_block_id != -1)
+                {
                     BlockInstance *loop_b = interpreter_find_block(spr, frame.loop_block_id);
-                    if (loop_b) {
-                        if (frame.loop_count > 0 || frame.loop_count == -1) {
-                            if (frame.loop_count > 0) frame.loop_count--;
+                    if (loop_b)
+                    {
+                        if (frame.loop_count > 0 || frame.loop_count == -1)
+                        {
+                            if (frame.loop_count > 0)
+                                frame.loop_count--;
                             frame.cur_node = loop_b->child_id;
-                            yielded = true; break;
+                            yielded = true;
+                            break;
                         }
                     }
                 }
-                g_threads[i].stack.pop_back(); continue;
+                g_threads[i].stack.pop_back();
+                continue;
             }
 
             BlockInstance *b = interpreter_find_block(spr, cur);
-            if (!b) { frame.cur_node = -1; continue; }
+            if (!b)
+            {
+                frame.cur_node = -1;
+                continue;
+            }
 
             // ==========================================
             // LOGGING & EXECUTION FOR MOTION BLOCKS
             // ==========================================
-            if (b->kind == BK_MOTION) {
+            if (b->kind == BK_MOTION)
+            {
                 int old_x = spr.x;
                 int old_y = spr.y;
                 int old_dir = spr.direction;
 
-                if (b->subtype == MB_MOVE_STEPS) {
+                if (b->subtype == MB_MOVE_STEPS)
+                {
                     float steps = eval_value(state, spr, b->arg0_id, b->a, b->text);
                     float rad = (spr.direction - 90.0f) * M_PI / 180.0f;
                     spr.x += (int)(steps * std::cos(rad));
                     spr.y -= (int)(steps * std::sin(rad));
-                    
-                    LogEvent(LOG_INFO, execution_cycle, b->id, "MOVE_STEPS", "Position (X,Y)", 
-                             "(" + std::to_string(old_x) + "," + std::to_string(old_y) + ")", 
+
+                    LogEvent(LOG_INFO, execution_cycle, b->id, "MOVE_STEPS", "Position (X,Y)",
+                             "(" + std::to_string(old_x) + "," + std::to_string(old_y) + ")",
                              "(" + std::to_string(spr.x) + "," + std::to_string(spr.y) + ")");
                 }
-                else if (b->subtype == MB_TURN_RIGHT_DEG) {
+                else if (b->subtype == MB_TURN_RIGHT_DEG)
+                {
                     spr.direction += (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
                     LogEvent(LOG_INFO, execution_cycle, b->id, "TURN_RIGHT", "Direction", std::to_string(old_dir), std::to_string(spr.direction));
                 }
-                else if (b->subtype == MB_TURN_LEFT_DEG) {
+                else if (b->subtype == MB_TURN_LEFT_DEG)
+                {
                     spr.direction -= (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
                     LogEvent(LOG_INFO, execution_cycle, b->id, "TURN_LEFT", "Direction", std::to_string(old_dir), std::to_string(spr.direction));
                 }
-                else if (b->subtype == MB_GO_TO_XY) {
+                else if (b->subtype == MB_GO_TO_XY)
+                {
                     spr.x = (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
                     spr.y = (int)eval_value(state, spr, b->arg1_id, b->b, b->text2);
-                    LogEvent(LOG_INFO, execution_cycle, b->id, "GO_TO_XY", "Position (X,Y)", 
-                             "(" + std::to_string(old_x) + "," + std::to_string(old_y) + ")", 
+                    LogEvent(LOG_INFO, execution_cycle, b->id, "GO_TO_XY", "Position (X,Y)",
+                             "(" + std::to_string(old_x) + "," + std::to_string(old_y) + ")",
                              "(" + std::to_string(spr.x) + "," + std::to_string(spr.y) + ")");
                 }
-                else if (b->subtype == MB_CHANGE_X_BY) {
+                else if (b->subtype == MB_CHANGE_X_BY)
+                {
                     spr.x += (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
-                    LogEvent(LOG_INFO, execution_cycle, b->id, "CHANGE_X", "Position (X,Y)", 
-                             "(" + std::to_string(old_x) + "," + std::to_string(old_y) + ")", 
+                    LogEvent(LOG_INFO, execution_cycle, b->id, "CHANGE_X", "Position (X,Y)",
+                             "(" + std::to_string(old_x) + "," + std::to_string(old_y) + ")",
                              "(" + std::to_string(spr.x) + "," + std::to_string(spr.y) + ")");
                 }
-                else if (b->subtype == MB_CHANGE_Y_BY) {
+                else if (b->subtype == MB_CHANGE_Y_BY)
+                {
                     spr.y += (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
-                    LogEvent(LOG_INFO, execution_cycle, b->id, "CHANGE_Y", "Position (X,Y)", 
-                             "(" + std::to_string(old_x) + "," + std::to_string(old_y) + ")", 
+                    LogEvent(LOG_INFO, execution_cycle, b->id, "CHANGE_Y", "Position (X,Y)",
+                             "(" + std::to_string(old_x) + "," + std::to_string(old_y) + ")",
                              "(" + std::to_string(spr.x) + "," + std::to_string(spr.y) + ")");
                 }
-                else if (b->subtype == MB_POINT_IN_DIR) {
+                else if (b->subtype == MB_POINT_IN_DIR)
+                {
                     spr.direction = (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
                     LogEvent(LOG_INFO, execution_cycle, b->id, "POINT_DIR", "Direction", std::to_string(old_dir), std::to_string(spr.direction));
                 }
-                else if (b->subtype == MB_GO_TO_TARGET) {
-                    if (b->opt == TARGET_RANDOM_POSITION) {
+                else if (b->subtype == MB_GO_TO_TARGET)
+                {
+                    if (b->opt == TARGET_RANDOM_POSITION)
+                    {
                         spr.x = (std::rand() % 400) - 200;
                         spr.y = (std::rand() % 300) - 150;
-                    } else if (b->opt == TARGET_MOUSE_POINTER) {
-                        int mx, my; SDL_GetMouseState(&mx, &my);
-                        
+                    }
+                    else if (b->opt == TARGET_MOUSE_POINTER)
+                    {
+                        int mx, my;
+                        SDL_GetMouseState(&mx, &my);
+
                         int col_x = WINDOW_WIDTH - RIGHT_COLUMN_WIDTH;
                         int col_h = WINDOW_HEIGHT - NAVBAR_HEIGHT;
                         int stage_h = col_h * STAGE_HEIGHT_RATIO / 100;
@@ -438,24 +642,27 @@ void interpreter_tick(AppState &state)
                         spr.x = (int)((mx - stage_cx) * scale_x);
                         spr.y = (int)((stage_cy - my) * scale_y);
                     }
-                    LogEvent(LOG_INFO, execution_cycle, b->id, "GO_TO_TARGET", "Position (X,Y)", 
-                             "(" + std::to_string(old_x) + "," + std::to_string(old_y) + ")", 
+                    LogEvent(LOG_INFO, execution_cycle, b->id, "GO_TO_TARGET", "Position (X,Y)",
+                             "(" + std::to_string(old_x) + "," + std::to_string(old_y) + ")",
                              "(" + std::to_string(spr.x) + "," + std::to_string(spr.y) + ")");
                 }
 
                 // ---> KEEP SPRITES ON SCREEN & LOG BOUNDARY CHECKS <---
                 int pre_clamp_x = spr.x;
                 int pre_clamp_y = spr.y;
-                constrain_sprite_to_stage(spr); 
-                
-                if (spr.x != pre_clamp_x) {
+                constrain_sprite_to_stage(spr);
+
+                if (spr.x != pre_clamp_x)
+                {
                     LogSimple(LOG_WARNING, execution_cycle, b->id, "BOUNDARY_CHECK", "Sprite X was clamped to " + std::to_string(spr.x));
                 }
-                if (spr.y != pre_clamp_y) {
+                if (spr.y != pre_clamp_y)
+                {
                     LogSimple(LOG_WARNING, execution_cycle, b->id, "BOUNDARY_CHECK", "Sprite Y was clamped to " + std::to_string(spr.y));
                 }
 
-                if (spr.pen_down && (spr.x != old_x || spr.y != old_y)) {
+                if (spr.pen_down && (spr.x != old_x || spr.y != old_y))
+                {
                     renderer_draw_line_on_pen_layer(old_x, old_y, spr.x, spr.y, spr.pen_size, spr.pen_color);
                 }
                 frame.cur_node = b->next_id;
@@ -463,50 +670,63 @@ void interpreter_tick(AppState &state)
             // ==========================================
             // LOGGING & EXECUTION FOR PEN BLOCKS
             // ==========================================
-            else if (b->kind == BK_PEN) {
-                if (b->subtype == PB_ERASE_ALL) {
+            else if (b->kind == BK_PEN)
+            {
+                if (b->subtype == PB_ERASE_ALL)
+                {
                     renderer_clear_pen_layer();
                     LogSimple(LOG_INFO, execution_cycle, b->id, "ERASE_ALL", "Cleared pen layer.");
                 }
-                else if (b->subtype == PB_STAMP) {
+                else if (b->subtype == PB_STAMP)
+                {
                     renderer_stamp_on_pen_layer(spr);
                     LogSimple(LOG_INFO, execution_cycle, b->id, "STAMP", "Stamped sprite on pen layer.");
                 }
-                else if (b->subtype == PB_PEN_DOWN) {
+                else if (b->subtype == PB_PEN_DOWN)
+                {
                     spr.pen_down = true;
                     renderer_draw_line_on_pen_layer(spr.x, spr.y, spr.x, spr.y, spr.pen_size, spr.pen_color);
                     LogSimple(LOG_INFO, execution_cycle, b->id, "PEN_DOWN", "Pen is now down.");
                 }
-                else if (b->subtype == PB_PEN_UP) {
+                else if (b->subtype == PB_PEN_UP)
+                {
                     spr.pen_down = false;
                     LogSimple(LOG_INFO, execution_cycle, b->id, "PEN_UP", "Pen is now up.");
                 }
-                else if (b->subtype == PB_CHANGE_ATTRIB_BY) {
+                else if (b->subtype == PB_CHANGE_ATTRIB_BY)
+                {
                     int old_val = spr.pen_color_val;
                     float val = eval_value(state, spr, b->arg0_id, b->a, b->text);
                     spr.pen_color_val = (spr.pen_color_val + (int)val) % 100;
-                    if (spr.pen_color_val < 0) spr.pen_color_val += 100;
+                    if (spr.pen_color_val < 0)
+                        spr.pen_color_val += 100;
                     update_pen_rgb(spr);
                     LogEvent(LOG_INFO, execution_cycle, b->id, "CHANGE_PEN_COLOR", "Pen Color Value", std::to_string(old_val), std::to_string(spr.pen_color_val));
                 }
-                else if (b->subtype == PB_SET_ATTRIB_TO) {
+                else if (b->subtype == PB_SET_ATTRIB_TO)
+                {
                     int old_val = spr.pen_color_val;
                     float val = eval_value(state, spr, b->arg0_id, b->a, b->text);
                     spr.pen_color_val = ((int)val) % 100;
-                    if (spr.pen_color_val < 0) spr.pen_color_val += 100;
+                    if (spr.pen_color_val < 0)
+                        spr.pen_color_val += 100;
                     update_pen_rgb(spr);
                     LogEvent(LOG_INFO, execution_cycle, b->id, "SET_PEN_COLOR", "Pen Color Value", std::to_string(old_val), std::to_string(spr.pen_color_val));
                 }
-                else if (b->subtype == PB_CHANGE_SIZE_BY) {
+                else if (b->subtype == PB_CHANGE_SIZE_BY)
+                {
                     int old_psize = spr.pen_size;
                     spr.pen_size += (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
-                    if (spr.pen_size < 1) spr.pen_size = 1;
+                    if (spr.pen_size < 1)
+                        spr.pen_size = 1;
                     LogEvent(LOG_INFO, execution_cycle, b->id, "CHANGE_PEN_SIZE", "Pen Size", std::to_string(old_psize), std::to_string(spr.pen_size));
                 }
-                else if (b->subtype == PB_SET_SIZE_TO) {
+                else if (b->subtype == PB_SET_SIZE_TO)
+                {
                     int old_psize = spr.pen_size;
                     spr.pen_size = (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
-                    if (spr.pen_size < 1) spr.pen_size = 1;
+                    if (spr.pen_size < 1)
+                        spr.pen_size = 1;
                     LogEvent(LOG_INFO, execution_cycle, b->id, "SET_PEN_SIZE", "Pen Size", std::to_string(old_psize), std::to_string(spr.pen_size));
                 }
                 frame.cur_node = b->next_id;
@@ -514,131 +734,207 @@ void interpreter_tick(AppState &state)
             // ==========================================
             // LOGGING & EXECUTION FOR LOOKS BLOCKS
             // ==========================================
-            else if (b->kind == BK_LOOKS) {
-                if (b->subtype == LB_SAY) {
+            else if (b->kind == BK_LOOKS)
+            {
+                if (b->subtype == LB_SAY)
+                {
                     spr.say_text = eval_string(state, spr, b->arg0_id, b->text);
-                    spr.is_thinking = false; spr.say_end_time = 0; 
+                    spr.is_thinking = false;
+                    spr.say_end_time = 0;
                     LogSimple(LOG_INFO, execution_cycle, b->id, "SAY", "Sprite says: '" + spr.say_text + "'");
                     frame.cur_node = b->next_id;
-                } else if (b->subtype == LB_THINK) {
+                }
+                else if (b->subtype == LB_THINK)
+                {
                     spr.say_text = eval_string(state, spr, b->arg0_id, b->text);
-                    spr.is_thinking = true; spr.say_end_time = 0; 
+                    spr.is_thinking = true;
+                    spr.say_end_time = 0;
                     LogSimple(LOG_INFO, execution_cycle, b->id, "THINK", "Sprite thinks: '" + spr.say_text + "'");
                     frame.cur_node = b->next_id;
-                } else if (b->subtype == LB_SAY_FOR) {
-                    spr.say_text = eval_string(state, spr, b->arg0_id, b->text); spr.is_thinking = false;
+                }
+                else if (b->subtype == LB_SAY_FOR)
+                {
+                    spr.say_text = eval_string(state, spr, b->arg0_id, b->text);
+                    spr.is_thinking = false;
                     float sec = eval_value(state, spr, b->arg1_id, b->b, b->text2);
                     spr.say_end_time = SDL_GetTicks() + (unsigned int)(sec * 1000);
                     LogSimple(LOG_INFO, execution_cycle, b->id, "SAY_FOR", "Sprite says: '" + spr.say_text + "' for " + std::to_string(sec) + "s");
-                    g_threads[i].wait_until = spr.say_end_time; frame.cur_node = b->next_id; yielded = true;
-                } else if (b->subtype == LB_THINK_FOR) {
-                    spr.say_text = eval_string(state, spr, b->arg0_id, b->text); spr.is_thinking = true;
+                    g_threads[i].wait_until = spr.say_end_time;
+                    frame.cur_node = b->next_id;
+                    yielded = true;
+                }
+                else if (b->subtype == LB_THINK_FOR)
+                {
+                    spr.say_text = eval_string(state, spr, b->arg0_id, b->text);
+                    spr.is_thinking = true;
                     float sec = eval_value(state, spr, b->arg1_id, b->b, b->text2);
                     spr.say_end_time = SDL_GetTicks() + (unsigned int)(sec * 1000);
                     LogSimple(LOG_INFO, execution_cycle, b->id, "THINK_FOR", "Sprite thinks: '" + spr.say_text + "' for " + std::to_string(sec) + "s");
-                    g_threads[i].wait_until = spr.say_end_time; frame.cur_node = b->next_id; yielded = true;
-                } else if (b->subtype == LB_CHANGE_SIZE_BY) {
+                    g_threads[i].wait_until = spr.say_end_time;
+                    frame.cur_node = b->next_id;
+                    yielded = true;
+                }
+                else if (b->subtype == LB_CHANGE_SIZE_BY)
+                {
                     int old_size = spr.size;
-                    spr.size += (int)eval_value(state, spr, b->arg0_id, b->a, b->text); 
+                    spr.size += (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
                     LogEvent(LOG_INFO, execution_cycle, b->id, "CHANGE_SIZE", "Sprite Size", std::to_string(old_size), std::to_string(spr.size));
                     frame.cur_node = b->next_id;
-                } else if (b->subtype == LB_SET_SIZE_TO) {
+                }
+                else if (b->subtype == LB_SET_SIZE_TO)
+                {
                     int old_size = spr.size;
-                    spr.size = (int)eval_value(state, spr, b->arg0_id, b->a, b->text); 
+                    spr.size = (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
                     LogEvent(LOG_INFO, execution_cycle, b->id, "SET_SIZE", "Sprite Size", std::to_string(old_size), std::to_string(spr.size));
                     frame.cur_node = b->next_id;
-                } else if (b->subtype == LB_SHOW) {
+                }
+                else if (b->subtype == LB_SHOW)
+                {
                     bool old_vis = spr.visible;
-                    spr.visible = true; 
+                    spr.visible = true;
                     LogEvent(LOG_INFO, execution_cycle, b->id, "SHOW", "Visibility", old_vis ? "true" : "false", "true");
                     frame.cur_node = b->next_id;
-                } else if (b->subtype == LB_HIDE) {
+                }
+                else if (b->subtype == LB_HIDE)
+                {
                     bool old_vis = spr.visible;
-                    spr.visible = false; 
+                    spr.visible = false;
                     LogEvent(LOG_INFO, execution_cycle, b->id, "HIDE", "Visibility", old_vis ? "true" : "false", "false");
                     frame.cur_node = b->next_id;
-                } else if (b->subtype == LB_SWITCH_BACKDROP_TO) {
+                }
+                else if (b->subtype == LB_SWITCH_BACKDROP_TO)
+                {
                     int old_bd = state.selected_backdrop;
-                    if (b->opt >= 0 && b->opt < (int)state.backdrops.size()) state.selected_backdrop = b->opt;
+                    if (b->opt >= 0 && b->opt < (int)state.backdrops.size())
+                        state.selected_backdrop = b->opt;
                     LogEvent(LOG_INFO, execution_cycle, b->id, "SWITCH_BACKDROP", "Backdrop Index", std::to_string(old_bd), std::to_string(state.selected_backdrop));
                     frame.cur_node = b->next_id;
-                } else if (b->subtype == LB_NEXT_BACKDROP) {
+                }
+                else if (b->subtype == LB_NEXT_BACKDROP)
+                {
                     int old_bd = state.selected_backdrop;
-                    if (!state.backdrops.empty()) state.selected_backdrop = (state.selected_backdrop + 1) % state.backdrops.size();
+                    if (!state.backdrops.empty())
+                        state.selected_backdrop = (state.selected_backdrop + 1) % state.backdrops.size();
                     LogEvent(LOG_INFO, execution_cycle, b->id, "NEXT_BACKDROP", "Backdrop Index", std::to_string(old_bd), std::to_string(state.selected_backdrop));
                     frame.cur_node = b->next_id;
-                } else if (b->subtype == LB_GO_TO_LAYER) {
+                }
+                else if (b->subtype == LB_GO_TO_LAYER)
+                {
                     int old_layer = spr.layer_order;
-                    if (b->opt == 0) {
+                    if (b->opt == 0)
+                    {
                         int max_l = -999999;
-                        for (auto &s : state.sprites) if (s.layer_order > max_l) max_l = s.layer_order;
+                        for (auto &s : state.sprites)
+                            if (s.layer_order > max_l)
+                                max_l = s.layer_order;
                         spr.layer_order = max_l + 10;
-                    } else {
+                    }
+                    else
+                    {
                         int min_l = 999999;
-                        for (auto &s : state.sprites) if (s.layer_order < min_l) min_l = s.layer_order;
+                        for (auto &s : state.sprites)
+                            if (s.layer_order < min_l)
+                                min_l = s.layer_order;
                         spr.layer_order = min_l - 10;
                     }
                     LogEvent(LOG_INFO, execution_cycle, b->id, "GO_TO_LAYER", "Layer Order", std::to_string(old_layer), std::to_string(spr.layer_order));
                     frame.cur_node = b->next_id;
-                } else if (b->subtype == LB_GO_LAYERS) {
+                }
+                else if (b->subtype == LB_GO_LAYERS)
+                {
                     int old_layer = spr.layer_order;
                     int steps = (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
                     std::vector<int> sorted_indices;
-                    for (int j = 0; j < (int)state.sprites.size(); j++) sorted_indices.push_back(j);
-                    std::stable_sort(sorted_indices.begin(), sorted_indices.end(), [&](int p1, int p2) { return state.sprites[p1].layer_order < state.sprites[p2].layer_order; });
+                    for (int j = 0; j < (int)state.sprites.size(); j++)
+                        sorted_indices.push_back(j);
+                    std::stable_sort(sorted_indices.begin(), sorted_indices.end(), [&](int p1, int p2)
+                                     { return state.sprites[p1].layer_order < state.sprites[p2].layer_order; });
                     int current_rank = 0, spr_idx = -1;
-                    for (size_t j = 0; j < state.sprites.size(); j++) if (&state.sprites[j] == &spr) spr_idx = j;
-                    for (size_t j = 0; j < sorted_indices.size(); j++) if (sorted_indices[j] == spr_idx) { current_rank = j; break; }
+                    for (size_t j = 0; j < state.sprites.size(); j++)
+                        if (&state.sprites[j] == &spr)
+                            spr_idx = j;
+                    for (size_t j = 0; j < sorted_indices.size(); j++)
+                        if (sorted_indices[j] == spr_idx)
+                        {
+                            current_rank = j;
+                            break;
+                        }
                     int new_rank = current_rank + ((b->opt == 0) ? steps : -steps);
-                    if (new_rank < 0) new_rank = 0;
-                    if (new_rank >= (int)sorted_indices.size()) new_rank = sorted_indices.size() - 1;
-                    if (new_rank != current_rank) {
-                        for (size_t j = 0; j < sorted_indices.size(); j++) state.sprites[sorted_indices[j]].layer_order = j * 10;
-                        if (b->opt == 0) spr.layer_order = new_rank * 10 + 5; else spr.layer_order = new_rank * 10 - 5;
+                    if (new_rank < 0)
+                        new_rank = 0;
+                    if (new_rank >= (int)sorted_indices.size())
+                        new_rank = sorted_indices.size() - 1;
+                    if (new_rank != current_rank)
+                    {
+                        for (size_t j = 0; j < sorted_indices.size(); j++)
+                            state.sprites[sorted_indices[j]].layer_order = j * 10;
+                        if (b->opt == 0)
+                            spr.layer_order = new_rank * 10 + 5;
+                        else
+                            spr.layer_order = new_rank * 10 - 5;
                     }
                     LogEvent(LOG_INFO, execution_cycle, b->id, "GO_LAYERS", "Layer Order", std::to_string(old_layer), std::to_string(spr.layer_order));
                     frame.cur_node = b->next_id;
-                } else if (b->subtype == LB_SWITCH_COSTUME_TO) {
+                }
+                else if (b->subtype == LB_SWITCH_COSTUME_TO)
+                {
                     int old_costume = spr.selected_costume;
-                    if (b->opt >= 0 && b->opt < (int)spr.costumes.size()) spr.selected_costume = b->opt;
+                    if (b->opt >= 0 && b->opt < (int)spr.costumes.size())
+                        spr.selected_costume = b->opt;
                     LogEvent(LOG_INFO, execution_cycle, b->id, "SWITCH_COSTUME", "Costume Index", std::to_string(old_costume), std::to_string(spr.selected_costume));
                     frame.cur_node = b->next_id;
-                } else if (b->subtype == LB_NEXT_COSTUME) {
+                }
+                else if (b->subtype == LB_NEXT_COSTUME)
+                {
                     int old_costume = spr.selected_costume;
-                    if (!spr.costumes.empty()) spr.selected_costume = (spr.selected_costume + 1) % spr.costumes.size();
+                    if (!spr.costumes.empty())
+                        spr.selected_costume = (spr.selected_costume + 1) % spr.costumes.size();
                     LogEvent(LOG_INFO, execution_cycle, b->id, "NEXT_COSTUME", "Costume Index", std::to_string(old_costume), std::to_string(spr.selected_costume));
                     frame.cur_node = b->next_id;
-                } else {
+                }
+                else
+                {
                     frame.cur_node = b->next_id;
                 }
             }
             // ==========================================
             // LOGGING & EXECUTION FOR SOUND BLOCKS
             // ==========================================
-            else if (b->kind == BK_SOUND) {
-                if (b->subtype == SB_CHANGE_VOLUME_BY) {
+            else if (b->kind == BK_SOUND)
+            {
+                if (b->subtype == SB_CHANGE_VOLUME_BY)
+                {
                     int old_vol = spr.volume;
                     spr.volume += (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
-                    audio_set_volume(spr.volume); 
+                    audio_set_volume(spr.volume);
                     LogEvent(LOG_INFO, execution_cycle, b->id, "CHANGE_VOLUME", "Volume", std::to_string(old_vol), std::to_string(spr.volume));
                     frame.cur_node = b->next_id;
-                } else if (b->subtype == SB_SET_VOLUME_TO) {
+                }
+                else if (b->subtype == SB_SET_VOLUME_TO)
+                {
                     int old_vol = spr.volume;
                     spr.volume = (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
-                    audio_set_volume(spr.volume); 
+                    audio_set_volume(spr.volume);
                     LogEvent(LOG_INFO, execution_cycle, b->id, "SET_VOLUME", "Volume", std::to_string(old_vol), std::to_string(spr.volume));
                     frame.cur_node = b->next_id;
-                } else if (b->subtype == SB_STOP_ALL_SOUNDS) {
-                    audio_stop_all(); 
+                }
+                else if (b->subtype == SB_STOP_ALL_SOUNDS)
+                {
+                    audio_stop_all();
                     LogSimple(LOG_INFO, execution_cycle, b->id, "STOP_ALL_SOUNDS", "Stopped all playing sounds.");
                     frame.cur_node = b->next_id;
-                } else if (b->subtype == SB_START_SOUND || b->subtype == SB_PLAY_SOUND_UNTIL_DONE) {
-                    if (b->opt >= 0 && b->opt < (int)spr.sounds.size()) {
+                }
+                else if (b->subtype == SB_START_SOUND || b->subtype == SB_PLAY_SOUND_UNTIL_DONE)
+                {
+                    if (b->opt >= 0 && b->opt < (int)spr.sounds.size())
+                    {
                         audio_play_chunk(spr.sounds[b->opt].chunk, spr.sounds[b->opt].volume);
                         LogSimple(LOG_INFO, execution_cycle, b->id, "PLAY_SOUND", "Playing sound: " + spr.sounds[b->opt].name);
                     }
-                    if (b->subtype == SB_PLAY_SOUND_UNTIL_DONE) { 
-                        g_threads[i].waiting_for_sound = true; yielded = true; 
+                    if (b->subtype == SB_PLAY_SOUND_UNTIL_DONE)
+                    {
+                        g_threads[i].waiting_for_sound = true;
+                        yielded = true;
                     }
                     frame.cur_node = b->next_id;
                 }
@@ -646,38 +942,60 @@ void interpreter_tick(AppState &state)
             // ==========================================
             // LOGGING & EXECUTION FOR CONTROL BLOCKS
             // ==========================================
-            else if (b->kind == BK_CONTROL) {
-                if (b->subtype == CB_WAIT) {
+            else if (b->kind == BK_CONTROL)
+            {
+                if (b->subtype == CB_WAIT)
+                {
                     float sec = eval_value(state, spr, b->arg0_id, b->a, b->text);
                     g_threads[i].wait_until = SDL_GetTicks() + (unsigned int)(sec * 1000);
                     LogSimple(LOG_INFO, execution_cycle, b->id, "WAIT", "Waiting for " + std::to_string(sec) + " seconds.");
-                    frame.cur_node = b->next_id; yielded = true;
-                } else if (b->subtype == CB_REPEAT) {
+                    frame.cur_node = b->next_id;
+                    yielded = true;
+                }
+                else if (b->subtype == CB_REPEAT)
+                {
                     int count = (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
                     LogSimple(LOG_INFO, execution_cycle, b->id, "REPEAT", "Repeating " + std::to_string(count) + " times.");
                     frame.cur_node = b->next_id;
-                    if (count > 0 && b->child_id != -1) g_threads[i].stack.push_back({b->child_id, b->id, count - 1});
-                } else if (b->subtype == CB_FOREVER) {
+                    if (count > 0 && b->child_id != -1)
+                        g_threads[i].stack.push_back({b->child_id, b->id, count - 1});
+                }
+                else if (b->subtype == CB_FOREVER)
+                {
                     LogSimple(LOG_INFO, execution_cycle, b->id, "FOREVER", "Looping forever.");
                     frame.cur_node = b->next_id;
-                    if (b->child_id != -1) g_threads[i].stack.push_back({b->child_id, b->id, -1});
-                    else yielded = true;
-                } else if (b->subtype == CB_IF) {
+                    if (b->child_id != -1)
+                        g_threads[i].stack.push_back({b->child_id, b->id, -1});
+                    else
+                        yielded = true;
+                }
+                else if (b->subtype == CB_IF)
+                {
                     bool cond = eval_bool(state, spr, b->condition_id);
                     LogSimple(LOG_INFO, execution_cycle, b->id, "IF", "Condition evaluated to " + std::string(cond ? "true" : "false"));
                     frame.cur_node = b->next_id;
-                    if (cond && b->child_id != -1) g_threads[i].stack.push_back({b->child_id, -1, 0});
-                } else if (b->subtype == CB_IF_ELSE) {
+                    if (cond && b->child_id != -1)
+                        g_threads[i].stack.push_back({b->child_id, -1, 0});
+                }
+                else if (b->subtype == CB_IF_ELSE)
+                {
                     bool cond = eval_bool(state, spr, b->condition_id);
                     LogSimple(LOG_INFO, execution_cycle, b->id, "IF_ELSE", "Condition evaluated to " + std::string(cond ? "true" : "false"));
                     frame.cur_node = b->next_id;
-                    if (cond && b->child_id != -1) g_threads[i].stack.push_back({b->child_id, -1, 0});
-                    else if (!cond && b->child2_id != -1) g_threads[i].stack.push_back({b->child2_id, -1, 0});
-                } else if (b->subtype == CB_WAIT_UNTIL) {
+                    if (cond && b->child_id != -1)
+                        g_threads[i].stack.push_back({b->child_id, -1, 0});
+                    else if (!cond && b->child2_id != -1)
+                        g_threads[i].stack.push_back({b->child2_id, -1, 0});
+                }
+                else if (b->subtype == CB_WAIT_UNTIL)
+                {
                     bool cond = eval_bool(state, spr, b->condition_id);
-                    if (!cond) {
-                        yielded = true; 
-                    } else {
+                    if (!cond)
+                    {
+                        yielded = true;
+                    }
+                    else
+                    {
                         LogSimple(LOG_INFO, execution_cycle, b->id, "WAIT_UNTIL", "Condition met, proceeding.");
                         frame.cur_node = b->next_id;
                     }
@@ -686,68 +1004,92 @@ void interpreter_tick(AppState &state)
             // ==========================================
             // LOGGING & EXECUTION FOR SENSING BLOCKS
             // ==========================================
-            else if (b->kind == BK_SENSING) {
-                if (b->subtype == SENSB_ASK_AND_WAIT) {
+            else if (b->kind == BK_SENSING)
+            {
+                if (b->subtype == SENSB_ASK_AND_WAIT)
+                {
                     state.ask_active = true;
                     state.ask_msg = eval_string(state, spr, b->arg0_id, b->text);
                     state.ask_reply = "";
                     g_threads[i].waiting_for_ask = true;
                     LogSimple(LOG_INFO, execution_cycle, b->id, "ASK_AND_WAIT", "Asked: '" + state.ask_msg + "'");
-                    frame.cur_node = b->next_id; yielded = true;
-                } else if (b->subtype == SENSB_SET_DRAG_MODE) {
+                    frame.cur_node = b->next_id;
+                    yielded = true;
+                }
+                else if (b->subtype == SENSB_SET_DRAG_MODE)
+                {
                     bool old_drag = spr.draggable;
-                    spr.draggable = (b->opt == 0); 
+                    spr.draggable = (b->opt == 0);
                     LogEvent(LOG_INFO, execution_cycle, b->id, "SET_DRAG_MODE", "Draggable", old_drag ? "true" : "false", spr.draggable ? "true" : "false");
                     frame.cur_node = b->next_id;
-                } else frame.cur_node = b->next_id;
+                }
+                else
+                    frame.cur_node = b->next_id;
             }
             // ==========================================
             // LOGGING & EXECUTION FOR VARIABLES
             // ==========================================
-            else if (b->kind == BK_VARIABLES) {
-                if (b->opt >= 0 && b->opt < (int)state.variables.size()) {
+            else if (b->kind == BK_VARIABLES)
+            {
+                if (b->opt >= 0 && b->opt < (int)state.variables.size())
+                {
                     std::string vname = state.variables[b->opt];
                     std::string old_val = state.variable_values[vname];
 
-                    if (b->subtype == VB_SET) {
+                    if (b->subtype == VB_SET)
+                    {
                         state.variable_values[vname] = eval_string(state, spr, b->arg0_id, b->text);
                         LogEvent(LOG_INFO, execution_cycle, b->id, "SET_VAR", "Variable [" + vname + "]", old_val, state.variable_values[vname]);
                     }
-                    else if (b->subtype == VB_CHANGE) {
+                    else if (b->subtype == VB_CHANGE)
+                    {
                         float val = std::atof(state.variable_values[vname].c_str());
                         val += eval_value(state, spr, b->arg0_id, b->a, b->text);
-                        if (val == std::floor(val)) state.variable_values[vname] = std::to_string((int)val);
-                        else {
-                            char buf[32]; std::snprintf(buf, sizeof(buf), "%g", val); state.variable_values[vname] = buf;
+                        if (val == std::floor(val))
+                            state.variable_values[vname] = std::to_string((int)val);
+                        else
+                        {
+                            char buf[32];
+                            std::snprintf(buf, sizeof(buf), "%g", val);
+                            state.variable_values[vname] = buf;
                         }
                         LogEvent(LOG_INFO, execution_cycle, b->id, "CHANGE_VAR", "Variable [" + vname + "]", old_val, state.variable_values[vname]);
                     }
-                    else if (b->subtype == VB_SHOW) state.variable_visible[vname] = true;
-                    else if (b->subtype == VB_HIDE) state.variable_visible[vname] = false;
+                    else if (b->subtype == VB_SHOW)
+                        state.variable_visible[vname] = true;
+                    else if (b->subtype == VB_HIDE)
+                        state.variable_visible[vname] = false;
                 }
                 frame.cur_node = b->next_id;
             }
             // ==========================================
             // LOGGING & EXECUTION FOR EVENTS BLOCKS
             // ==========================================
-            else if (b->kind == BK_EVENTS) {
-                if (b->subtype == EB_BROADCAST) {
+            else if (b->kind == BK_EVENTS)
+            {
+                if (b->subtype == EB_BROADCAST)
+                {
                     std::string msg_name = "unknown";
-                    if (b->opt >= 0 && b->opt < (int)state.messages.size()) msg_name = state.messages[b->opt];
+                    if (b->opt >= 0 && b->opt < (int)state.messages.size())
+                        msg_name = state.messages[b->opt];
                     LogSimple(LOG_INFO, execution_cycle, b->id, "BROADCAST", "Broadcasting message: " + msg_name);
-                    
+
                     interpreter_trigger_message(state, b->opt);
                 }
                 frame.cur_node = b->next_id;
             }
-            else {
+            else
+            {
                 frame.cur_node = b->next_id;
             }
         }
 
-        if (i < g_threads.size()) {
-            if (g_threads[i].stack.empty()) g_threads.erase(g_threads.begin() + i);
-            else i++;
+        if (i < g_threads.size())
+        {
+            if (g_threads[i].stack.empty())
+                g_threads.erase(g_threads.begin() + i);
+            else
+                i++;
         }
     }
 }
@@ -756,17 +1098,20 @@ void interpreter_tick(AppState &state)
 void interpreter_trigger_flag(AppState &state)
 {
     static Uint32 last_flag_trigger = 0;
-    if (SDL_GetTicks() - last_flag_trigger < 100) return;
+    if (SDL_GetTicks() - last_flag_trigger < 100)
+        return;
     last_flag_trigger = SDL_GetTicks();
 
     commit_active_typing(state);
     state.running = true;
     g_threads.clear();
-    
+
     LogSimple(LOG_INFO, 0, -1, "TRIGGER", "Green flag clicked. Starting execution.");
 
-    for (auto &spr : state.sprites) {
-        for (int root_id : spr.top_level_blocks) {
+    for (auto &spr : state.sprites)
+    {
+        for (int root_id : spr.top_level_blocks)
+        {
             BlockInstance *b = interpreter_find_block(spr, root_id);
             if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_FLAG_CLICKED)
                 g_threads.push_back({{{{b->next_id, -1, 0}}}, 0, false, false, spr.name, root_id});
@@ -777,22 +1122,42 @@ void interpreter_trigger_flag(AppState &state)
 void interpreter_trigger_key(AppState &state, SDL_Keycode sym)
 {
     static std::unordered_map<SDL_Keycode, Uint32> last_key_trigger;
-    if (SDL_GetTicks() - last_key_trigger[sym] < 100) return;
+    if (SDL_GetTicks() - last_key_trigger[sym] < 100)
+        return;
     last_key_trigger[sym] = SDL_GetTicks();
 
     commit_active_typing(state);
     int opt = -1;
-    if (sym == SDLK_SPACE) opt = 0; else if (sym == SDLK_UP) opt = 1; else if (sym == SDLK_DOWN) opt = 2; else if (sym == SDLK_LEFT) opt = 3; else if (sym == SDLK_RIGHT) opt = 4; else if (sym >= SDLK_a && sym <= SDLK_z) opt = 5 + (sym - SDLK_a); else if (sym >= SDLK_0 && sym <= SDLK_9) opt = 31 + (sym - SDLK_0);
+    if (sym == SDLK_SPACE)
+        opt = 0;
+    else if (sym == SDLK_UP)
+        opt = 1;
+    else if (sym == SDLK_DOWN)
+        opt = 2;
+    else if (sym == SDLK_LEFT)
+        opt = 3;
+    else if (sym == SDLK_RIGHT)
+        opt = 4;
+    else if (sym >= SDLK_a && sym <= SDLK_z)
+        opt = 5 + (sym - SDLK_a);
+    else if (sym >= SDLK_0 && sym <= SDLK_9)
+        opt = 31 + (sym - SDLK_0);
 
-    if (opt == -1) return;
+    if (opt == -1)
+        return;
 
     LogSimple(LOG_INFO, 0, -1, "TRIGGER", "Keyboard key pressed.");
 
-    for (auto &spr : state.sprites) {
-        for (int root_id : spr.top_level_blocks) {
+    for (auto &spr : state.sprites)
+    {
+        for (int root_id : spr.top_level_blocks)
+        {
             BlockInstance *b = interpreter_find_block(spr, root_id);
-            if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_KEY_PRESSED && b->opt == opt) {
-                g_threads.erase(std::remove_if(g_threads.begin(), g_threads.end(), [&](const ScriptThread &th) { return th.sprite_name == spr.name && th.root_node == root_id; }), g_threads.end());
+            if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_KEY_PRESSED && b->opt == opt)
+            {
+                g_threads.erase(std::remove_if(g_threads.begin(), g_threads.end(), [&](const ScriptThread &th)
+                                               { return th.sprite_name == spr.name && th.root_node == root_id; }),
+                                g_threads.end());
                 g_threads.push_back({{{{b->next_id, -1, 0}}}, 0, false, false, spr.name, root_id});
             }
         }
@@ -802,19 +1167,25 @@ void interpreter_trigger_key(AppState &state, SDL_Keycode sym)
 void interpreter_trigger_sprite_click(AppState &state)
 {
     static Uint32 last_click_trigger = 0;
-    if (SDL_GetTicks() - last_click_trigger < 100) return;
+    if (SDL_GetTicks() - last_click_trigger < 100)
+        return;
     last_click_trigger = SDL_GetTicks();
 
     commit_active_typing(state);
-    
+
     LogSimple(LOG_INFO, 0, -1, "TRIGGER", "Sprite clicked.");
 
-    if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size()) {
+    if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
+    {
         auto &spr = state.sprites[state.selected_sprite];
-        for (int root_id : spr.top_level_blocks) {
+        for (int root_id : spr.top_level_blocks)
+        {
             BlockInstance *b = interpreter_find_block(spr, root_id);
-            if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_SPRITE_CLICKED) {
-                g_threads.erase(std::remove_if(g_threads.begin(), g_threads.end(), [&](const ScriptThread &th) { return th.sprite_name == spr.name && th.root_node == root_id; }), g_threads.end());
+            if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_SPRITE_CLICKED)
+            {
+                g_threads.erase(std::remove_if(g_threads.begin(), g_threads.end(), [&](const ScriptThread &th)
+                                               { return th.sprite_name == spr.name && th.root_node == root_id; }),
+                                g_threads.end());
                 g_threads.push_back({{{{b->next_id, -1, 0}}}, 0, false, false, spr.name, root_id});
             }
         }
@@ -825,11 +1196,16 @@ void interpreter_trigger_message(AppState &state, int msg_opt)
 {
     commit_active_typing(state);
     state.running = true;
-    for (auto &spr : state.sprites) {
-        for (int root_id : spr.top_level_blocks) {
+    for (auto &spr : state.sprites)
+    {
+        for (int root_id : spr.top_level_blocks)
+        {
             BlockInstance *b = interpreter_find_block(spr, root_id);
-            if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_I_RECEIVE && b->opt == msg_opt) {
-                g_threads.erase(std::remove_if(g_threads.begin(), g_threads.end(), [&](const ScriptThread &th) { return th.sprite_name == spr.name && th.root_node == root_id; }), g_threads.end());
+            if (b && b->kind == BK_EVENTS && b->subtype == EB_WHEN_I_RECEIVE && b->opt == msg_opt)
+            {
+                g_threads.erase(std::remove_if(g_threads.begin(), g_threads.end(), [&](const ScriptThread &th)
+                                               { return th.sprite_name == spr.name && th.root_node == root_id; }),
+                                g_threads.end());
                 g_threads.push_back({{{{b->next_id, -1, 0}}}, 0, false, false, spr.name, root_id});
             }
         }
@@ -842,7 +1218,11 @@ void interpreter_stop_all(AppState &state)
     state.running = false;
     LogSimple(LOG_INFO, 0, -1, "STOP", "Execution stopped completely.");
     g_threads.clear();
-    for (auto &spr : state.sprites) { spr.say_text = ""; spr.say_end_time = 0; }
+    for (auto &spr : state.sprites)
+    {
+        spr.say_text = "";
+        spr.say_end_time = 0;
+    }
     state.ask_active = false;
     audio_stop_all();
 }

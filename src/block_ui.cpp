@@ -594,12 +594,22 @@ void looks_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, Lo
         draw_text_caps(text.c_str(), override_field0_text, 0, 140);
         break;
     case LB_SWITCH_COSTUME_TO:
+    {
         draw_word("switch");
         draw_word("costume");
         draw_word("to");
-        draw_dd((opt == 0) ? "costume1" : (opt == 1) ? "costume2"
-                                                     : "costume3");
+        std::string c_txt = "costume1";
+        if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
+        {
+            const auto &spr = state.sprites[state.selected_sprite];
+            if (opt >= 0 && opt < (int)spr.costumes.size())
+                c_txt = spr.costumes[opt].name;
+            else if (!spr.costumes.empty())
+                c_txt = spr.costumes[0].name;
+        }
+        draw_dd(c_txt.c_str());
         break;
+    }
     case LB_NEXT_COSTUME:
         draw_word("next");
         draw_word("costume");
@@ -715,12 +725,23 @@ int looks_block_hittest_field(TTF_Font *font, const AppState &state, LooksBlockT
             return 0;
         return -1;
     case LB_SWITCH_COSTUME_TO:
+    {
         adv_word("switch");
         adv_word("costume");
         adv_word("to");
-        if (in(cap_rect(120)))
+        std::string c_txt = "costume1";
+        if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
+        {
+            const auto &spr = state.sprites[state.selected_sprite];
+            if (opt >= 0 && opt < (int)spr.costumes.size())
+                c_txt = spr.costumes[opt].name;
+            else if (!spr.costumes.empty())
+                c_txt = spr.costumes[0].name;
+        }
+        if (in(cap_rect(dd_w(c_txt.c_str()))))
             return -2;
         return -1;
+    }
     case LB_NEXT_COSTUME:
         return -1;
     case LB_SWITCH_BACKDROP_TO:
