@@ -22,7 +22,10 @@ void renderer_draw_texture_fit(SDL_Renderer *r, SDL_Texture *tex, const SDL_Rect
 
 // ---> PEN LAYER ENGINE <---
 extern SDL_Texture* g_pen_layer;
-extern SDL_Renderer* g_main_renderer;
+extern SDL_Renderer* g_pen_renderer;
+extern SDL_Texture* g_stage_snapshot;
+
+void renderer_update_stage_snapshot(SDL_Renderer *r, SDL_Texture *backdrop_tex, const SDL_Rect &stage_area);
 
 void renderer_init_pen_layer(SDL_Renderer* r);
 void renderer_clear_pen_layer();

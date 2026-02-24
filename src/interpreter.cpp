@@ -192,7 +192,12 @@ static float eval_value(AppState &state, Sprite &spr, int block_id, float defaul
             if (b->subtype == OP_DIV)
             {
                 float denom = eval_value(state, spr, b->arg1_id, b->b, b->text2);
-                return (denom != 0) ? (eval_value(state, spr, b->arg0_id, b->a, b->text) / denom) : 0;
+                if (denom == 0)
+                {
+                    LogSimple(LOG_ERROR, 0, block_id, "MATH_SAFEGUARD", "Division by zero prevented!");
+                    return 0.0f;
+                }
+                return eval_value(state, spr, b->arg0_id, b->a, b->text) / denom;
             }
             if (b->subtype == OP_GT || b->subtype == OP_LT || b->subtype == OP_EQ || b->subtype == OP_AND || b->subtype == OP_OR || b->subtype == OP_NOT)
                 return eval_bool(state, spr, block_id) ? 1.0f : 0.0f;
@@ -213,11 +218,10 @@ static float eval_value(AppState &state, Sprite &spr, int block_id, float defaul
                     return std::atof(state.backdrops[state.selected_backdrop].name.c_str());
                 return 0.0f;
             }
-            // ---> FIXED: Evaluate costume number and name as a value <---
             if (b->subtype == LB_COSTUME_NUM_NAME)
             {
                 if (b->opt == 0)
-                    return spr.selected_costume + 1; // Scratch uses 1-based indexing for costumes
+                    return spr.selected_costume + 1;
                 if (spr.selected_costume >= 0 && spr.selected_costume < (int)spr.costumes.size())
                 {
                     return std::atof(spr.costumes[spr.selected_costume].name.c_str());
@@ -229,7 +233,6 @@ static float eval_value(AppState &state, Sprite &spr, int block_id, float defaul
         {
             if (b->subtype == SENSB_ANSWER)
                 return std::atof(state.global_answer.c_str());
-
             if (b->subtype == SENSB_MOUSE_X)
             {
                 int mx, my;
@@ -253,7 +256,6 @@ static float eval_value(AppState &state, Sprite &spr, int block_id, float defaul
                 float scale_y = 360.0f / stage_area_h;
                 return (stage_cy - my) * scale_y;
             }
-
             if (b->subtype == SENSB_DISTANCE_TO)
             {
                 int mx, my;
@@ -309,7 +311,6 @@ static std::string eval_string(AppState &state, Sprite &spr, int block_id, const
                     return state.backdrops[state.selected_backdrop].name;
                 return "";
             }
-            // ---> FIXED: Evaluate costume number and name as a string <---
             if (b->subtype == LB_COSTUME_NUM_NAME)
             {
                 if (b->opt == 0)
@@ -448,7 +449,71 @@ static bool eval_bool(AppState &state, Sprite &spr, int block_id)
         }
         if (b->subtype == SENSB_TOUCHING_COLOR || b->subtype == SENSB_COLOR_IS_TOUCHING_COLOR)
         {
-            return false;
+            if (!g_stage_snapshot || !g_pen_renderer)
+                return false;
+
+            // Use EXACT same coordinate math as renderer_stamp_on_pen_layer
+            int spr_px = 240 + spr.x;   // Scratch → pen layer x
+            int spr_py = 180 - spr.y;   // Scratch → pen layer y
+
+            int tex_w = 100, tex_h = 100;
+            if (spr.texture) SDL_QueryTexture(spr.texture, NULL, NULL, &tex_w, &tex_h);
+            int base_w = tex_w, base_h = tex_h;
+            const int MAX_DEFAULT = 120;
+            if (base_w > MAX_DEFAULT || base_h > MAX_DEFAULT) {
+                if (base_w > base_h) { base_h = base_h * MAX_DEFAULT / base_w; base_w = MAX_DEFAULT; }
+                else { base_w = base_w * MAX_DEFAULT / base_h; base_h = MAX_DEFAULT; }
+            }
+            int sw = std::max(1, base_w * spr.size / 100);
+            int sh = std::max(1, base_h * spr.size / 100);
+
+            // Sample a ring of points around the sprite edge (more accurate than full bbox)
+            // Use the sprite's bounding box in pen-layer coords
+            int x0 = std::max(0,   spr_px - sw / 2);
+            int y0 = std::max(0,   spr_py - sh / 2);
+            int x1 = std::min(479, spr_px + sw / 2);
+            int y1 = std::min(359, spr_py + sh / 2);
+            if (x0 >= x1 || y0 >= y1) return false;
+
+            int rw = x1 - x0, rh = y1 - y0;
+            SDL_Rect sample_rect = {x0, y0, rw, rh};
+            std::vector<Uint32> pixels(rw * rh, 0);
+
+            SDL_Texture *prev_target = SDL_GetRenderTarget(g_pen_renderer);
+            SDL_SetRenderTarget(g_pen_renderer, g_stage_snapshot);
+            SDL_RenderReadPixels(g_pen_renderer, &sample_rect, SDL_PIXELFORMAT_ARGB8888, pixels.data(), rw * 4);
+            SDL_SetRenderTarget(g_pen_renderer, prev_target);
+
+            // ARGB8888: uint32 = 0xAARRGGBB
+            Uint8 tr = b->color1.r, tg = b->color1.g, tb_ = b->color1.b;
+            const int EPS = 1; // small epsilon for color matching
+
+            if (b->subtype == SENSB_TOUCHING_COLOR)
+            {
+                for (auto &px : pixels)
+                {
+                    Uint8 r2 = (px >> 16) & 0xFF;
+                    Uint8 g2 = (px >>  8) & 0xFF;
+                    Uint8 b2 = (px >>  0) & 0xFF;
+                    if (std::abs((int)r2 - tr) <= EPS && std::abs((int)g2 - tg) <= EPS && std::abs((int)b2 - tb_) <= EPS)
+                        return true;
+                }
+                return false;
+            }
+            else
+            {
+                Uint8 tr2 = b->color2.r, tg2 = b->color2.g, tb2 = b->color2.b;
+                bool found1 = false, found2 = false;
+                for (auto &px : pixels)
+                {
+                    Uint8 r2 = (px >> 16) & 0xFF;
+                    Uint8 g2 = (px >>  8) & 0xFF;
+                    Uint8 b2 = (px >>  0) & 0xFF;
+                    if (std::abs((int)r2 - tr)  <= EPS && std::abs((int)g2 - tg)  <= EPS && std::abs((int)b2 - tb_) <= EPS) found1 = true;
+                    if (std::abs((int)r2 - tr2) <= EPS && std::abs((int)g2 - tg2) <= EPS && std::abs((int)b2 - tb2) <= EPS) found2 = true;
+                }
+                return found1 && found2;
+            }
         }
     }
     if (b->kind == BK_VARIABLES || b->kind == BK_EVENTS || (b->kind == BK_SENSING && (b->subtype == SENSB_ANSWER || b->subtype == SENSB_DISTANCE_TO || b->subtype == SENSB_MOUSE_X || b->subtype == SENSB_MOUSE_Y)))
@@ -470,7 +535,6 @@ void interpreter_tick(AppState &state)
     if (!state.running)
         return;
 
-    // ---> SYSTEM LOGGER CYCLE COUNTER <---
     static int execution_cycle = 0;
     execution_cycle++;
 
@@ -524,11 +588,23 @@ void interpreter_tick(AppState &state)
         Sprite &spr = *spr_ptr;
 
         bool yielded = false;
+        int watchdog_counter = 0;
+
         while (!g_threads[i].stack.empty() && !yielded && state.running)
         {
+            // ---> INFINITE LOOP WATCHDOG <---
+            watchdog_counter++;
+            if (watchdog_counter > 1000)
+            {
+                LogSimple(LOG_ERROR, execution_cycle, -1, "WATCHDOG", "Infinite loop detected! Execution halted.");
+                state.running = false;
+                break;
+            }
+
             StackFrame &frame = g_threads[i].stack.back();
             int cur = frame.cur_node;
 
+            // Loop Iteration Control Check
             if (cur == -1)
             {
                 if (frame.loop_block_id != -1)
@@ -536,7 +612,23 @@ void interpreter_tick(AppState &state)
                     BlockInstance *loop_b = interpreter_find_block(spr, frame.loop_block_id);
                     if (loop_b)
                     {
-                        if (frame.loop_count > 0 || frame.loop_count == -1)
+                        // ---> IMPLEMENTED REPEAT UNTIL EVALUATION <---
+                        if (loop_b->subtype == CB_REPEAT_UNTIL)
+                        {
+                            bool cond = eval_bool(state, spr, loop_b->condition_id);
+                            if (!cond)
+                            { // If condition not met, loop again
+                                frame.cur_node = loop_b->child_id;
+                                yielded = true;
+                                break;
+                            }
+                            else
+                            {
+                                // ---> CHANGED TO LOG_ERROR FOR RED TOAST <---
+                                LogSimple(LOG_ERROR, execution_cycle, loop_b->id, "REPEAT_UNTIL", "Condition met, exiting loop.");
+                            }
+                        }
+                        else if (frame.loop_count > 0 || frame.loop_count == -1)
                         {
                             if (frame.loop_count > 0)
                                 frame.loop_count--;
@@ -557,14 +649,12 @@ void interpreter_tick(AppState &state)
                 continue;
             }
 
-            // ==========================================
-            // LOGGING & EXECUTION FOR MOTION BLOCKS
-            // ==========================================
             if (b->kind == BK_MOTION)
             {
                 int old_x = spr.x;
                 int old_y = spr.y;
                 int old_dir = spr.direction;
+                std::string cmd_name = "";
 
                 if (b->subtype == MB_MOVE_STEPS)
                 {
@@ -572,47 +662,38 @@ void interpreter_tick(AppState &state)
                     float rad = (spr.direction - 90.0f) * M_PI / 180.0f;
                     spr.x += (int)(steps * std::cos(rad));
                     spr.y -= (int)(steps * std::sin(rad));
-
-                    LogEvent(LOG_INFO, execution_cycle, b->id, "MOVE_STEPS", "Position (X,Y)",
-                             "(" + std::to_string(old_x) + "," + std::to_string(old_y) + ")",
-                             "(" + std::to_string(spr.x) + "," + std::to_string(spr.y) + ")");
+                    cmd_name = "MOVE_STEPS";
                 }
                 else if (b->subtype == MB_TURN_RIGHT_DEG)
                 {
                     spr.direction += (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
-                    LogEvent(LOG_INFO, execution_cycle, b->id, "TURN_RIGHT", "Direction", std::to_string(old_dir), std::to_string(spr.direction));
+                    cmd_name = "TURN_RIGHT";
                 }
                 else if (b->subtype == MB_TURN_LEFT_DEG)
                 {
                     spr.direction -= (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
-                    LogEvent(LOG_INFO, execution_cycle, b->id, "TURN_LEFT", "Direction", std::to_string(old_dir), std::to_string(spr.direction));
+                    cmd_name = "TURN_LEFT";
                 }
                 else if (b->subtype == MB_GO_TO_XY)
                 {
                     spr.x = (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
                     spr.y = (int)eval_value(state, spr, b->arg1_id, b->b, b->text2);
-                    LogEvent(LOG_INFO, execution_cycle, b->id, "GO_TO_XY", "Position (X,Y)",
-                             "(" + std::to_string(old_x) + "," + std::to_string(old_y) + ")",
-                             "(" + std::to_string(spr.x) + "," + std::to_string(spr.y) + ")");
+                    cmd_name = "GO_TO_XY";
                 }
                 else if (b->subtype == MB_CHANGE_X_BY)
                 {
                     spr.x += (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
-                    LogEvent(LOG_INFO, execution_cycle, b->id, "CHANGE_X", "Position (X,Y)",
-                             "(" + std::to_string(old_x) + "," + std::to_string(old_y) + ")",
-                             "(" + std::to_string(spr.x) + "," + std::to_string(spr.y) + ")");
+                    cmd_name = "CHANGE_X";
                 }
                 else if (b->subtype == MB_CHANGE_Y_BY)
                 {
                     spr.y += (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
-                    LogEvent(LOG_INFO, execution_cycle, b->id, "CHANGE_Y", "Position (X,Y)",
-                             "(" + std::to_string(old_x) + "," + std::to_string(old_y) + ")",
-                             "(" + std::to_string(spr.x) + "," + std::to_string(spr.y) + ")");
+                    cmd_name = "CHANGE_Y";
                 }
                 else if (b->subtype == MB_POINT_IN_DIR)
                 {
                     spr.direction = (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
-                    LogEvent(LOG_INFO, execution_cycle, b->id, "POINT_DIR", "Direction", std::to_string(old_dir), std::to_string(spr.direction));
+                    cmd_name = "POINT_DIR";
                 }
                 else if (b->subtype == MB_GO_TO_TARGET)
                 {
@@ -625,40 +706,35 @@ void interpreter_tick(AppState &state)
                     {
                         int mx, my;
                         SDL_GetMouseState(&mx, &my);
-
                         int col_x = WINDOW_WIDTH - RIGHT_COLUMN_WIDTH;
                         int col_h = WINDOW_HEIGHT - NAVBAR_HEIGHT;
                         int stage_h = col_h * STAGE_HEIGHT_RATIO / 100;
                         int margin = 8;
                         int stage_area_w = RIGHT_COLUMN_WIDTH - margin * 2;
                         int stage_area_h = stage_h - margin * 2;
-
                         int stage_cx = col_x + margin + stage_area_w / 2;
                         int stage_cy = NAVBAR_HEIGHT + margin + stage_area_h / 2;
-
                         float scale_x = 480.0f / stage_area_w;
                         float scale_y = 360.0f / stage_area_h;
 
                         spr.x = (int)((mx - stage_cx) * scale_x);
                         spr.y = (int)((stage_cy - my) * scale_y);
                     }
-                    LogEvent(LOG_INFO, execution_cycle, b->id, "GO_TO_TARGET", "Position (X,Y)",
-                             "(" + std::to_string(old_x) + "," + std::to_string(old_y) + ")",
-                             "(" + std::to_string(spr.x) + "," + std::to_string(spr.y) + ")");
+                    cmd_name = "GO_TO_TARGET";
                 }
 
-                // ---> KEEP SPRITES ON SCREEN & LOG BOUNDARY CHECKS <---
                 int pre_clamp_x = spr.x;
                 int pre_clamp_y = spr.y;
                 constrain_sprite_to_stage(spr);
 
                 if (spr.x != pre_clamp_x)
-                {
-                    LogSimple(LOG_WARNING, execution_cycle, b->id, "BOUNDARY_CHECK", "Sprite X was clamped to " + std::to_string(spr.x));
-                }
+                    LogSimple(LOG_WARNING, execution_cycle, b->id, "BOUNDARY_CHECK", "Sprite X clamped to " + std::to_string(spr.x));
                 if (spr.y != pre_clamp_y)
+                    LogSimple(LOG_WARNING, execution_cycle, b->id, "BOUNDARY_CHECK", "Sprite Y clamped to " + std::to_string(spr.y));
+
+                if (!cmd_name.empty())
                 {
-                    LogSimple(LOG_WARNING, execution_cycle, b->id, "BOUNDARY_CHECK", "Sprite Y was clamped to " + std::to_string(spr.y));
+                    LogEvent(LOG_INFO, execution_cycle, b->id, cmd_name, "Movement", std::to_string(old_x) + "," + std::to_string(old_y), std::to_string(spr.x) + "," + std::to_string(spr.y));
                 }
 
                 if (spr.pen_down && (spr.x != old_x || spr.y != old_y))
@@ -666,10 +742,8 @@ void interpreter_tick(AppState &state)
                     renderer_draw_line_on_pen_layer(old_x, old_y, spr.x, spr.y, spr.pen_size, spr.pen_color);
                 }
                 frame.cur_node = b->next_id;
+                yielded = true;
             }
-            // ==========================================
-            // LOGGING & EXECUTION FOR PEN BLOCKS
-            // ==========================================
             else if (b->kind == BK_PEN)
             {
                 if (b->subtype == PB_ERASE_ALL)
@@ -680,38 +754,50 @@ void interpreter_tick(AppState &state)
                 else if (b->subtype == PB_STAMP)
                 {
                     renderer_stamp_on_pen_layer(spr);
-                    LogSimple(LOG_INFO, execution_cycle, b->id, "STAMP", "Stamped sprite on pen layer.");
+                    LogSimple(LOG_INFO, execution_cycle, b->id, "STAMP", "Stamped sprite.");
                 }
                 else if (b->subtype == PB_PEN_DOWN)
                 {
                     spr.pen_down = true;
                     renderer_draw_line_on_pen_layer(spr.x, spr.y, spr.x, spr.y, spr.pen_size, spr.pen_color);
-                    LogSimple(LOG_INFO, execution_cycle, b->id, "PEN_DOWN", "Pen is now down.");
+                    LogSimple(LOG_INFO, execution_cycle, b->id, "PEN_DOWN", "Pen down.");
                 }
                 else if (b->subtype == PB_PEN_UP)
                 {
                     spr.pen_down = false;
-                    LogSimple(LOG_INFO, execution_cycle, b->id, "PEN_UP", "Pen is now up.");
+                    LogSimple(LOG_INFO, execution_cycle, b->id, "PEN_UP", "Pen up.");
                 }
                 else if (b->subtype == PB_CHANGE_ATTRIB_BY)
                 {
-                    int old_val = spr.pen_color_val;
                     float val = eval_value(state, spr, b->arg0_id, b->a, b->text);
-                    spr.pen_color_val = (spr.pen_color_val + (int)val) % 100;
-                    if (spr.pen_color_val < 0)
-                        spr.pen_color_val += 100;
+                    // opt 0=color, 1=saturation, 2=brightness, 3=size
+                    if (b->opt == 0) {
+                        spr.pen_color_val = ((spr.pen_color_val + (int)val) % 100 + 100) % 100;
+                    } else if (b->opt == 1) {
+                        spr.pen_saturation = std::max(0, std::min(100, spr.pen_saturation + (int)val));
+                    } else if (b->opt == 2) {
+                        spr.pen_brightness = std::max(0, std::min(100, spr.pen_brightness + (int)val));
+                    } else if (b->opt == 3) {
+                        spr.pen_size = std::max(1, spr.pen_size + (int)val);
+                    }
                     update_pen_rgb(spr);
-                    LogEvent(LOG_INFO, execution_cycle, b->id, "CHANGE_PEN_COLOR", "Pen Color Value", std::to_string(old_val), std::to_string(spr.pen_color_val));
+                    LogSimple(LOG_INFO, execution_cycle, b->id, "CHANGE_PEN_ATTRIB", "Changed pen attribute " + std::to_string(b->opt));
                 }
                 else if (b->subtype == PB_SET_ATTRIB_TO)
                 {
-                    int old_val = spr.pen_color_val;
                     float val = eval_value(state, spr, b->arg0_id, b->a, b->text);
-                    spr.pen_color_val = ((int)val) % 100;
-                    if (spr.pen_color_val < 0)
-                        spr.pen_color_val += 100;
+                    // opt 0=color, 1=saturation, 2=brightness, 3=size
+                    if (b->opt == 0) {
+                        spr.pen_color_val = ((int)val % 100 + 100) % 100;
+                    } else if (b->opt == 1) {
+                        spr.pen_saturation = std::max(0, std::min(100, (int)val));
+                    } else if (b->opt == 2) {
+                        spr.pen_brightness = std::max(0, std::min(100, (int)val));
+                    } else if (b->opt == 3) {
+                        spr.pen_size = std::max(1, (int)val);
+                    }
                     update_pen_rgb(spr);
-                    LogEvent(LOG_INFO, execution_cycle, b->id, "SET_PEN_COLOR", "Pen Color Value", std::to_string(old_val), std::to_string(spr.pen_color_val));
+                    LogSimple(LOG_INFO, execution_cycle, b->id, "SET_PEN_ATTRIB", "Set pen attribute " + std::to_string(b->opt));
                 }
                 else if (b->subtype == PB_CHANGE_SIZE_BY)
                 {
@@ -730,10 +816,8 @@ void interpreter_tick(AppState &state)
                     LogEvent(LOG_INFO, execution_cycle, b->id, "SET_PEN_SIZE", "Pen Size", std::to_string(old_psize), std::to_string(spr.pen_size));
                 }
                 frame.cur_node = b->next_id;
+                yielded = true;
             }
-            // ==========================================
-            // LOGGING & EXECUTION FOR LOOKS BLOCKS
-            // ==========================================
             else if (b->kind == BK_LOOKS)
             {
                 if (b->subtype == LB_SAY)
@@ -743,6 +827,7 @@ void interpreter_tick(AppState &state)
                     spr.say_end_time = 0;
                     LogSimple(LOG_INFO, execution_cycle, b->id, "SAY", "Sprite says: '" + spr.say_text + "'");
                     frame.cur_node = b->next_id;
+                    yielded = true;
                 }
                 else if (b->subtype == LB_THINK)
                 {
@@ -751,6 +836,7 @@ void interpreter_tick(AppState &state)
                     spr.say_end_time = 0;
                     LogSimple(LOG_INFO, execution_cycle, b->id, "THINK", "Sprite thinks: '" + spr.say_text + "'");
                     frame.cur_node = b->next_id;
+                    yielded = true;
                 }
                 else if (b->subtype == LB_SAY_FOR)
                 {
@@ -780,6 +866,7 @@ void interpreter_tick(AppState &state)
                     spr.size += (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
                     LogEvent(LOG_INFO, execution_cycle, b->id, "CHANGE_SIZE", "Sprite Size", std::to_string(old_size), std::to_string(spr.size));
                     frame.cur_node = b->next_id;
+                    yielded = true;
                 }
                 else if (b->subtype == LB_SET_SIZE_TO)
                 {
@@ -787,6 +874,7 @@ void interpreter_tick(AppState &state)
                     spr.size = (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
                     LogEvent(LOG_INFO, execution_cycle, b->id, "SET_SIZE", "Sprite Size", std::to_string(old_size), std::to_string(spr.size));
                     frame.cur_node = b->next_id;
+                    yielded = true;
                 }
                 else if (b->subtype == LB_SHOW)
                 {
@@ -794,6 +882,7 @@ void interpreter_tick(AppState &state)
                     spr.visible = true;
                     LogEvent(LOG_INFO, execution_cycle, b->id, "SHOW", "Visibility", old_vis ? "true" : "false", "true");
                     frame.cur_node = b->next_id;
+                    yielded = true;
                 }
                 else if (b->subtype == LB_HIDE)
                 {
@@ -801,6 +890,7 @@ void interpreter_tick(AppState &state)
                     spr.visible = false;
                     LogEvent(LOG_INFO, execution_cycle, b->id, "HIDE", "Visibility", old_vis ? "true" : "false", "false");
                     frame.cur_node = b->next_id;
+                    yielded = true;
                 }
                 else if (b->subtype == LB_SWITCH_BACKDROP_TO)
                 {
@@ -809,6 +899,7 @@ void interpreter_tick(AppState &state)
                         state.selected_backdrop = b->opt;
                     LogEvent(LOG_INFO, execution_cycle, b->id, "SWITCH_BACKDROP", "Backdrop Index", std::to_string(old_bd), std::to_string(state.selected_backdrop));
                     frame.cur_node = b->next_id;
+                    yielded = true;
                 }
                 else if (b->subtype == LB_NEXT_BACKDROP)
                 {
@@ -817,6 +908,7 @@ void interpreter_tick(AppState &state)
                         state.selected_backdrop = (state.selected_backdrop + 1) % state.backdrops.size();
                     LogEvent(LOG_INFO, execution_cycle, b->id, "NEXT_BACKDROP", "Backdrop Index", std::to_string(old_bd), std::to_string(state.selected_backdrop));
                     frame.cur_node = b->next_id;
+                    yielded = true;
                 }
                 else if (b->subtype == LB_GO_TO_LAYER)
                 {
@@ -839,6 +931,7 @@ void interpreter_tick(AppState &state)
                     }
                     LogEvent(LOG_INFO, execution_cycle, b->id, "GO_TO_LAYER", "Layer Order", std::to_string(old_layer), std::to_string(spr.layer_order));
                     frame.cur_node = b->next_id;
+                    yielded = true;
                 }
                 else if (b->subtype == LB_GO_LAYERS)
                 {
@@ -875,6 +968,7 @@ void interpreter_tick(AppState &state)
                     }
                     LogEvent(LOG_INFO, execution_cycle, b->id, "GO_LAYERS", "Layer Order", std::to_string(old_layer), std::to_string(spr.layer_order));
                     frame.cur_node = b->next_id;
+                    yielded = true;
                 }
                 else if (b->subtype == LB_SWITCH_COSTUME_TO)
                 {
@@ -883,6 +977,7 @@ void interpreter_tick(AppState &state)
                         spr.selected_costume = b->opt;
                     LogEvent(LOG_INFO, execution_cycle, b->id, "SWITCH_COSTUME", "Costume Index", std::to_string(old_costume), std::to_string(spr.selected_costume));
                     frame.cur_node = b->next_id;
+                    yielded = true;
                 }
                 else if (b->subtype == LB_NEXT_COSTUME)
                 {
@@ -891,15 +986,13 @@ void interpreter_tick(AppState &state)
                         spr.selected_costume = (spr.selected_costume + 1) % spr.costumes.size();
                     LogEvent(LOG_INFO, execution_cycle, b->id, "NEXT_COSTUME", "Costume Index", std::to_string(old_costume), std::to_string(spr.selected_costume));
                     frame.cur_node = b->next_id;
+                    yielded = true;
                 }
                 else
                 {
                     frame.cur_node = b->next_id;
                 }
             }
-            // ==========================================
-            // LOGGING & EXECUTION FOR SOUND BLOCKS
-            // ==========================================
             else if (b->kind == BK_SOUND)
             {
                 if (b->subtype == SB_CHANGE_VOLUME_BY)
@@ -939,9 +1032,6 @@ void interpreter_tick(AppState &state)
                     frame.cur_node = b->next_id;
                 }
             }
-            // ==========================================
-            // LOGGING & EXECUTION FOR CONTROL BLOCKS
-            // ==========================================
             else if (b->kind == BK_CONTROL)
             {
                 if (b->subtype == CB_WAIT)
@@ -954,20 +1044,29 @@ void interpreter_tick(AppState &state)
                 }
                 else if (b->subtype == CB_REPEAT)
                 {
+
                     int count = (int)eval_value(state, spr, b->arg0_id, b->a, b->text);
-                    LogSimple(LOG_INFO, execution_cycle, b->id, "REPEAT", "Repeating " + std::to_string(count) + " times.");
+
+                    // ---> FIXED: SAFETY NET FOR HIGH REPEAT COUNT <---
+                    if (count > 1000)
+                    {
+                        LogSimple(LOG_ERROR, execution_cycle, b->id, "LIMIT_EXCEEDED", "Repeat count > 1000 (" + std::to_string(count) + "). Loop stopped.");
+                        count = 0; // Abort loop to prevent lag
+                    }
+                    else
+                    {
+                        LogSimple(LOG_INFO, execution_cycle, b->id, "REPEAT", "Repeating " + std::to_string(count) + " times.");
+                    }
+
                     frame.cur_node = b->next_id;
-                    if (count > 0 && b->child_id != -1)
+                    if (count > 0)
                         g_threads[i].stack.push_back({b->child_id, b->id, count - 1});
                 }
                 else if (b->subtype == CB_FOREVER)
                 {
                     LogSimple(LOG_INFO, execution_cycle, b->id, "FOREVER", "Looping forever.");
                     frame.cur_node = b->next_id;
-                    if (b->child_id != -1)
-                        g_threads[i].stack.push_back({b->child_id, b->id, -1});
-                    else
-                        yielded = true;
+                    g_threads[i].stack.push_back({b->child_id, b->id, -1});
                 }
                 else if (b->subtype == CB_IF)
                 {
@@ -987,12 +1086,13 @@ void interpreter_tick(AppState &state)
                     else if (!cond && b->child2_id != -1)
                         g_threads[i].stack.push_back({b->child2_id, -1, 0});
                 }
+                // ---> IMPLEMENTED WAIT UNTIL <---
                 else if (b->subtype == CB_WAIT_UNTIL)
                 {
                     bool cond = eval_bool(state, spr, b->condition_id);
                     if (!cond)
                     {
-                        yielded = true;
+                        yielded = true; // Wait: Stay on the current node and check again next tick
                     }
                     else
                     {
@@ -1000,10 +1100,24 @@ void interpreter_tick(AppState &state)
                         frame.cur_node = b->next_id;
                     }
                 }
+                // ---> IMPLEMENTED REPEAT UNTIL <---
+                else if (b->subtype == CB_REPEAT_UNTIL)
+                {
+                    bool cond = eval_bool(state, spr, b->condition_id);
+                    frame.cur_node = b->next_id;
+
+                    if (!cond)
+                    { // If condition NOT met, run the loop body
+                        LogSimple(LOG_INFO, execution_cycle, b->id, "REPEAT_UNTIL", "Condition false, looping...");
+                        g_threads[i].stack.push_back({b->child_id, b->id, -1});
+                    }
+                    else
+                    {
+                        // ---> CHANGED TO LOG_ERROR FOR RED TOAST <---
+                        LogSimple(LOG_ERROR, execution_cycle, b->id, "REPEAT_UNTIL", "Condition met, exiting loop.");
+                    }
+                }
             }
-            // ==========================================
-            // LOGGING & EXECUTION FOR SENSING BLOCKS
-            // ==========================================
             else if (b->kind == BK_SENSING)
             {
                 if (b->subtype == SENSB_ASK_AND_WAIT)
@@ -1026,9 +1140,6 @@ void interpreter_tick(AppState &state)
                 else
                     frame.cur_node = b->next_id;
             }
-            // ==========================================
-            // LOGGING & EXECUTION FOR VARIABLES
-            // ==========================================
             else if (b->kind == BK_VARIABLES)
             {
                 if (b->opt >= 0 && b->opt < (int)state.variables.size())
@@ -1062,9 +1173,6 @@ void interpreter_tick(AppState &state)
                 }
                 frame.cur_node = b->next_id;
             }
-            // ==========================================
-            // LOGGING & EXECUTION FOR EVENTS BLOCKS
-            // ==========================================
             else if (b->kind == BK_EVENTS)
             {
                 if (b->subtype == EB_BROADCAST)
@@ -1094,7 +1202,6 @@ void interpreter_tick(AppState &state)
     }
 }
 
-// ---> LOGGING FOR PROJECT WIDE TRIGGERS <---
 void interpreter_trigger_flag(AppState &state)
 {
     static Uint32 last_flag_trigger = 0;
@@ -1110,6 +1217,7 @@ void interpreter_trigger_flag(AppState &state)
 
     for (auto &spr : state.sprites)
     {
+        spr.pen_down = false; // Always reset pen on flag click
         for (int root_id : spr.top_level_blocks)
         {
             BlockInstance *b = interpreter_find_block(spr, root_id);
@@ -1127,6 +1235,7 @@ void interpreter_trigger_key(AppState &state, SDL_Keycode sym)
     last_key_trigger[sym] = SDL_GetTicks();
 
     commit_active_typing(state);
+    state.running = true; // B1 FIX: key handlers work without flag
     int opt = -1;
     if (sym == SDLK_SPACE)
         opt = 0;
@@ -1172,6 +1281,7 @@ void interpreter_trigger_sprite_click(AppState &state)
     last_click_trigger = SDL_GetTicks();
 
     commit_active_typing(state);
+    state.running = true; // B1 FIX: sprite-click works without flag
 
     LogSimple(LOG_INFO, 0, -1, "TRIGGER", "Sprite clicked.");
 

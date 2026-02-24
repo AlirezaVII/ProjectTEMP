@@ -107,6 +107,40 @@ static void get_operator_capsule_widths(const AppState &state, const BlockInstan
     cw1 = get_w(b.arg1_id, s1, d1, hex1);
 }
 
+// How much extra width a child reporter adds over its default slot width
+static int reporter_extra(const AppState &state, int arg_id, int default_slot_w)
+{
+    if (arg_id == -1) return 0;
+    const BlockInstance *child = workspace_find_const(state, arg_id);
+    if (!child) return 0;
+    SDL_Rect cr = {child->x, child->y, 40, 24}; // fallback
+    if (child->kind == BK_OPERATORS) {
+        int cw0, cw1;
+        get_operator_capsule_widths(state, *child, cw0, cw1);
+        int base_w = 140;
+        if (child->subtype == OP_GT || child->subtype == OP_LT || child->subtype == OP_EQ) base_w = 160;
+        else if (child->subtype == OP_AND || child->subtype == OP_OR) base_w = 190;
+        else if (child->subtype == OP_NOT) base_w = 140;
+        else if (child->subtype == OP_JOIN) base_w = 190;
+        else if (child->subtype == OP_LETTER_OF) base_w = 200;
+        else if (child->subtype == OP_LENGTH_OF) base_w = 160;
+        int dw0 = 36, dw1 = 36;
+        if (child->subtype == OP_AND || child->subtype == OP_OR || child->subtype == OP_NOT) { dw0 = 50; dw1 = 50; }
+        int ew = 0;
+        if (cw0 > dw0) ew += cw0 - dw0;
+        if (cw1 > dw1) ew += cw1 - dw1;
+        cr = {child->x, child->y, base_w + ew, 40};
+    } else if (child->kind == BK_VARIABLES && child->subtype == VB_VARIABLE) {
+        cr = variables_block_rect(VB_VARIABLE, child->x, child->y, child->text);
+    } else if (child->kind == BK_LOOKS && child->subtype == LB_SIZE) {
+        cr = {child->x, child->y, 60, 24};
+    } else if (child->kind == BK_SENSING) {
+        if (child->subtype == SENSB_ANSWER || child->subtype == SENSB_MOUSE_X || child->subtype == SENSB_MOUSE_Y)
+            cr = sensing_reporter_block_rect((SensingBlockType)child->subtype, child->x, child->y);
+    }
+    return std::max(0, cr.w - default_slot_w);
+}
+
 static SDL_Rect block_rect(const AppState &state, const BlockInstance &b)
 {
     if (b.kind == BK_CONTROL)
@@ -114,15 +148,41 @@ static SDL_Rect block_rect(const AppState &state, const BlockInstance &b)
         return control_block_rect((ControlBlockType)b.subtype, b.x, b.y, chain_height(state, b.child_id), chain_height(state, b.child2_id));
     }
     if (b.kind == BK_MOTION)
-        return motion_block_rect((MotionBlockType)b.subtype, b.x, b.y);
+    {
+        SDL_Rect r = motion_block_rect((MotionBlockType)b.subtype, b.x, b.y);
+        // Default motion input capsule widths (from block_ui.cpp draw functions)
+        int d0 = 40, d1 = 48; // most motion: 40; go_to_xy uses 48 for both
+        if (b.subtype == MB_GO_TO_XY) { d0 = 48; d1 = 48; }
+        r.w += reporter_extra(state, b.arg0_id, d0);
+        r.w += reporter_extra(state, b.arg1_id, d1);
+        return r;
+    }
     if (b.kind == BK_LOOKS)
-        return looks_block_rect((LooksBlockType)b.subtype, b.x, b.y);
+    {
+        SDL_Rect r = looks_block_rect((LooksBlockType)b.subtype, b.x, b.y);
+        // Default looks input widths: text fields ~110-140, num fields ~48
+        int d0 = 110, d1 = 48;
+        if (b.subtype == LB_SAY_FOR || b.subtype == LB_THINK_FOR) { d0 = 110; d1 = 48; }
+        else if (b.subtype == LB_SAY || b.subtype == LB_THINK) { d0 = 120; }
+        else if (b.subtype == LB_CHANGE_SIZE_BY || b.subtype == LB_SET_SIZE_TO || b.subtype == LB_GO_LAYERS) { d0 = 48; }
+        r.w += reporter_extra(state, b.arg0_id, d0);
+        r.w += reporter_extra(state, b.arg1_id, d1);
+        return r;
+    }
     if (b.kind == BK_SOUND)
-        return sound_block_rect((SoundBlockType)b.subtype, b.x, b.y, b.a, b.opt);
+    {
+        SDL_Rect r = sound_block_rect((SoundBlockType)b.subtype, b.x, b.y, b.a, b.opt);
+        r.w += reporter_extra(state, b.arg0_id, 52);
+        return r;
+    }
     if (b.kind == BK_EVENTS)
         return events_block_rect((EventsBlockType)b.subtype, b.x, b.y, b.opt);
     if (b.kind == BK_PEN)
-        return pen_block_rect((PenBlockType)b.subtype, b.x, b.y);
+    {
+        SDL_Rect r = pen_block_rect((PenBlockType)b.subtype, b.x, b.y);
+        r.w += reporter_extra(state, b.arg0_id, 40);
+        return r;
+    }
     if (b.kind == BK_OPERATORS)
     {
         int cw0, cw1;
@@ -225,7 +285,13 @@ static SDL_Rect get_capsule_rect(TTF_Font *font, const AppState &state, const Bl
     {
         int field = -1;
         if (b.kind == BK_MOTION)
-            field = motion_block_hittest_field(font, (MotionBlockType)b.subtype, b.x, b.y, b.a, b.b, (GoToTarget)b.opt, px, cy);
+        {
+            int d0 = 40, d1 = 48;
+            if (b.subtype == MB_GO_TO_XY) { d0 = 48; d1 = 48; }
+            int ew0 = reporter_extra(state, b.arg0_id, d0);
+            int ew1 = reporter_extra(state, b.arg1_id, d1);
+            field = motion_block_hittest_field(font, (MotionBlockType)b.subtype, b.x, b.y, b.a, b.b, (GoToTarget)b.opt, px, cy, ew0, ew1);
+        }
         else if (b.kind == BK_LOOKS)
             field = looks_block_hittest_field(font, state, (LooksBlockType)b.subtype, b.x, b.y, b.text, b.a, b.b, b.opt, px, cy);
         else if (b.kind == BK_SOUND)
@@ -463,7 +529,15 @@ void workspace_layout_chain(AppState &state, int root_id)
             BlockInstance *cond = workspace_find(state, b->condition_id);
             if (cond)
             {
-                cond->x = x + 35;
+                int c_off = 35;
+                if (b->kind == BK_CONTROL)
+                {
+                    if (b->subtype == CB_WAIT_UNTIL)
+                        c_off = 90;
+                    else if (b->subtype == CB_REPEAT_UNTIL)
+                        c_off = 100;
+                }
+                cond->x = x + c_off;
                 cond->y = y + 8;
                 workspace_layout_chain(state, cond->id);
             }
@@ -703,7 +777,11 @@ static void compute_snap(AppState &state, TTF_Font *font)
                 int px = state.drag.mouse_x;
                 int py = state.drag.mouse_y;
                 if (b->kind == BK_MOTION)
-                    field = motion_block_hittest_field(font, (MotionBlockType)b->subtype, b->x, b->y, b->a, b->b, (GoToTarget)b->opt, px, py);
+                {
+                    int d0 = 40, d1 = 48;
+                    if (b->subtype == MB_GO_TO_XY) { d0 = 48; d1 = 48; }
+                    field = motion_block_hittest_field(font, (MotionBlockType)b->subtype, b->x, b->y, b->a, b->b, (GoToTarget)b->opt, px, py, reporter_extra(state, b->arg0_id, d0), reporter_extra(state, b->arg1_id, d1));
+                }
                 else if (b->kind == BK_LOOKS)
                     field = looks_block_hittest_field(font, state, (LooksBlockType)b->subtype, b->x, b->y, b->text, b->a, b->b, b->opt, px, py);
                 else if (b->kind == BK_SOUND)
@@ -768,15 +846,38 @@ static void compute_snap(AppState &state, TTF_Font *font)
             };
             if (!dragging_reporter || dragging_bool)
             {
-                try_snap(br.x, br.y + br.h - motion_block_metrics().overlap, SNAP_AFTER, false);
-                try_snap(br.x, br.y - (dr.h - motion_block_metrics().overlap), SNAP_BEFORE, false);
+                // B5 FIX: Event hats (non-broadcast) cannot snap TO other blocks,
+                // and nothing can snap ABOVE a hat block.
+                // Broadcast IS allowed to snap normally like any stack block.
+                bool dragging_event_hat = false;
+                if (state.drag.from_palette)
+                    dragging_event_hat = (state.drag.palette_kind == BK_EVENTS && state.drag.palette_subtype != EB_BROADCAST);
+                else {
+                    const BlockInstance *drb = workspace_find_const(state, state.drag.dragged_block_id);
+                    if (drb) dragging_event_hat = (drb->kind == BK_EVENTS && drb->subtype != EB_BROADCAST);
+                }
+                bool target_is_hat = (b->kind == BK_EVENTS && b->subtype != EB_BROADCAST);
+
+                // A hat block being dragged cannot snap after/before anything
+                if (!dragging_event_hat)
+                    try_snap(br.x, br.y + br.h - motion_block_metrics().overlap, SNAP_AFTER, false);
+                // Nothing can snap before (above) a hat block
+                if (!target_is_hat && !dragging_event_hat)
+                    try_snap(br.x, br.y - (dr.h - motion_block_metrics().overlap), SNAP_BEFORE, false);
             }
             if (b->kind == BK_CONTROL)
             {
                 ControlBlockType ct = (ControlBlockType)b->subtype;
-                if (ct == CB_IF || ct == CB_IF_ELSE || ct == CB_WAIT_UNTIL)
-                    try_snap(br.x + 35, br.y + 8, SNAP_CONDITION, true);
-                if (ct == CB_REPEAT || ct == CB_FOREVER || ct == CB_IF || ct == CB_IF_ELSE)
+                if (ct == CB_IF || ct == CB_IF_ELSE || ct == CB_WAIT_UNTIL || ct == CB_REPEAT_UNTIL)
+                {
+                    int c_off = 35;
+                    if (ct == CB_WAIT_UNTIL)
+                        c_off = 90;
+                    else if (ct == CB_REPEAT_UNTIL)
+                        c_off = 100;
+                    try_snap(br.x + c_off, br.y + 8, SNAP_CONDITION, true);
+                }
+                if (ct == CB_REPEAT || ct == CB_FOREVER || ct == CB_IF || ct == CB_IF_ELSE || ct == CB_REPEAT_UNTIL)
                     try_snap(br.x + 16, br.y + 40 - motion_block_metrics().overlap, SNAP_INSIDE_1, false);
                 if (ct == CB_IF_ELSE)
                     try_snap(br.x + 16, br.y + 40 + std::max(24, chain_height(state, b->child_id)) + 32 - motion_block_metrics().overlap, SNAP_INSIDE_2, false);
@@ -825,34 +926,50 @@ static void draw_chain(SDL_Renderer *r, TTF_Font *font, const Textures &tex, con
         int sel = -1;
         const char *ov0 = (b->arg0_id != -1) ? "" : (b->text.empty() ? nullptr : b->text.c_str());
         const char *ov1 = (b->arg1_id != -1) ? "" : (b->text2.empty() ? nullptr : b->text2.c_str());
+        // B3 FIX: clip input buffer to last 10 chars to prevent overflow
+        static std::string clipped0, clipped1;
         if (!ghost && state.active_input == INPUT_BLOCK_FIELD && state.block_input.block_id == b->id)
         {
             sel = state.block_input.field_index;
-            if (state.block_input.type == BFT_INT)
-            {
-                if (sel == 0)
-                    ov0 = state.input_buffer.c_str();
-                if (sel == 1)
-                    ov1 = state.input_buffer.c_str();
-            }
-            else
-            {
-                if (sel == 0)
-                    ov0 = state.input_buffer.c_str();
-                if (sel == 1)
-                    ov1 = state.input_buffer.c_str();
-            }
+            std::string buf = state.input_buffer;
+            // Show last N chars so cursor stays visible
+            const int MAX_VISIBLE = 10;
+            if ((int)buf.size() > MAX_VISIBLE)
+                buf = buf.substr(buf.size() - MAX_VISIBLE);
+            if (sel == 0) { clipped0 = buf; ov0 = clipped0.c_str(); }
+            if (sel == 1) { clipped1 = buf; ov1 = clipped1.c_str(); }
         }
         if (b->kind == BK_MOTION)
-            motion_block_draw(r, font, tex, (MotionBlockType)b->subtype, bx, by, b->a, b->b, (GoToTarget)b->opt, ghost, bg, sel, ov0, ov1);
+        {
+            SDL_Rect base = motion_block_rect((MotionBlockType)b->subtype, b->x, b->y);
+            int d0 = 40, d1 = 48;
+            if (b->subtype == MB_GO_TO_XY) { d0 = 48; d1 = 48; }
+            int ew0 = reporter_extra(state, b->arg0_id, d0);
+            int ew1 = reporter_extra(state, b->arg1_id, d1);
+            motion_block_draw(r, font, tex, (MotionBlockType)b->subtype, bx, by, b->a, b->b, (GoToTarget)b->opt, ghost, bg, sel, ov0, ov1, ew0, ew1);
+        }
         else if (b->kind == BK_LOOKS)
-            looks_block_draw(r, font, state, (LooksBlockType)b->subtype, bx, by, b->text, b->a, b->b, b->opt, ghost, bg, sel, ov0, ov1);
+        {
+            int d0 = 110, d1 = 48;
+            if (b->subtype == LB_CHANGE_SIZE_BY || b->subtype == LB_SET_SIZE_TO || b->subtype == LB_GO_LAYERS) { d0 = 48; }
+            int ew0 = reporter_extra(state, b->arg0_id, d0);
+            int ew1 = reporter_extra(state, b->arg1_id, d1);
+            looks_block_draw(r, font, state, (LooksBlockType)b->subtype, bx, by, b->text, b->a, b->b, b->opt, ghost, bg, sel, ov0, ov1, ew0, ew1);
+        }
         else if (b->kind == BK_SOUND)
-            sound_block_draw(r, font, state, (SoundBlockType)b->subtype, bx, by, b->a, b->opt, ghost, bg, sel, ov0);
+        {
+            SDL_Rect base = sound_block_rect((SoundBlockType)b->subtype, b->x, b->y, b->a, b->opt);
+            int ew = reporter_extra(state, b->arg0_id, 52);
+            sound_block_draw(r, font, state, (SoundBlockType)b->subtype, bx, by, b->a, b->opt, ghost, bg, sel, ov0, ew);
+        }
         else if (b->kind == BK_EVENTS)
             events_block_draw(r, font, tex, state, (EventsBlockType)b->subtype, bx, by, b->opt, ghost, bg, -1);
         else if (b->kind == BK_PEN)
-            pen_block_draw(r, font, state, (PenBlockType)b->subtype, bx, by, b->a, b->opt, ghost, bg, sel, ov0);
+        {
+            SDL_Rect base = pen_block_rect((PenBlockType)b->subtype, b->x, b->y);
+            int ew = reporter_extra(state, b->arg0_id, 40);
+            pen_block_draw(r, font, state, (PenBlockType)b->subtype, bx, by, b->a, b->opt, ghost, bg, sel, ov0, ew);
+        }
         else if (b->kind == BK_SENSING)
         {
             SensingBlockType sbt = (SensingBlockType)b->subtype;
@@ -1036,7 +1153,7 @@ static void start_drag_from_workspace(AppState &state, int clicked_id, int mx, i
     compute_snap(state, font);
 }
 
-static void finish_drag(AppState &state)
+static void finish_drag(AppState &state, TTF_Font *font)
 {
     if (!state.drag.active)
         return;
@@ -1125,6 +1242,15 @@ static void finish_drag(AppState &state)
         }
         else if ((state.drag.snap_type == SNAP_INPUT_1 || state.drag.snap_type == SNAP_INPUT_2 || state.drag.snap_type == SNAP_INPUT_3) && target)
         {
+            int arg_idx = (state.drag.snap_type == SNAP_INPUT_1) ? 0 : (state.drag.snap_type == SNAP_INPUT_2 ? 1 : 2);
+            // B4 FIX: center reporter on the capsule rect
+            SDL_Rect cap = get_capsule_rect(font, state, *target, arg_idx);
+            BlockInstance *nr = workspace_find(state, new_root_id);
+            if (nr) {
+                SDL_Rect nbr = block_rect(state, *nr);
+                nr->x = cap.x + (cap.w - nbr.w) / 2;
+                nr->y = cap.y + (cap.h - nbr.h) / 2;
+            }
             int old_child = -1;
             if (state.drag.snap_type == SNAP_INPUT_1)
             {
@@ -1141,7 +1267,6 @@ static void finish_drag(AppState &state)
                 old_child = target->arg2_id;
                 target->arg2_id = new_root_id;
             }
-            BlockInstance *nr = workspace_find(state, new_root_id);
             if (nr)
                 nr->parent_id = target->id;
             remove_from_top_level(state, new_root_id);
@@ -1183,8 +1308,19 @@ static BlockFieldType block_field_type(const BlockInstance &b, int field)
     if (b.kind == BK_SENSING && (b.subtype == SENSB_ASK_AND_WAIT))
         if (field == 0)
             return BFT_TEXT;
+    // B10 FIX: arithmetic/comparison ops are numbers-only
     if (b.kind == BK_OPERATORS)
+    {
+        // OP_ADD=0,SUB=1,MUL=2,DIV=3,GT=4,LT=5,EQ=6 => both fields are numbers
+        if (b.subtype == OP_ADD || b.subtype == OP_SUB || b.subtype == OP_MUL || b.subtype == OP_DIV ||
+            b.subtype == OP_GT  || b.subtype == OP_LT  || b.subtype == OP_EQ)
+            return BFT_INT;
+        // OP_LETTER_OF: field 0 is the index (number), field 1 is the string
+        if (b.subtype == OP_LETTER_OF)
+            return (field == 0) ? BFT_INT : BFT_TEXT;
+        // Everything else (JOIN, LENGTH_OF, AND, OR, NOT) is text
         return BFT_TEXT;
+    }
     if (b.kind == BK_VARIABLES && b.subtype == VB_SET)
         return BFT_TEXT;
     if (b.kind == BK_VARIABLES && b.subtype == VB_CHANGE)
@@ -1261,7 +1397,7 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
     {
         if (state.drag.active)
         {
-            finish_drag(state);
+            finish_drag(state, font);
             return true;
         }
     }
@@ -1367,7 +1503,11 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
             return true;
         int field = -1;
         if (b->kind == BK_MOTION)
-            field = motion_block_hittest_field(font, (MotionBlockType)b->subtype, b->x, b->y, b->a, b->b, (GoToTarget)b->opt, e.button.x, e.button.y);
+        {
+            int d0 = 40, d1 = 48;
+            if (b->subtype == MB_GO_TO_XY) { d0 = 48; d1 = 48; }
+            field = motion_block_hittest_field(font, (MotionBlockType)b->subtype, b->x, b->y, b->a, b->b, (GoToTarget)b->opt, e.button.x, e.button.y, reporter_extra(state, b->arg0_id, d0), reporter_extra(state, b->arg1_id, d1));
+        }
         else if (b->kind == BK_LOOKS)
             field = looks_block_hittest_field(font, state, (LooksBlockType)b->subtype, b->x, b->y, b->text, b->a, b->b, b->opt, e.button.x, e.button.y);
         else if (b->kind == BK_EVENTS)
@@ -1425,21 +1565,24 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
                 state.active_input = INPUT_NONE;
                 state.input_buffer.clear();
             }
+            // B8 FIX: unified, correct max_opt table with no duplicates
             int max_opt = 0;
             if (b->kind == BK_SENSING && b->subtype == SENSB_TOUCHING)
                 max_opt = 3;
             else if (b->kind == BK_SENSING && b->subtype == SENSB_KEY_PRESSED)
                 max_opt = 41;
+            else if (b->kind == BK_SENSING && b->subtype == SENSB_SET_DRAG_MODE)
+                max_opt = 2;
+            else if (b->kind == BK_SENSING && b->subtype == SENSB_DISTANCE_TO)
+                max_opt = 1;
             else if (b->kind == BK_EVENTS && b->subtype == EB_WHEN_KEY_PRESSED)
                 max_opt = 41;
-
-            // ---> FIXED: Dynamic limits for Event Broadcast/Receive messages <---
             else if (b->kind == BK_EVENTS && (b->subtype == EB_WHEN_I_RECEIVE || b->subtype == EB_BROADCAST))
-                max_opt = state.messages.size();
+                max_opt = (int)state.messages.size();
             else if (b->kind == BK_LOOKS && b->subtype == LB_SWITCH_COSTUME_TO)
-                max_opt = state.sprites[state.selected_sprite].costumes.size();
+                max_opt = (int)state.sprites[state.selected_sprite].costumes.size();
             else if (b->kind == BK_LOOKS && b->subtype == LB_SWITCH_BACKDROP_TO)
-                max_opt = state.backdrops.size();
+                max_opt = (int)state.backdrops.size();
             else if (b->kind == BK_LOOKS && b->subtype == LB_GO_TO_LAYER)
                 max_opt = 2;
             else if (b->kind == BK_LOOKS && b->subtype == LB_GO_LAYERS)
@@ -1449,24 +1592,20 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
             else if (b->kind == BK_LOOKS && b->subtype == LB_COSTUME_NUM_NAME)
                 max_opt = 2;
             else if (b->kind == BK_VARIABLES && (b->subtype == VB_SET || b->subtype == VB_CHANGE))
-                max_opt = state.variables.size();
+                max_opt = (int)state.variables.size();
             else if (b->kind == BK_MOTION && b->subtype == MB_GO_TO_TARGET)
                 max_opt = 2;
             else if (b->kind == BK_SOUND && (b->subtype == SB_START_SOUND || b->subtype == SB_PLAY_SOUND_UNTIL_DONE))
-                max_opt = state.sprites[state.selected_sprite].sounds.size();
+                max_opt = (int)state.sprites[state.selected_sprite].sounds.size();
             else if (b->kind == BK_PEN && (b->subtype == PB_CHANGE_ATTRIB_BY || b->subtype == PB_SET_ATTRIB_TO))
-                max_opt = 3;
+                max_opt = 4; // 0=color,1=saturation,2=brightness,3=size
 
-            if (max_opt == 0)
-                max_opt = 1;
-            else if (b->kind == BK_SENSING && b->subtype == SENSB_DISTANCE_TO)
-                max_opt = 1;
-            else if (b->kind == BK_SENSING && b->subtype == SENSB_SET_DRAG_MODE)
-                max_opt = 2;
+            if (max_opt == 0) max_opt = 1;
 
             if (max_opt > 0)
             {
                 b->opt = (b->opt + 1) % max_opt;
+                // B8 FIX: apply draggable immediately when dropdown cycles
                 if (b->kind == BK_SENSING && b->subtype == SENSB_SET_DRAG_MODE)
                     state.sprites[state.selected_sprite].draggable = (b->opt == 0);
             }

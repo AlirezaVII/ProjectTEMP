@@ -32,23 +32,25 @@ void motion_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex,
                        bool ghost, Color panel_bg,
                        int selected_field,
                        const char *override_field0_text,
-                       const char *override_field1_text);
+                       const char *override_field1_text,
+                       int extra_w0 = 0, int extra_w1 = 0);
 
 int motion_block_hittest_field(TTF_Font *font, MotionBlockType type,
                                int x, int y,
                                int a, int b, GoToTarget target,
-                               int px, int py);
+                               int px, int py,
+                               int extra_w0 = 0, int extra_w1 = 0);
 
 SDL_Rect motion_block_rect(MotionBlockType type, int x, int y);
 
 int looks_block_width(LooksBlockType type);
 SDL_Rect looks_block_rect(LooksBlockType type, int x, int y);
-void looks_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, LooksBlockType type, int x, int y, const std::string &text, int a, int b, int opt, bool ghost, Color panel_bg, int selected_field, const char *override_field0_text, const char *override_field1_text);
+void looks_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, LooksBlockType type, int x, int y, const std::string &text, int a, int b, int opt, bool ghost, Color panel_bg, int selected_field, const char *override_field0_text, const char *override_field1_text, int extra_w0 = 0, int extra_w1 = 0);
 int looks_block_hittest_field(TTF_Font *font, const AppState &state, LooksBlockType type, int x, int y, const std::string &text, int a, int b, int opt, int px, int py);
 
 int sound_block_width(SoundBlockType type);
 SDL_Rect sound_block_rect(SoundBlockType type, int x, int y, int a, int opt);
-void sound_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, SoundBlockType type, int x, int y, int a, int opt, bool ghost, Color panel_bg, int selected_field, const char *override_field0_text);
+void sound_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, SoundBlockType type, int x, int y, int a, int opt, bool ghost, Color panel_bg, int selected_field, const char *override_field0_text, int extra_w = 0);
 int sound_block_hittest_field(TTF_Font *font, const AppState &state, SoundBlockType type, int x, int y, int a, int opt, int px, int py);
 
 int events_block_width(EventsBlockType type);
@@ -100,7 +102,8 @@ SDL_Rect pen_block_rect(PenBlockType type, int x, int y);
 void pen_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state,
                     PenBlockType type, int x, int y,
                     int a, int opt, bool ghost, Color panel_bg,
-                    int selected_field, const char *override_field0_text);
+                    int selected_field, const char *override_field0_text,
+                    int extra_w = 0);
 int pen_block_hittest_field(TTF_Font *font, PenBlockType type, int x, int y, int opt, int px, int py);
 
 #endif

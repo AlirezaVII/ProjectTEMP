@@ -104,7 +104,8 @@ enum ControlBlockType
     CB_FOREVER,
     CB_IF,
     CB_WAIT_UNTIL,
-    CB_IF_ELSE
+    CB_IF_ELSE,
+    CB_REPEAT_UNTIL
 };
 enum SensingBlockType
 {
@@ -350,6 +351,7 @@ struct AppState
 
     std::vector<std::string> messages;
     bool msg_modal_active;
+    bool new_confirm_active; // B9: "Are you sure?" modal for New project
 
     bool stage_drag_active;
     int stage_drag_off_x, stage_drag_off_y;
@@ -365,7 +367,7 @@ struct AppState
     int active_shape_index;
     bool trigger_costume_import;
 
-    AppState() : file_menu_open(false), file_menu_hover(-1), sprite_menu_open(false), backdrop_menu_open(false), current_tab(TAB_CODE), start_hover(false), stop_hover(false), running(false), mode(MODE_EDITOR), selected_sprite(0), add_sprite_hover(false), selected_backdrop(0), selected_tab(TAB_CODE), selected_category(0), project_name("Untitled"), drag(), next_block_id(1), active_input(INPUT_NONE), input_buffer(""), block_input(), variables({"my variable"}), variable_values({{"my variable", "0"}}), variable_visible({{"my variable", true}}), var_modal_active(false), messages({"message1"}), msg_modal_active(false), stage_drag_active(false), stage_drag_off_x(0), stage_drag_off_y(0), ask_active(false), ask_msg(""), ask_reply(""), global_answer(""), pen_extension_enabled(false), editing_target_is_stage(false), active_tool(TOOL_POINTER), active_color({0, 0, 0, 255}), active_shape_index(-1), trigger_costume_import(false) {}
+    AppState() : file_menu_open(false), file_menu_hover(-1), sprite_menu_open(false), backdrop_menu_open(false), current_tab(TAB_CODE), start_hover(false), stop_hover(false), running(false), mode(MODE_EDITOR), selected_sprite(0), add_sprite_hover(false), selected_backdrop(0), selected_tab(TAB_CODE), selected_category(0), project_name("Untitled"), drag(), next_block_id(1), active_input(INPUT_NONE), input_buffer(""), block_input(), variables({"my variable"}), variable_values({{"my variable", "0"}}), variable_visible({{"my variable", true}}), var_modal_active(false), messages({"message1"}), msg_modal_active(false), new_confirm_active(false), stage_drag_active(false), stage_drag_off_x(0), stage_drag_off_y(0), ask_active(false), ask_msg(""), ask_reply(""), global_answer(""), pen_extension_enabled(false), editing_target_is_stage(false), active_tool(TOOL_POINTER), active_color({0, 0, 0, 255}), active_shape_index(-1), trigger_costume_import(false) {}
 };
 
 inline std::string copy_asset_to_project(std::string proj_name, std::string original_path)

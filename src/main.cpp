@@ -1,6 +1,7 @@
 #include "SDL.h"
 #include "SDL_ttf.h"
 #include "SDL_image.h"
+#include "SDL_mixer.h"
 
 #include "config.h"
 #include "types.h"
@@ -253,6 +254,43 @@ int main(int /*argc*/, char * /*argv*/[])
                 {
                     state.ask_reply += e.text.text;
                 }
+                continue;
+            }
+
+            // B9: "Are you sure?" modal for New project
+            if (state.new_confirm_active)
+            {
+                if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
+                {
+                    int mw = 380, mh = 180, mx2 = WINDOW_WIDTH / 2 - mw / 2, my2 = WINDOW_HEIGHT / 2 - mh / 2;
+                    SDL_Rect yes_btn  = {mx2 + mw - 120, my2 + mh - 60, 90, 40};
+                    SDL_Rect no_btn   = {mx2 + mw - 220, my2 + mh - 60, 90, 40};
+                    auto in_r = [](int px, int py, const SDL_Rect &r){ return px >= r.x && px < r.x+r.w && py >= r.y && py < r.y+r.h; };
+                    if (in_r(e.button.x, e.button.y, yes_btn))
+                    {
+                        // Confirmed: clear project
+                        for (auto &s : state.sprites) {
+                            for (auto &c : s.costumes) { if (c.original_texture) SDL_DestroyTexture(c.original_texture); if (c.paint_layer) SDL_DestroyTexture(c.paint_layer); if (c.composed_texture) SDL_DestroyTexture(c.composed_texture); }
+                            for (auto &snd : s.sounds) { if (snd.chunk) Mix_FreeChunk(snd.chunk); }
+                        }
+                        for (auto &b : state.backdrops) { if (b.original_texture) SDL_DestroyTexture(b.original_texture); if (b.paint_layer) SDL_DestroyTexture(b.paint_layer); if (b.composed_texture) SDL_DestroyTexture(b.composed_texture); }
+                        state.sprites.clear(); state.backdrops.clear(); state.drag.active = false;
+                        state.project_name = "Untitled";
+                        state.variables.clear(); state.variable_values.clear(); state.variable_visible.clear();
+                        state.messages.clear(); state.messages.push_back("message1");
+                        state.sprites.push_back(Sprite("Sprite1", IMG_LoadTexture(renderer, "assets/sprites/scratch_cat.png"), "assets/sprites/scratch_cat.png"));
+                        Mix_Chunk *ds = audio_load_sound("assets/sounds/meow.wav");
+                        state.sprites.back().sounds.push_back(SoundData("meow", ds, "assets/sounds/meow.wav"));
+                        state.backdrops.push_back(Backdrop("backdrop1", nullptr, ""));
+                        renderer_init_pen_layer(renderer);
+                        state.selected_sprite = 0; state.selected_backdrop = 0; state.next_block_id = 1;
+                        state.new_confirm_active = false;
+                    }
+                    else if (in_r(e.button.x, e.button.y, no_btn) || e.button.x < mx2 || e.button.x > mx2+mw || e.button.y < my2 || e.button.y > my2+mh)
+                        state.new_confirm_active = false;
+                }
+                else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE)
+                    state.new_confirm_active = false;
                 continue;
             }
 
@@ -953,6 +991,14 @@ int main(int /*argc*/, char * /*argv*/[])
             }
         }
 
+        // Update stage snapshot BEFORE interpreter so touching-color has current frame data
+        {
+            SDL_Texture *backdrop_tex = nullptr;
+            if (state.selected_backdrop >= 0 && state.selected_backdrop < (int)state.backdrops.size())
+                backdrop_tex = state.backdrops[state.selected_backdrop].texture;
+            renderer_update_stage_snapshot(renderer, backdrop_tex, stage_rects.stage_area);
+        }
+
         interpreter_tick(state);
 
         for (auto &spr : state.sprites)
@@ -1136,6 +1182,30 @@ int main(int /*argc*/, char * /*argv*/[])
                 SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
                 SDL_RenderDrawRect(renderer, &c_rect);
             }
+        }
+        RenderToasts(renderer, font);
+
+        // B9: Render "Are you sure?" confirm modal
+        if (state.new_confirm_active)
+        {
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 150);
+            SDL_Rect screen_rect = {0, 0, WINDOW_WIDTH, WINDOW_HEIGHT};
+            SDL_RenderFillRect(renderer, &screen_rect);
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+            int mw = 380, mh = 180, mx2 = WINDOW_WIDTH / 2 - mw / 2, my2 = WINDOW_HEIGHT / 2 - mh / 2;
+            SDL_Rect modal_rect = {mx2, my2, mw, mh};
+            renderer_fill_rounded_rect(renderer, &modal_rect, 8, 255, 255, 255);
+            SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
+            SDL_RenderDrawRect(renderer, &modal_rect);
+            render_simple_text(renderer, font_large, "Start a new project?", mx2 + 30, my2 + 30, {40, 40, 40});
+            render_simple_text(renderer, font, "Unsaved changes will be lost.", mx2 + 30, my2 + 65, {120, 120, 120});
+            SDL_Rect yes_btn = {mx2 + mw - 120, my2 + mh - 60, 90, 40};
+            renderer_fill_rounded_rect(renderer, &yes_btn, 4, 76, 151, 255);
+            render_simple_text(renderer, font, "Yes", yes_btn.x + 32, yes_btn.y + 12, {255, 255, 255});
+            SDL_Rect no_btn = {mx2 + mw - 220, my2 + mh - 60, 90, 40};
+            renderer_fill_rounded_rect(renderer, &no_btn, 4, 220, 220, 220);
+            render_simple_text(renderer, font, "Cancel", no_btn.x + 22, no_btn.y + 12, {40, 40, 40});
         }
         SDL_RenderPresent(renderer);
     }

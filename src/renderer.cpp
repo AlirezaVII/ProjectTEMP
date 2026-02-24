@@ -147,17 +147,53 @@ void renderer_draw_texture_fit(SDL_Renderer *r, SDL_Texture *tex, const SDL_Rect
 // ---> PEN ENGINE IMPLEMENTATION (Using your exact math!) <---
 SDL_Renderer *g_pen_renderer = nullptr;
 SDL_Texture *g_pen_layer = nullptr;
+SDL_Texture *g_stage_snapshot = nullptr;
 
 void renderer_init_pen_layer(SDL_Renderer *r)
 {
     g_pen_renderer = r;
     if (g_pen_layer)
         SDL_DestroyTexture(g_pen_layer);
+    if (g_stage_snapshot)
+        SDL_DestroyTexture(g_stage_snapshot);
 
-    // Explicit fixed 480x360 coordinate system
     g_pen_layer = SDL_CreateTexture(r, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 480, 360);
     SDL_SetTextureBlendMode(g_pen_layer, SDL_BLENDMODE_BLEND);
+
+    // Stage snapshot for color sensing - use ARGB8888 (native GPU format on most platforms)
+    g_stage_snapshot = SDL_CreateTexture(r, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, 480, 360);
+    SDL_SetTextureBlendMode(g_stage_snapshot, SDL_BLENDMODE_BLEND);
+
     renderer_clear_pen_layer();
+}
+
+// Called after stage_draw to capture backdrop+pen pixels for color sensing
+void renderer_update_stage_snapshot(SDL_Renderer *r, SDL_Texture *backdrop_tex, const SDL_Rect &stage_area)
+{
+    if (!g_stage_snapshot || !r) return;
+
+    SDL_Texture *prev_target = SDL_GetRenderTarget(r);
+    SDL_SetRenderTarget(r, g_stage_snapshot);
+
+    // Fill white (default backdrop)
+    SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
+    SDL_RenderClear(r);
+
+    // Draw backdrop stretched to 480x360
+    if (backdrop_tex)
+    {
+        SDL_Rect dest = {0, 0, 480, 360};
+        SDL_RenderCopy(r, backdrop_tex, NULL, &dest);
+    }
+
+    // Draw pen layer on top
+    if (g_pen_layer)
+    {
+        SDL_Rect dest = {0, 0, 480, 360};
+        SDL_RenderCopy(r, g_pen_layer, NULL, &dest);
+    }
+
+    SDL_SetRenderTarget(r, prev_target);
 }
 
 void renderer_clear_pen_layer()
@@ -213,7 +249,15 @@ void renderer_draw_line_on_pen_layer(int x1, int y1, int x2, int y2, int size, S
 
 void renderer_stamp_on_pen_layer(const Sprite &spr)
 {
-    if (!g_pen_layer || !g_pen_renderer || !spr.texture)
+    // B11 FIX: prefer composed_texture (has paint strokes) over raw texture
+    SDL_Texture *draw_tex = nullptr;
+    if (!spr.costumes.empty() && spr.selected_costume >= 0 && spr.selected_costume < (int)spr.costumes.size())
+    {
+        const auto &cost = spr.costumes[spr.selected_costume];
+        draw_tex = cost.composed_texture ? cost.composed_texture : cost.texture;
+    }
+    if (!draw_tex) draw_tex = spr.texture;
+    if (!g_pen_layer || !g_pen_renderer || !draw_tex)
         return;
         
     SDL_Texture *prev_target = SDL_GetRenderTarget(g_pen_renderer);
@@ -222,7 +266,7 @@ void renderer_stamp_on_pen_layer(const Sprite &spr)
     int cx = 240 + spr.x;
     int cy = 180 - spr.y;
     int tex_w = 100, tex_h = 100;
-    SDL_QueryTexture(spr.texture, NULL, NULL, &tex_w, &tex_h);
+    SDL_QueryTexture(draw_tex, NULL, NULL, &tex_w, &tex_h);
 
     // YOUR EXACT MATH
     int base_w = tex_w, base_h = tex_h;
@@ -255,13 +299,13 @@ void renderer_stamp_on_pen_layer(const Sprite &spr)
 
     // 2. Safely apply Blend Mode so backgrounds stay transparent!
     SDL_BlendMode oldMode;
-    SDL_GetTextureBlendMode(spr.texture, &oldMode);
-    SDL_SetTextureBlendMode(spr.texture, SDL_BLENDMODE_BLEND);
+    SDL_GetTextureBlendMode(draw_tex, &oldMode);
+    SDL_SetTextureBlendMode(draw_tex, SDL_BLENDMODE_BLEND);
 
     // 3. Draw!
-    SDL_RenderCopyEx(g_pen_renderer, spr.texture, NULL, &dest, angle, NULL, flip);
+    SDL_RenderCopyEx(g_pen_renderer, draw_tex, NULL, &dest, angle, NULL, flip);
     
     // 4. Safely restore
-    SDL_SetTextureBlendMode(spr.texture, oldMode);
+    SDL_SetTextureBlendMode(draw_tex, oldMode);
     SDL_SetRenderTarget(g_pen_renderer, prev_target);
 }

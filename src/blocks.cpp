@@ -147,6 +147,7 @@ int blocks_get_for_category(const AppState &state, int cat, BlockDef *out, int m
         push(make_c_shape(BK_CONTROL, (int)CB_IF, c, 240, 80, "if"));
         push(make_e_shape(BK_CONTROL, (int)CB_IF_ELSE, c, 240, 130, "if else"));
         push(make_stack(BK_CONTROL, (int)CB_WAIT_UNTIL, c, 240, 40, "wait until"));
+        push(make_c_shape(BK_CONTROL, (int)CB_REPEAT_UNTIL, c,240,80,"repeat until"));
         break;
     case 5: /* Sensing */
         push(make_boolean(BK_SENSING, (int)SENSB_TOUCHING, c, 280, 36, "touching"));

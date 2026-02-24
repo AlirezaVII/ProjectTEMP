@@ -96,6 +96,15 @@ static void draw_input_capsule(SDL_Renderer *r, const SDL_Rect &rc,
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_NONE);
 }
 
+// Draw text clipped to the capsule bounds (prevents overflow)
+static void draw_text_clipped(SDL_Renderer *r, TTF_Font *font, const char *text,
+                               int tx, int ty, Color col, const SDL_Rect &clip)
+{
+    SDL_RenderSetClipRect(r, &clip);
+    draw_text(r, font, text, tx, ty, col);
+    SDL_RenderSetClipRect(r, nullptr);
+}
+
 static void draw_dropdown_capsule(SDL_Renderer *r, const SDL_Rect &rc, Color base)
 {
     renderer_fill_rounded_rect(r, &rc, rc.h / 2, base.r, base.g, base.b);
@@ -228,7 +237,7 @@ void motion_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex,
 {
     motion_block_draw(r, font, tex, type, x, y,
                       a, b, target, ghost, panel_bg,
-                      selected_field, nullptr, nullptr);
+                      selected_field, nullptr, nullptr, 0, 0);
 }
 
 void motion_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex,
@@ -237,10 +246,12 @@ void motion_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex,
                        bool ghost, Color panel_bg,
                        int selected_field,
                        const char *override_field0_text,
-                       const char *override_field1_text)
+                       const char *override_field1_text,
+                       int extra_w0, int extra_w1)
 {
     Color motion_col = {76, 151, 255};
     SDL_Rect br = motion_block_rect(type, x, y);
+    br.w += extra_w0 + extra_w1;
     draw_stack_shape(r, br, motion_col, panel_bg, ghost);
 
     int padding_x = 12;
@@ -264,22 +275,24 @@ void motion_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex,
         cur_x += text_w(font, w) + 6;
     };
 
+    // extra_w0 and extra_w1 are per-slot expansions passed in from workspace
     auto draw_num_caps = [&](const char *num_default,
                              const char *override_txt,
                              int field_index,
                              int cap_w)
     {
+        int xtra = (field_index == 0) ? extra_w0 : extra_w1;
         const char *show = num_default;
         if (override_txt)
             show = override_txt;
 
-        SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cap_w, cap_h);
+        SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cap_w + xtra, cap_h);
         draw_input_capsule(r, cap, selected_field == field_index);
 
         int tw = text_w(font, show);
         int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6);
         int ty = cap.y + (cap.h - 16) / 2;
-        draw_text(r, font, show, tx, ty, (Color){40, 40, 40});
+        draw_text_clipped(r, font, show, tx, ty, (Color){40, 40, 40}, cap);
 
         cur_x += cap.w + 6;
     };
@@ -387,13 +400,15 @@ void motion_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex,
 int motion_block_hittest_field(TTF_Font *font, MotionBlockType type,
                                int x, int y,
                                int a, int b, GoToTarget target,
-                               int px, int py)
+                               int px, int py,
+                               int extra_w0, int extra_w1)
 {
     (void)a;
     (void)b;
     (void)target;
 
     SDL_Rect br = motion_block_rect(type, x, y);
+    br.w += extra_w0 + extra_w1;
     if (!(px >= br.x && px < br.x + br.w && py >= br.y && py < br.y + br.h))
         return -1;
 
@@ -404,10 +419,11 @@ int motion_block_hittest_field(TTF_Font *font, MotionBlockType type,
 
     auto adv_word = [&](const char *w)
     { cur_x += text_w(font, w) + 6; };
-    auto cap_rect = [&](int w)
+    auto cap_rect = [&](int w, int field_idx)
     {
-        SDL_Rect rc{cur_x, cap_y, w, cap_h};
-        cur_x += w + 6;
+        int xtra = (field_idx == 0) ? extra_w0 : extra_w1;
+        SDL_Rect rc{cur_x, cap_y, w + xtra, cap_h};
+        cur_x += w + xtra + 6;
         return rc;
     };
     auto in = [&](const SDL_Rect &rc)
@@ -419,21 +435,21 @@ int motion_block_hittest_field(TTF_Font *font, MotionBlockType type,
     {
     case MB_MOVE_STEPS:
         adv_word("move");
-        if (in(cap_rect(40)))
+        if (in(cap_rect(40, 0)))
             return 0;
         return -1;
 
     case MB_TURN_RIGHT_DEG:
         adv_word("turn");
         cur_x += 18 + 6;
-        if (in(cap_rect(40)))
+        if (in(cap_rect(40, 0)))
             return 0;
         return -1;
 
     case MB_TURN_LEFT_DEG:
         adv_word("turn");
         cur_x += 18 + 6;
-        if (in(cap_rect(40)))
+        if (in(cap_rect(40, 0)))
             return 0;
         return -1;
 
@@ -441,10 +457,10 @@ int motion_block_hittest_field(TTF_Font *font, MotionBlockType type,
         adv_word("go");
         adv_word("to");
         adv_word("x");
-        if (in(cap_rect(48)))
+        if (in(cap_rect(48, 0)))
             return 0;
         adv_word("y");
-        if (in(cap_rect(48)))
+        if (in(cap_rect(48, 1)))
             return 1;
         return -1;
 
@@ -452,7 +468,7 @@ int motion_block_hittest_field(TTF_Font *font, MotionBlockType type,
         adv_word("change");
         adv_word("x");
         adv_word("by");
-        if (in(cap_rect(48)))
+        if (in(cap_rect(48, 0)))
             return 0;
         return -1;
 
@@ -460,7 +476,7 @@ int motion_block_hittest_field(TTF_Font *font, MotionBlockType type,
         adv_word("change");
         adv_word("y");
         adv_word("by");
-        if (in(cap_rect(48)))
+        if (in(cap_rect(48, 0)))
             return 0;
         return -1;
 
@@ -468,7 +484,7 @@ int motion_block_hittest_field(TTF_Font *font, MotionBlockType type,
         adv_word("point");
         adv_word("in");
         adv_word("direction");
-        if (in(cap_rect(48)))
+        if (in(cap_rect(48, 0)))
             return 0;
         return -1;
 
@@ -476,7 +492,7 @@ int motion_block_hittest_field(TTF_Font *font, MotionBlockType type,
     {
         adv_word("go");
         adv_word("to");
-        SDL_Rect dd = cap_rect(140);
+        SDL_Rect dd = cap_rect(140, 0);
         if (in(dd))
             return -2;
         return -1;
@@ -539,11 +555,12 @@ SDL_Rect looks_block_rect(LooksBlockType type, int x, int y)
     return r;
 }
 
-void looks_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, LooksBlockType type, int x, int y, const std::string &text, int a, int b, int opt, bool ghost, Color panel_bg, int selected_field, const char *override_field0_text, const char *override_field1_text)
+void looks_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, LooksBlockType type, int x, int y, const std::string &text, int a, int b, int opt, bool ghost, Color panel_bg, int selected_field, const char *override_field0_text, const char *override_field1_text, int extra_w0, int extra_w1)
 {
     (void)b;
     Color looks_col = {153, 102, 255};
     SDL_Rect br = looks_block_rect(type, x, y);
+    br.w += extra_w0 + extra_w1;
     bool is_reporter = (type == LB_SIZE || type == LB_BACKDROP_NUM_NAME || type == LB_COSTUME_NUM_NAME);
     if (is_reporter)
         draw_reporter_shape(r, br, looks_col, ghost);
@@ -563,7 +580,7 @@ void looks_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, Lo
     auto draw_word = [&](const char *w)
     { draw_text(r, font, w, cur_x, cy, txt_col); cur_x += text_w(font, w) + 6; };
     auto draw_text_caps = [&](const char *default_txt, const char *override_txt, int field_index, int cap_w)
-    { const char *show = default_txt; if (override_txt && selected_field == field_index) show = override_txt; SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cap_w, cap_h); draw_input_capsule(r, cap, selected_field == field_index); int tw = text_w(font, show); int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6); int ty = cap.y + (cap.h - 16) / 2; draw_text(r, font, show, tx, ty, (Color){40, 40, 40}); cur_x += cap.w + 6; };
+    { int xtra = (field_index == 0) ? extra_w0 : extra_w1; const char *show = default_txt; if (override_txt && selected_field == field_index) show = override_txt; SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cap_w + xtra, cap_h); draw_input_capsule(r, cap, selected_field == field_index); int tw = text_w(font, show); int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6); int ty = cap.y + (cap.h - 16) / 2; draw_text_clipped(r, font, show, tx, ty, (Color){40, 40, 40}, cap); cur_x += cap.w + 6; };
     auto draw_num_caps = [&](const char *num_default, const char *override_txt, int field_index, int cap_w)
     { draw_text_caps(num_default, override_txt, field_index, cap_w); };
     auto draw_dd = [&](const char *txt)
@@ -832,10 +849,11 @@ SDL_Rect sound_block_rect(SoundBlockType type, int x, int y, int a, int opt)
     return {x, y, sound_block_width(type), m.h};
 }
 
-void sound_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, SoundBlockType type, int x, int y, int a, int opt, bool ghost, Color panel_bg, int selected_field, const char *override_field0_text)
+void sound_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, SoundBlockType type, int x, int y, int a, int opt, bool ghost, Color panel_bg, int selected_field, const char *override_field0_text, int extra_w)
 {
     Color sound_col = {207, 99, 207};
     SDL_Rect br = sound_block_rect(type, x, y, a, opt);
+    br.w += extra_w;
     draw_stack_shape(r, br, sound_col, panel_bg, ghost);
 
     int padding_x = 12;
@@ -854,11 +872,11 @@ void sound_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, So
         const char *show = num_default;
         if (override_field0_text && selected_field == field_index)
             show = override_field0_text;
-        SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cap_w, cap_h);
+        SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cap_w + extra_w, cap_h);
         draw_input_capsule(r, cap, selected_field == field_index);
         int tw = text_w(font, show);
         int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6);
-        draw_text(r, font, show, tx, cap.y + (cap.h - 16) / 2, (Color){40, 40, 40});
+        draw_text_clipped(r, font, show, tx, cap.y + (cap.h - 16) / 2, (Color){40, 40, 40}, cap);
         cur_x += cap.w + 6;
     };
     auto draw_dd = [&](const char *txt)
@@ -1311,14 +1329,18 @@ void sensing_block_draw(SDL_Renderer *r, TTF_Font *font,
     auto draw_num_caps = [&](const char *num_default, const char *override_txt, int field_index, int cap_w)
     {
         const char *show = num_default;
-        if (override_txt && field_index == 0)
+        if (override_txt && selected_field == field_index)
             show = override_txt;
         SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cap_w, cap_h);
         draw_input_capsule(r, cap, selected_field == field_index);
-        int tw = text_w(font, show);
-        int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6);
-        int ty = cap.y + (cap.h - 16) / 2;
-        draw_text(r, font, show, tx, ty, (Color){40, 40, 40});
+        // Don't draw text when a child reporter is filling this slot (override_txt == "")
+        if (!(override_txt != nullptr && override_txt[0] == '\0' && selected_field != field_index))
+        {
+            int tw = text_w(font, show);
+            int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6);
+            int ty = cap.y + (cap.h - 16) / 2;
+            draw_text_clipped(r, font, show, tx, ty, (Color){40, 40, 40}, cap);
+        }
         cur_x += cap.w + 6;
     };
     auto draw_dd = [&](const char *txt)
@@ -1666,7 +1688,7 @@ void sensing_stack_block_draw(SDL_Renderer *r, TTF_Font *font, SensingBlockType 
         int tw = text_w(font, show);
         int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6);
         int ty = cap.y + (cap.h - 16) / 2;
-        draw_text(r, font, show, tx, ty, (Color){40, 40, 40});
+        draw_text_clipped(r, font, show, tx, ty, (Color){40, 40, 40}, cap);
         cur_x += cap.w + 6;
     };
     auto draw_dd = [&](const char *txt)
@@ -1798,6 +1820,7 @@ int control_block_width(ControlBlockType type)
         return 240;
     case CB_WAIT_UNTIL:
         return 240;
+    case CB_REPEAT_UNTIL: return 240;
     default:
         return 200;
     }
@@ -1807,7 +1830,7 @@ SDL_Rect control_block_rect(ControlBlockType type, int x, int y, int inner1_h, i
 {
     int w = control_block_width(type);
     int h = 40;
-    if (type == CB_REPEAT || type == CB_IF)
+    if (type == CB_REPEAT || type == CB_IF || type == CB_REPEAT_UNTIL)
         h = 40 + std::max(24, inner1_h) + 24;
     else if (type == CB_FOREVER)
         h = 40 + std::max(24, inner1_h) + 20;
@@ -1859,7 +1882,7 @@ void control_block_draw(SDL_Renderer *r, TTF_Font *font, ControlBlockType type, 
 
     if (type == CB_WAIT || type == CB_WAIT_UNTIL)
         draw_stack_shape_custom(r, br, col, panel_bg, ghost, true, true);
-    else if (type == CB_REPEAT || type == CB_IF)
+    else if (type == CB_REPEAT || type == CB_IF || type == CB_REPEAT_UNTIL)
         draw_c_shape_native(r, x, y, br.w, 40, h1, 24, col, panel_bg, ghost, true, true);
     else if (type == CB_FOREVER)
         draw_c_shape_native(r, x, y, br.w, 40, h1, 20, col, panel_bg, ghost, true, false);
@@ -1922,6 +1945,12 @@ void control_block_draw(SDL_Renderer *r, TTF_Font *font, ControlBlockType type, 
         draw_word("until", cy);
         draw_hex_slot(r, cur_x, cy + 8, col, has_condition);
     }
+    else if (type == CB_REPEAT_UNTIL)
+    {
+        draw_word("repeat", cy);
+        draw_word("until", cy);
+        draw_hex_slot(r, cur_x, cy + 8, col, has_condition);
+    }
 }
 
 int control_block_hittest_field(TTF_Font *font, ControlBlockType type, int x, int y, int inner1_h, int inner2_h, int a, int px, int py)
@@ -1938,9 +1967,13 @@ int control_block_hittest_field(TTF_Font *font, ControlBlockType type, int x, in
         if (px >= cur_x && px < cur_x + 40 && py >= br.y + 9 && py < br.y + 31)
             return 0;
     }
-    else if (type == CB_IF || type == CB_IF_ELSE || type == CB_WAIT_UNTIL)
+    else if (type == CB_IF || type == CB_IF_ELSE || type == CB_WAIT_UNTIL || type == CB_REPEAT_UNTIL)
     {
-        cur_x += text_w(font, type == CB_WAIT_UNTIL ? "wait until" : "if") + 12;
+        const char* txt = "if";
+        if (type == CB_WAIT_UNTIL) txt = "wait until";
+        else if (type == CB_REPEAT_UNTIL) txt = "repeat until";
+        
+        cur_x += text_w(font, txt) + 12;
         if (px >= cur_x && px < cur_x + 50 && py >= br.y + 8 && py < br.y + 32)
             return -3;
     }
@@ -2065,7 +2098,7 @@ void operators_block_draw(SDL_Renderer *r, TTF_Font *font, OperatorsBlockType ty
         int tw = text_w(font, show);
         int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6);
         int ty = cap.y + (cap.h - 16) / 2;
-        draw_text(r, font, show, tx, ty, (Color){40, 40, 40});
+        draw_text_clipped(r, font, show, tx, ty, (Color){40, 40, 40}, cap);
         cur_x += cap.w + 6;
     };
     auto draw_empty_hex = [&]()
@@ -2246,8 +2279,23 @@ int operators_block_hittest_field(TTF_Font *font, OperatorsBlockType type, int x
             return 1;
         return -1;
     case OP_AND:
+        if (in(cap_rect(50)))
+            return 0;
+        adv_word("and");
+        if (in(cap_rect(50)))
+            return 1;
+        return -1;
     case OP_OR:
+        if (in(cap_rect(50)))
+            return 0;
+        adv_word("or");
+        if (in(cap_rect(50)))
+            return 1;
+        return -1;
     case OP_NOT:
+        adv_word("not");
+        if (in(cap_rect(50)))
+            return 0;
         return -1;
     case OP_JOIN:
         adv_word("join");
@@ -2351,7 +2399,7 @@ void operators_block_draw_dynamic(SDL_Renderer *r, TTF_Font *font, OperatorsBloc
                 int tw = text_w(font, show);
                 int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6);
                 int ty = cap.y + (cap.h - 16) / 2;
-                draw_text(r, font, show, tx, ty, (Color){40, 40, 40});
+                draw_text_clipped(r, font, show, tx, ty, (Color){40, 40, 40}, cap);
             }
         }
         cur_x += cw + 6;
@@ -2535,8 +2583,23 @@ int operators_block_hittest_dynamic(TTF_Font *font, OperatorsBlockType type, int
             return 1;
         return -1;
     case OP_AND:
+        if (in(cap_rect(cap0_w)))
+            return 0;
+        adv_word("and");
+        if (in(cap_rect(cap1_w)))
+            return 1;
+        return -1;
     case OP_OR:
+        if (in(cap_rect(cap0_w)))
+            return 0;
+        adv_word("or");
+        if (in(cap_rect(cap1_w)))
+            return 1;
+        return -1;
     case OP_NOT:
+        adv_word("not");
+        if (in(cap_rect(cap0_w)))
+            return 0;
         return -1;
     case OP_JOIN:
         adv_word("join");
@@ -2727,10 +2790,12 @@ SDL_Rect pen_block_rect(PenBlockType type, int x, int y)
 void pen_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state,
                     PenBlockType type, int x, int y,
                     int a, int opt, bool ghost, Color panel_bg,
-                    int selected_field, const char *override_field0_text)
+                    int selected_field, const char *override_field0_text,
+                    int extra_w)
 {
     Color pen_col = {15, 189, 140}; // Scratch Pen Green
     SDL_Rect br = pen_block_rect(type, x, y);
+    br.w += extra_w;
     draw_stack_shape(r, br, pen_col, panel_bg, ghost);
 
     int padding_x = 12;
@@ -2754,11 +2819,11 @@ void pen_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state,
         const char *show = num_default;
         if (override_field0_text && selected_field == field_index)
             show = override_field0_text;
-        SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cap_w, cap_h);
+        SDL_Rect cap = input_capsule_rect(cur_x, cap_y, cap_w + extra_w, cap_h);
         draw_input_capsule(r, cap, selected_field == field_index);
         int tw = text_w(font, show);
         int tx = (tw <= cap.w - 10) ? (cap.x + (cap.w - tw) / 2) : (cap.x + 6);
-        draw_text(r, font, show, tx, cap.y + (cap.h - 16) / 2, (Color){40, 40, 40});
+        draw_text_clipped(r, font, show, tx, cap.y + (cap.h - 16) / 2, (Color){40, 40, 40}, cap);
         cur_x += cap.w + 6;
     };
 
