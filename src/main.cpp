@@ -707,6 +707,15 @@ int main(int /*argc*/, char * /*argv*/[])
                             else if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
                             {
                                 state.sprites[state.selected_sprite].pen_color = {(Uint8)palette[i].r, (Uint8)palette[i].g, (Uint8)palette[i].b, 255};
+                                // Save the picked color into the block so the interpreter can read it at runtime
+                                for (auto &blk : state.sprites[state.selected_sprite].blocks)
+                                {
+                                    if (blk.id == state.block_input.block_id)
+                                    {
+                                        blk.color1 = {(Uint8)palette[i].r, (Uint8)palette[i].g, (Uint8)palette[i].b, 255};
+                                        break;
+                                    }
+                                }
                             }
                             state.active_input = INPUT_NONE;
                             clicked_color = true;

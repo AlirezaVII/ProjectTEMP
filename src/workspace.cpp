@@ -1824,8 +1824,10 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
         if (field == -4)
         {
             state.active_input = INPUT_PEN_COLOR_PICKER;
+            state.block_input.block_id = b->id;
             return true;
         }
+
         else if (field == -5)
         {
             state.active_input = INPUT_BLOCK_COLOR_PICKER_1;

@@ -91,6 +91,36 @@ static void update_pen_rgb(Sprite &spr)
     spr.pen_color.b = (Uint8)((b + m) * 255);
 }
 
+// ---> ADDED: Sync HSV values from the current pen RGB color <---
+static void sync_hsv_from_rgb(Sprite &spr)
+{
+    float r = spr.pen_color.r / 255.0f;
+    float g = spr.pen_color.g / 255.0f;
+    float b = spr.pen_color.b / 255.0f;
+
+    float mx = std::max({r, g, b});
+    float mn = std::min({r, g, b});
+    float d = mx - mn;
+
+    float h = 0, s = 0, v = mx;
+
+    if (mx > 0)
+        s = d / mx;
+    if (d > 0)
+    {
+        if (mx == r)
+            h = 60.0f * std::fmod((g - b) / d + 6.0f, 6.0f);
+        else if (mx == g)
+            h = 60.0f * ((b - r) / d + 2.0f);
+        else
+            h = 60.0f * ((r - g) / d + 4.0f);
+    }
+
+    spr.pen_color_val = (int)(h / 360.0f * 100.0f) % 100;
+    spr.pen_saturation = (int)(s * 100.0f);
+    spr.pen_brightness = (int)(v * 100.0f);
+}
+
 struct StackFrame
 {
     int cur_node;
@@ -812,6 +842,14 @@ void interpreter_tick(AppState &state)
                 {
                     spr.pen_down = false;
                     LogSimple(LOG_INFO, execution_cycle, b->id, "PEN_UP", "Pen up.");
+                }
+                else if (b->subtype == PB_SET_COLOR_TO_PICKER)
+                {
+                    spr.pen_color.r = b->color1.r;
+                    spr.pen_color.g = b->color1.g;
+                    spr.pen_color.b = b->color1.b;
+                    sync_hsv_from_rgb(spr);
+                    LogSimple(LOG_INFO, execution_cycle, b->id, "SET_PEN_COLOR_PICKER", "Set pen color via picker.");
                 }
                 else if (b->subtype == PB_CHANGE_ATTRIB_BY)
                 {

@@ -348,7 +348,7 @@ struct Sprite
     std::vector<BlockInstance> blocks;
     std::vector<int> top_level_blocks;
 
-    Sprite(std::string n, SDL_Texture *tex, std::string sp = "") : name(n), x(0), y(0), direction(90), visible(true), size(100), say_text(""), is_thinking(false), say_end_time(0), volume(100), draggable(true), layer_order(get_next_layer()), texture(tex), selected_sound(0), selected_costume(0), pen_down(false), pen_size(1), pen_color({15, 189, 140, 255}), pen_color_val(50), pen_saturation(100), pen_brightness(100)
+    Sprite(std::string n, SDL_Texture *tex, std::string sp = "") : name(n), x(0), y(0), direction(90), visible(true), size(100), say_text(""), is_thinking(false), say_end_time(0), volume(100), draggable(true), layer_order(get_next_layer()), texture(tex), selected_sound(0), selected_costume(0), pen_down(false), pen_size(1), pen_color({15, 189, 140, 255}), pen_color_val(45), pen_saturation(92), pen_brightness(74)
     {
         costumes.push_back(Costume(n, tex, sp));
     }
