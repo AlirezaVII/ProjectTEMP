@@ -5,7 +5,7 @@
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License"/>
 </p>
 
-<h1 align="center">🧩 Blocky</h1>
+<h1 align="center">🧩 Sloggy</h1>
 <h3 align="center">A Scratch-Inspired Visual Programming Environment</h3>
 <p align="center">
   <em>Built from scratch in C++ with SDL2 — no frameworks, no shortcuts.</em>
