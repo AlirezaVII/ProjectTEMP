@@ -23,7 +23,7 @@
 
 ## 📖 About
 
-**Blocky** is a desktop visual programming environment inspired by [MIT Scratch](https://scratch.mit.edu). It’s built entirely in **C++17** using the **SDL2** ecosystem and includes:
+**Sloggy** is a desktop visual programming environment inspired by [MIT Scratch](https://scratch.mit.edu). It’s built entirely in **C++17** using the **SDL2** ecosystem and includes:
 
 - A drag-and-drop block editor with snapping
 - A real-time sprite stage (Scratch-like coordinates)
