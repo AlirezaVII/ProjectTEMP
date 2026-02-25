@@ -28,6 +28,7 @@ BlockInstance workspace_make_default_events(EventsBlockType type);
 BlockInstance workspace_make_default_sensing(SensingBlockType type);
 BlockInstance workspace_make_default_operators(OperatorsBlockType type);
 BlockInstance workspace_make_default_variables(VariablesBlockType type, const std::string& var_name);
+BlockInstance workspace_make_default_myblocks(MyBlocksBlockType type, const std::string& func_name);
 
 // ---> FIXED: THIS EXPORTS THE PEN BUILDER TO PALETTE.CPP <---
 BlockInstance workspace_make_default_pen(PenBlockType type);

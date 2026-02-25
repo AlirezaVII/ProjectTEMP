@@ -1,80 +1,108 @@
 === System Logger Initialized ===
-[INFO] [Cycle: 0] [Line: -1] [CMD: SELECT_STAGE] -> User selected the Stage.
-[INFO] [Cycle: 0] [Line: -1] [CMD: SELECT_TOOL] -> Selected Brush Tool
-[INFO] [Cycle: 0] [Line: -1] [CMD: DRAW_SHAPE] -> Used Brush/Eraser to draw on canvas.
-[INFO] [Cycle: 0] [Line: -1] [CMD: SELECT_SPRITE] -> Selected Sprite: Sprite1
 [INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
-[INFO] [Cycle: 1] [Line: 2] [CMD: REPEAT_UNTIL] -> Condition false, looping...
-[INFO] [Cycle: 1] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 0,0 to -2,0
-[INFO] [Cycle: 3] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -2,0 to -4,0
-[INFO] [Cycle: 5] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -4,0 to -6,0
-[INFO] [Cycle: 7] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -6,0 to -8,0
-[INFO] [Cycle: 9] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -8,0 to -10,0
-[INFO] [Cycle: 11] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -10,0 to -12,0
-[INFO] [Cycle: 13] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -12,0 to -14,0
-[INFO] [Cycle: 15] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -14,0 to -16,0
-[INFO] [Cycle: 17] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -16,0 to -18,0
-[INFO] [Cycle: 19] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -18,0 to -20,0
-[INFO] [Cycle: 21] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -20,0 to -22,0
-[INFO] [Cycle: 23] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -22,0 to -24,0
-[INFO] [Cycle: 25] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -24,0 to -26,0
-[INFO] [Cycle: 27] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -26,0 to -28,0
-[INFO] [Cycle: 29] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -28,0 to -30,0
-[INFO] [Cycle: 31] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -30,0 to -32,0
-[INFO] [Cycle: 33] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -32,0 to -34,0
-[INFO] [Cycle: 35] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -34,0 to -36,0
-[INFO] [Cycle: 37] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -36,0 to -38,0
-[INFO] [Cycle: 39] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -38,0 to -40,0
-[INFO] [Cycle: 41] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -40,0 to -42,0
-[INFO] [Cycle: 43] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -42,0 to -44,0
-[INFO] [Cycle: 45] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -44,0 to -46,0
-[INFO] [Cycle: 47] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -46,0 to -48,0
-[INFO] [Cycle: 49] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -48,0 to -50,0
-[INFO] [Cycle: 51] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -50,0 to -52,0
-[INFO] [Cycle: 53] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -52,0 to -54,0
-[INFO] [Cycle: 55] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -54,0 to -56,0
-[INFO] [Cycle: 57] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -56,0 to -58,0
-[INFO] [Cycle: 59] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -58,0 to -60,0
-[INFO] [Cycle: 61] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -60,0 to -62,0
-[INFO] [Cycle: 63] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -62,0 to -64,0
-[INFO] [Cycle: 65] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -64,0 to -66,0
-[INFO] [Cycle: 67] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -66,0 to -68,0
-[INFO] [Cycle: 69] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -68,0 to -70,0
-[INFO] [Cycle: 71] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -70,0 to -72,0
-[INFO] [Cycle: 73] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -72,0 to -74,0
-[INFO] [Cycle: 75] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -74,0 to -76,0
-[INFO] [Cycle: 77] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -76,0 to -78,0
-[INFO] [Cycle: 79] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -78,0 to -80,0
-[INFO] [Cycle: 81] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -80,0 to -82,0
-[INFO] [Cycle: 83] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -82,0 to -84,0
-[INFO] [Cycle: 85] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -84,0 to -86,0
-[INFO] [Cycle: 87] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -86,0 to -88,0
-[INFO] [Cycle: 89] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -88,0 to -90,0
-[INFO] [Cycle: 91] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -90,0 to -92,0
-[INFO] [Cycle: 93] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -92,0 to -94,0
-[INFO] [Cycle: 95] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -94,0 to -96,0
-[INFO] [Cycle: 97] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -96,0 to -98,0
-[INFO] [Cycle: 99] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -98,0 to -100,0
-[INFO] [Cycle: 101] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -100,0 to -102,0
-[INFO] [Cycle: 103] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -102,0 to -104,0
-[INFO] [Cycle: 105] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -104,0 to -106,0
-[INFO] [Cycle: 107] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -106,0 to -108,0
-[INFO] [Cycle: 109] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -108,0 to -110,0
-[INFO] [Cycle: 111] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -110,0 to -112,0
-[INFO] [Cycle: 113] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -112,0 to -114,0
-[INFO] [Cycle: 115] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -114,0 to -116,0
-[INFO] [Cycle: 117] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -116,0 to -118,0
-[INFO] [Cycle: 119] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -118,0 to -120,0
-[INFO] [Cycle: 121] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -120,0 to -122,0
-[INFO] [Cycle: 123] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -122,0 to -124,0
-[INFO] [Cycle: 125] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -124,0 to -126,0
-[INFO] [Cycle: 127] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -126,0 to -128,0
-[INFO] [Cycle: 129] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -128,0 to -130,0
-[INFO] [Cycle: 131] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -130,0 to -132,0
-[INFO] [Cycle: 133] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -132,0 to -134,0
-[INFO] [Cycle: 135] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -134,0 to -136,0
-[INFO] [Cycle: 137] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -136,0 to -138,0
-[INFO] [Cycle: 139] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -138,0 to -140,0
-[INFO] [Cycle: 141] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -140,0 to -142,0
-[INFO] [Cycle: 143] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -142,0 to -144,0
-[ERROR] [Cycle: 144] [Line: 2] [CMD: REPEAT_UNTIL] -> Condition met, exiting loop.
+[INFO] [Cycle: 7877] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[ERROR] [Cycle: 7878] [Line: 11] [CMD: REPEAT_UNTIL] -> Condition met, exiting loop.
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 10337] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 10338] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to true
+[INFO] [Cycle: 10338] [Line: 9] [CMD: MOVE_STEPS] -> Movement from 0,0 to 12,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 10406] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 10407] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to true
+[INFO] [Cycle: 10407] [Line: 9] [CMD: MOVE_STEPS] -> Movement from 12,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 10817] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 10818] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 10818] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 10867] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 10868] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 10868] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 10886] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 10887] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 10887] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 10902] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 10903] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 10903] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 10918] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 10919] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 10919] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 10935] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 10936] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 10936] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 10953] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 10954] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 10954] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 10971] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 10972] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 10972] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 10988] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 10989] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 10989] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 11006] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 11007] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 11007] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 11024] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 11025] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 11025] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 11041] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 11042] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 11042] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 11058] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 11059] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 11059] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 11075] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 11076] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 11076] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 11091] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 11092] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 11092] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 11108] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 11109] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 11109] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 11124] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 11125] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 11125] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 11143] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 11144] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 11144] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 11160] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 11161] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 11161] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 11179] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 11180] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 11180] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 11198] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 11199] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 11199] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 11238] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 11239] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 11239] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 11266] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 11267] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 11267] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 11320] [Line: 7] [CMD: CALL_FUNC] -> Calling: Stage
+[INFO] [Cycle: 11321] [Line: 13] [CMD: IF_ELSE] -> Condition evaluated to false
+[INFO] [Cycle: 11321] [Line: 15] [CMD: TURN_RIGHT] -> Movement from 24,0 to 24,0

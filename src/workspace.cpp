@@ -2,15 +2,31 @@
 #include "block_ui.h"
 #include "renderer.h"
 
+#include <SDL_ttf.h>
 #include <algorithm>
 #include <cstdlib>
 #include <string>
 #include <iostream>
 #include <unordered_set>
 
+static int workspace_text_w(TTF_Font *f, const char *txt)
+{
+    int w = 0;
+    if (f && txt)
+        TTF_SizeUTF8(f, txt, &w, NULL);
+    return w;
+}
+
 static bool point_in_rect(int px, int py, const SDL_Rect &r) { return px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h; }
 
-// ---> FIXED: Forward declaration so the compiler knows this function exists! <---
+static const CustomFunctionDef *workspace_find_custom_def(const AppState &state, const std::string &name)
+{
+    for (const auto &fn : state.custom_functions)
+        if (fn.name == name)
+            return &fn;
+    return nullptr;
+}
+
 static SDL_Rect block_rect(const AppState &state, const BlockInstance &b);
 
 BlockInstance *workspace_find(AppState &state, int id)
@@ -107,36 +123,60 @@ static void get_operator_capsule_widths(const AppState &state, const BlockInstan
     cw1 = get_w(b.arg1_id, s1, d1, hex1);
 }
 
-// How much extra width a child reporter adds over its default slot width
 static int reporter_extra(const AppState &state, int arg_id, int default_slot_w)
 {
-    if (arg_id == -1) return 0;
+    if (arg_id == -1)
+        return 0;
     const BlockInstance *child = workspace_find_const(state, arg_id);
-    if (!child) return 0;
-    SDL_Rect cr = {child->x, child->y, 40, 24}; // fallback
-    if (child->kind == BK_OPERATORS) {
+    if (!child)
+        return 0;
+    SDL_Rect cr = {child->x, child->y, 40, 24};
+    if (child->kind == BK_OPERATORS)
+    {
         int cw0, cw1;
         get_operator_capsule_widths(state, *child, cw0, cw1);
         int base_w = 140;
-        if (child->subtype == OP_GT || child->subtype == OP_LT || child->subtype == OP_EQ) base_w = 160;
-        else if (child->subtype == OP_AND || child->subtype == OP_OR) base_w = 190;
-        else if (child->subtype == OP_NOT) base_w = 140;
-        else if (child->subtype == OP_JOIN) base_w = 190;
-        else if (child->subtype == OP_LETTER_OF) base_w = 200;
-        else if (child->subtype == OP_LENGTH_OF) base_w = 160;
+        if (child->subtype == OP_GT || child->subtype == OP_LT || child->subtype == OP_EQ)
+            base_w = 160;
+        else if (child->subtype == OP_AND || child->subtype == OP_OR)
+            base_w = 190;
+        else if (child->subtype == OP_NOT)
+            base_w = 140;
+        else if (child->subtype == OP_JOIN)
+            base_w = 190;
+        else if (child->subtype == OP_LETTER_OF)
+            base_w = 200;
+        else if (child->subtype == OP_LENGTH_OF)
+            base_w = 160;
         int dw0 = 36, dw1 = 36;
-        if (child->subtype == OP_AND || child->subtype == OP_OR || child->subtype == OP_NOT) { dw0 = 50; dw1 = 50; }
+        if (child->subtype == OP_AND || child->subtype == OP_OR || child->subtype == OP_NOT)
+        {
+            dw0 = 50;
+            dw1 = 50;
+        }
         int ew = 0;
-        if (cw0 > dw0) ew += cw0 - dw0;
-        if (cw1 > dw1) ew += cw1 - dw1;
+        if (cw0 > dw0)
+            ew += cw0 - dw0;
+        if (cw1 > dw1)
+            ew += cw1 - dw1;
         cr = {child->x, child->y, base_w + ew, 40};
-    } else if (child->kind == BK_VARIABLES && child->subtype == VB_VARIABLE) {
+    }
+    else if (child->kind == BK_VARIABLES && child->subtype == VB_VARIABLE)
+    {
         cr = variables_block_rect(VB_VARIABLE, child->x, child->y, child->text);
-    } else if (child->kind == BK_LOOKS && child->subtype == LB_SIZE) {
+    }
+    else if (child->kind == BK_LOOKS && child->subtype == LB_SIZE)
+    {
         cr = {child->x, child->y, 60, 24};
-    } else if (child->kind == BK_SENSING) {
+    }
+    else if (child->kind == BK_SENSING)
+    {
         if (child->subtype == SENSB_ANSWER || child->subtype == SENSB_MOUSE_X || child->subtype == SENSB_MOUSE_Y)
             cr = sensing_reporter_block_rect((SensingBlockType)child->subtype, child->x, child->y);
+    }
+    else if (child->kind == BK_MY_BLOCKS && child->subtype == MYB_PARAM)
+    {
+        cr = block_rect(state, *child);
     }
     return std::max(0, cr.w - default_slot_w);
 }
@@ -150,9 +190,12 @@ static SDL_Rect block_rect(const AppState &state, const BlockInstance &b)
     if (b.kind == BK_MOTION)
     {
         SDL_Rect r = motion_block_rect((MotionBlockType)b.subtype, b.x, b.y);
-        // Default motion input capsule widths (from block_ui.cpp draw functions)
-        int d0 = 40, d1 = 48; // most motion: 40; go_to_xy uses 48 for both
-        if (b.subtype == MB_GO_TO_XY) { d0 = 48; d1 = 48; }
+        int d0 = 40, d1 = 48;
+        if (b.subtype == MB_GO_TO_XY)
+        {
+            d0 = 48;
+            d1 = 48;
+        }
         r.w += reporter_extra(state, b.arg0_id, d0);
         r.w += reporter_extra(state, b.arg1_id, d1);
         return r;
@@ -160,11 +203,20 @@ static SDL_Rect block_rect(const AppState &state, const BlockInstance &b)
     if (b.kind == BK_LOOKS)
     {
         SDL_Rect r = looks_block_rect((LooksBlockType)b.subtype, b.x, b.y);
-        // Default looks input widths: text fields ~110-140, num fields ~48
         int d0 = 110, d1 = 48;
-        if (b.subtype == LB_SAY_FOR || b.subtype == LB_THINK_FOR) { d0 = 110; d1 = 48; }
-        else if (b.subtype == LB_SAY || b.subtype == LB_THINK) { d0 = 120; }
-        else if (b.subtype == LB_CHANGE_SIZE_BY || b.subtype == LB_SET_SIZE_TO || b.subtype == LB_GO_LAYERS) { d0 = 48; }
+        if (b.subtype == LB_SAY_FOR || b.subtype == LB_THINK_FOR)
+        {
+            d0 = 110;
+            d1 = 48;
+        }
+        else if (b.subtype == LB_SAY || b.subtype == LB_THINK)
+        {
+            d0 = 120;
+        }
+        else if (b.subtype == LB_CHANGE_SIZE_BY || b.subtype == LB_SET_SIZE_TO || b.subtype == LB_GO_LAYERS)
+        {
+            d0 = 48;
+        }
         r.w += reporter_extra(state, b.arg0_id, d0);
         r.w += reporter_extra(state, b.arg1_id, d1);
         return r;
@@ -243,7 +295,6 @@ static SDL_Rect block_rect(const AppState &state, const BlockInstance &b)
     if (b.kind == BK_SENSING)
     {
         SensingBlockType sbt = (SensingBlockType)b.subtype;
-        // ---> FIXED: ADDED COLOR BLOCKS AND MOUSE X/Y REPORTERS <---
         if (sbt == SENSB_TOUCHING || sbt == SENSB_KEY_PRESSED || sbt == SENSB_MOUSE_DOWN || sbt == SENSB_TOUCHING_COLOR || sbt == SENSB_COLOR_IS_TOUCHING_COLOR)
             return sensing_boolean_block_rect(sbt, b.x, b.y, b.opt);
         else if (sbt == SENSB_ANSWER || sbt == SENSB_DISTANCE_TO || sbt == SENSB_MOUSE_X || sbt == SENSB_MOUSE_Y)
@@ -253,6 +304,31 @@ static SDL_Rect block_rect(const AppState &state, const BlockInstance &b)
     }
     if (b.kind == BK_VARIABLES)
         return variables_block_rect((VariablesBlockType)b.subtype, b.x, b.y, b.text);
+    if (b.kind == BK_MY_BLOCKS)
+    {
+        if (b.subtype == MYB_DEFINE)
+            return myblocks_define_block_rect(state, b.text, b.x, b.y);
+        else if (b.subtype == MYB_CALL)
+        {
+            SDL_Rect r = myblocks_call_block_rect(state, b.text, b.x, b.y);
+            const CustomFunctionDef *def = workspace_find_custom_def(state, b.text);
+            if (def)
+            {
+                for (int i = 0; i < (int)def->params.size() && i < 3; i++)
+                {
+                    int param_tw = def->params[i].name.size() * 8;
+                    int cap_w = std::max(60, param_tw + 20);
+                    int arg_id = (i == 0) ? b.arg0_id : (i == 1 ? b.arg1_id : b.arg2_id);
+                    r.w += reporter_extra(state, arg_id, cap_w);
+                }
+            }
+            return r;
+        }
+        else if (b.subtype == MYB_PARAM)
+        {
+            return myblocks_param_block_rect(nullptr, b.text, b.opt, b.x, b.y); // FIXED: Added b.opt
+        }
+    }
     return {b.x, b.y, 240, 40};
 }
 
@@ -287,10 +363,12 @@ static SDL_Rect get_capsule_rect(TTF_Font *font, const AppState &state, const Bl
         if (b.kind == BK_MOTION)
         {
             int d0 = 40, d1 = 48;
-            if (b.subtype == MB_GO_TO_XY) { d0 = 48; d1 = 48; }
-            int ew0 = reporter_extra(state, b.arg0_id, d0);
-            int ew1 = reporter_extra(state, b.arg1_id, d1);
-            field = motion_block_hittest_field(font, (MotionBlockType)b.subtype, b.x, b.y, b.a, b.b, (GoToTarget)b.opt, px, cy, ew0, ew1);
+            if (b.subtype == MB_GO_TO_XY)
+            {
+                d0 = 48;
+                d1 = 48;
+            }
+            field = motion_block_hittest_field(font, (MotionBlockType)b.subtype, b.x, b.y, b.a, b.b, (GoToTarget)b.opt, px, cy, reporter_extra(state, b.arg0_id, d0), reporter_extra(state, b.arg1_id, d1));
         }
         else if (b.kind == BK_LOOKS)
             field = looks_block_hittest_field(font, state, (LooksBlockType)b.subtype, b.x, b.y, b.text, b.a, b.b, b.opt, px, cy);
@@ -304,7 +382,6 @@ static SDL_Rect get_capsule_rect(TTF_Font *font, const AppState &state, const Bl
             field = control_block_hittest_field(font, (ControlBlockType)b.subtype, b.x, b.y, chain_height(state, b.child_id), chain_height(state, b.child2_id), b.a, px, cy);
         else if (b.kind == BK_SENSING)
         {
-            // ---> FIXED: ADDED COLOR BLOCKS AND MOUSE X/Y REPORTERS <---
             if (b.subtype == SENSB_TOUCHING || b.subtype == SENSB_KEY_PRESSED || b.subtype == SENSB_MOUSE_DOWN || b.subtype == SENSB_TOUCHING_COLOR || b.subtype == SENSB_COLOR_IS_TOUCHING_COLOR)
                 field = sensing_boolean_block_hittest_field(font, (SensingBlockType)b.subtype, b.x, b.y, b.opt, b.a, b.b, b.c, b.d, b.e, b.f, px, cy);
             else if (b.subtype == SENSB_ANSWER || b.subtype == SENSB_DISTANCE_TO || b.subtype == SENSB_MOUSE_X || b.subtype == SENSB_MOUSE_Y)
@@ -322,6 +399,23 @@ static SDL_Rect get_capsule_rect(TTF_Font *font, const AppState &state, const Bl
         else if (b.kind == BK_VARIABLES)
         {
             field = variables_block_hittest_field(font, state, (VariablesBlockType)b.subtype, b.x, b.y, b.text, b.opt, px, cy);
+        }
+        else if (b.kind == BK_MY_BLOCKS && b.subtype == MYB_CALL)
+        {
+            int ew0 = 0, ew1 = 0, ew2 = 0;
+            const CustomFunctionDef *def = workspace_find_custom_def(state, b.text);
+            if (def)
+            {
+                auto gw = [&](int pi)
+                { return std::max(60, (font ? workspace_text_w(font, def->params[pi].name.c_str()) : (int)def->params[pi].name.size() * 8) + 20); };
+                if (def->params.size() > 0)
+                    ew0 = reporter_extra(state, b.arg0_id, gw(0));
+                if (def->params.size() > 1)
+                    ew1 = reporter_extra(state, b.arg1_id, gw(1));
+                if (def->params.size() > 2)
+                    ew2 = reporter_extra(state, b.arg2_id, gw(2));
+            }
+            field = myblocks_call_block_hittest_field(font, state, b.text, b.x, b.y, px, cy, ew0, ew1, ew2);
         }
         if (field == arg_index)
         {
@@ -480,6 +574,43 @@ BlockInstance workspace_make_default_variables(VariablesBlockType type, const st
     return b;
 }
 
+static std::string myblocks_get_param_val(const BlockInstance &b, int idx)
+{
+    int cur = 0;
+    size_t pos = 0;
+    const std::string &t = b.text2;
+    while (pos <= t.size())
+    {
+        size_t next = t.find('\x01', pos);
+        if (cur == idx)
+            return (next == std::string::npos) ? t.substr(pos) : t.substr(pos, next - pos);
+        if (next == std::string::npos)
+            break;
+        pos = next + 1;
+        cur++;
+    }
+    return "";
+}
+static void myblocks_set_param_val(BlockInstance &b, int idx, const std::string &val)
+{
+    std::string v[3] = {myblocks_get_param_val(b, 0), myblocks_get_param_val(b, 1), myblocks_get_param_val(b, 2)};
+    if (idx >= 0 && idx < 3)
+        v[idx] = val;
+    b.text2 = v[0] + "\x01" + v[1] + "\x01" + v[2];
+}
+
+BlockInstance workspace_make_default_myblocks(MyBlocksBlockType type, const std::string &func_name)
+{
+    BlockInstance b;
+    b.kind = BK_MY_BLOCKS;
+    b.subtype = (int)type;
+    b.text = func_name;
+    b.a = 0;
+    b.b = 0;
+    b.c = 0;
+    return b;
+}
+
 int workspace_add_top_level(AppState &state, const BlockInstance &b0)
 {
     if (state.selected_sprite < 0 || state.selected_sprite >= (int)state.sprites.size())
@@ -581,9 +712,7 @@ static int detach_subchain(AppState &state, int id)
         return -1;
     int parent = b->parent_id;
     if (parent == -1)
-    {
         remove_from_top_level(state, id);
-    }
     else
     {
         BlockInstance *p = workspace_find(state, parent);
@@ -704,7 +833,6 @@ static void compute_snap(AppState &state, TTF_Font *font)
     const int SNAP_DIST = 20;
     SDL_Rect dr = {state.drag.ghost_x, state.drag.ghost_y, 200, 40};
 
-    // ---> FIXED: INCORPORATED ALL NEW SENSING BOOLS <---
     auto is_bool = [](BlockKind k, int sub)
     {
         if (k == BK_SENSING && (sub == SENSB_TOUCHING || sub == SENSB_KEY_PRESSED || sub == SENSB_MOUSE_DOWN || sub == SENSB_TOUCHING_COLOR || sub == SENSB_COLOR_IS_TOUCHING_COLOR))
@@ -720,7 +848,6 @@ static void compute_snap(AppState &state, TTF_Font *font)
     if (state.drag.from_palette)
     {
         dragging_bool = is_bool(state.drag.palette_kind, state.drag.palette_subtype);
-        // ---> FIXED: INCORPORATED ALL NEW SENSING REPORTERS <---
         dragging_reporter = (state.drag.palette_kind == BK_OPERATORS) ||
                             (state.drag.palette_kind == BK_VARIABLES && state.drag.palette_subtype == VB_VARIABLE) ||
                             dragging_bool ||
@@ -736,12 +863,16 @@ static void compute_snap(AppState &state, TTF_Font *font)
             dr.x = state.drag.ghost_x;
             dr.y = state.drag.ghost_y;
             dragging_bool = is_bool(rb->kind, rb->subtype);
-            // ---> FIXED: INCORPORATED ALL NEW SENSING REPORTERS <---
             dragging_reporter = (rb->kind == BK_OPERATORS) ||
                                 (rb->kind == BK_VARIABLES && rb->subtype == VB_VARIABLE) ||
                                 dragging_bool ||
                                 (rb->kind == BK_SENSING && (rb->subtype == SENSB_ANSWER || rb->subtype == SENSB_DISTANCE_TO || rb->subtype == SENSB_MOUSE_X || rb->subtype == SENSB_MOUSE_Y)) ||
-                                (rb->kind == BK_LOOKS && (rb->subtype == LB_SIZE || rb->subtype == LB_BACKDROP_NUM_NAME || rb->subtype == LB_COSTUME_NUM_NAME));
+                                (rb->kind == BK_LOOKS && (rb->subtype == LB_SIZE || rb->subtype == LB_BACKDROP_NUM_NAME || rb->subtype == LB_COSTUME_NUM_NAME)) ||
+                                (rb->kind == BK_MY_BLOCKS && rb->subtype == MYB_PARAM);
+            if (rb->kind == BK_MY_BLOCKS && rb->subtype == MYB_PARAM)
+            {
+                dragging_bool = (rb->opt == CPARAM_BOOLEAN);
+            }
         }
     }
 
@@ -779,7 +910,11 @@ static void compute_snap(AppState &state, TTF_Font *font)
                 if (b->kind == BK_MOTION)
                 {
                     int d0 = 40, d1 = 48;
-                    if (b->subtype == MB_GO_TO_XY) { d0 = 48; d1 = 48; }
+                    if (b->subtype == MB_GO_TO_XY)
+                    {
+                        d0 = 48;
+                        d1 = 48;
+                    }
                     field = motion_block_hittest_field(font, (MotionBlockType)b->subtype, b->x, b->y, b->a, b->b, (GoToTarget)b->opt, px, py, reporter_extra(state, b->arg0_id, d0), reporter_extra(state, b->arg1_id, d1));
                 }
                 else if (b->kind == BK_LOOKS)
@@ -794,7 +929,6 @@ static void compute_snap(AppState &state, TTF_Font *font)
                     field = control_block_hittest_field(font, (ControlBlockType)b->subtype, b->x, b->y, chain_height(state, b->child_id), chain_height(state, b->child2_id), b->a, px, py);
                 else if (b->kind == BK_SENSING)
                 {
-                    // ---> FIXED: ADDED COLOR BLOCKS AND MOUSE X/Y REPORTERS <---
                     if (b->subtype == SENSB_TOUCHING || b->subtype == SENSB_KEY_PRESSED || b->subtype == SENSB_MOUSE_DOWN || b->subtype == SENSB_TOUCHING_COLOR || b->subtype == SENSB_COLOR_IS_TOUCHING_COLOR)
                         field = sensing_boolean_block_hittest_field(font, (SensingBlockType)b->subtype, b->x, b->y, b->opt, b->a, b->b, b->c, b->d, b->e, b->f, px, py);
                     else if (b->subtype == SENSB_ANSWER || b->subtype == SENSB_DISTANCE_TO || b->subtype == SENSB_MOUSE_X || b->subtype == SENSB_MOUSE_Y)
@@ -810,19 +944,45 @@ static void compute_snap(AppState &state, TTF_Font *font)
                     field = operators_block_hittest_dynamic(font, (OperatorsBlockType)b->subtype, b->x, b->y, total_w, cw0, cw1, px, py);
                 }
                 else if (b->kind == BK_VARIABLES)
-                {
                     field = variables_block_hittest_field(font, state, (VariablesBlockType)b->subtype, b->x, b->y, b->text, b->opt, px, py);
+                else if (b->kind == BK_MY_BLOCKS && b->subtype == MYB_CALL)
+                {
+                    int ew0 = 0, ew1 = 0, ew2 = 0;
+                    const CustomFunctionDef *def = workspace_find_custom_def(state, b->text);
+                    if (def)
+                    {
+                        auto gw = [&](int pi)
+                        { return std::max(60, (font ? workspace_text_w(font, def->params[pi].name.c_str()) : (int)def->params[pi].name.size() * 8) + 20); };
+                        if (def->params.size() > 0)
+                            ew0 = reporter_extra(state, b->arg0_id, gw(0));
+                        if (def->params.size() > 1)
+                            ew1 = reporter_extra(state, b->arg1_id, gw(1));
+                        if (def->params.size() > 2)
+                            ew2 = reporter_extra(state, b->arg2_id, gw(2));
+                    }
+                    field = myblocks_call_block_hittest_field(font, state, b->text, b->x, b->y, px, py, ew0, ew1, ew2);
                 }
 
-                // Color pickers map to -5 and -6, not reporters!
                 if (field >= 0 && field <= 2)
                 {
-                    best_dist = 0;
-                    best_id = cur;
-                    best_dx = 0;
-                    best_dy = 0;
-                    best_type = (field == 0) ? SNAP_INPUT_1 : (field == 1 ? SNAP_INPUT_2 : SNAP_INPUT_3);
-                    return;
+                    bool is_hex_slot = false;
+                    if (b->kind == BK_OPERATORS && (b->subtype == OP_AND || b->subtype == OP_OR || b->subtype == OP_NOT))
+                        is_hex_slot = true;
+                    else if (b->kind == BK_MY_BLOCKS && b->subtype == MYB_CALL)
+                    {
+                        const CustomFunctionDef *def = workspace_find_custom_def(state, b->text);
+                        if (def && field < (int)def->params.size() && def->params[field].type == CPARAM_BOOLEAN)
+                            is_hex_slot = true;
+                    }
+                    if (dragging_bool == is_hex_slot)
+                    {
+                        best_dist = 0;
+                        best_id = cur;
+                        best_dx = 0;
+                        best_dy = 0;
+                        best_type = (field == 0) ? SNAP_INPUT_1 : (field == 1 ? SNAP_INPUT_2 : SNAP_INPUT_3);
+                        return;
+                    }
                 }
             }
             SDL_Rect br = block_rect(state, *b);
@@ -846,22 +1006,19 @@ static void compute_snap(AppState &state, TTF_Font *font)
             };
             if (!dragging_reporter || dragging_bool)
             {
-                // B5 FIX: Event hats (non-broadcast) cannot snap TO other blocks,
-                // and nothing can snap ABOVE a hat block.
-                // Broadcast IS allowed to snap normally like any stack block.
                 bool dragging_event_hat = false;
                 if (state.drag.from_palette)
                     dragging_event_hat = (state.drag.palette_kind == BK_EVENTS && state.drag.palette_subtype != EB_BROADCAST);
-                else {
+                else
+                {
                     const BlockInstance *drb = workspace_find_const(state, state.drag.dragged_block_id);
-                    if (drb) dragging_event_hat = (drb->kind == BK_EVENTS && drb->subtype != EB_BROADCAST);
+                    if (drb)
+                        dragging_event_hat = (drb->kind == BK_EVENTS && drb->subtype != EB_BROADCAST);
                 }
                 bool target_is_hat = (b->kind == BK_EVENTS && b->subtype != EB_BROADCAST);
 
-                // A hat block being dragged cannot snap after/before anything
                 if (!dragging_event_hat)
                     try_snap(br.x, br.y + br.h - motion_block_metrics().overlap, SNAP_AFTER, false);
-                // Nothing can snap before (above) a hat block
                 if (!target_is_hat && !dragging_event_hat)
                     try_snap(br.x, br.y - (dr.h - motion_block_metrics().overlap), SNAP_BEFORE, false);
             }
@@ -926,24 +1083,33 @@ static void draw_chain(SDL_Renderer *r, TTF_Font *font, const Textures &tex, con
         int sel = -1;
         const char *ov0 = (b->arg0_id != -1) ? "" : (b->text.empty() ? nullptr : b->text.c_str());
         const char *ov1 = (b->arg1_id != -1) ? "" : (b->text2.empty() ? nullptr : b->text2.c_str());
-        // B3 FIX: clip input buffer to last 10 chars to prevent overflow
         static std::string clipped0, clipped1;
         if (!ghost && state.active_input == INPUT_BLOCK_FIELD && state.block_input.block_id == b->id)
         {
             sel = state.block_input.field_index;
             std::string buf = state.input_buffer;
-            // Show last N chars so cursor stays visible
             const int MAX_VISIBLE = 10;
             if ((int)buf.size() > MAX_VISIBLE)
                 buf = buf.substr(buf.size() - MAX_VISIBLE);
-            if (sel == 0) { clipped0 = buf; ov0 = clipped0.c_str(); }
-            if (sel == 1) { clipped1 = buf; ov1 = clipped1.c_str(); }
+            if (sel == 0)
+            {
+                clipped0 = buf;
+                ov0 = clipped0.c_str();
+            }
+            if (sel == 1)
+            {
+                clipped1 = buf;
+                ov1 = clipped1.c_str();
+            }
         }
         if (b->kind == BK_MOTION)
         {
-            SDL_Rect base = motion_block_rect((MotionBlockType)b->subtype, b->x, b->y);
             int d0 = 40, d1 = 48;
-            if (b->subtype == MB_GO_TO_XY) { d0 = 48; d1 = 48; }
+            if (b->subtype == MB_GO_TO_XY)
+            {
+                d0 = 48;
+                d1 = 48;
+            }
             int ew0 = reporter_extra(state, b->arg0_id, d0);
             int ew1 = reporter_extra(state, b->arg1_id, d1);
             motion_block_draw(r, font, tex, (MotionBlockType)b->subtype, bx, by, b->a, b->b, (GoToTarget)b->opt, ghost, bg, sel, ov0, ov1, ew0, ew1);
@@ -951,14 +1117,14 @@ static void draw_chain(SDL_Renderer *r, TTF_Font *font, const Textures &tex, con
         else if (b->kind == BK_LOOKS)
         {
             int d0 = 110, d1 = 48;
-            if (b->subtype == LB_CHANGE_SIZE_BY || b->subtype == LB_SET_SIZE_TO || b->subtype == LB_GO_LAYERS) { d0 = 48; }
+            if (b->subtype == LB_CHANGE_SIZE_BY || b->subtype == LB_SET_SIZE_TO || b->subtype == LB_GO_LAYERS)
+                d0 = 48;
             int ew0 = reporter_extra(state, b->arg0_id, d0);
             int ew1 = reporter_extra(state, b->arg1_id, d1);
             looks_block_draw(r, font, state, (LooksBlockType)b->subtype, bx, by, b->text, b->a, b->b, b->opt, ghost, bg, sel, ov0, ov1, ew0, ew1);
         }
         else if (b->kind == BK_SOUND)
         {
-            SDL_Rect base = sound_block_rect((SoundBlockType)b->subtype, b->x, b->y, b->a, b->opt);
             int ew = reporter_extra(state, b->arg0_id, 52);
             sound_block_draw(r, font, state, (SoundBlockType)b->subtype, bx, by, b->a, b->opt, ghost, bg, sel, ov0, ew);
         }
@@ -966,14 +1132,12 @@ static void draw_chain(SDL_Renderer *r, TTF_Font *font, const Textures &tex, con
             events_block_draw(r, font, tex, state, (EventsBlockType)b->subtype, bx, by, b->opt, ghost, bg, -1);
         else if (b->kind == BK_PEN)
         {
-            SDL_Rect base = pen_block_rect((PenBlockType)b->subtype, b->x, b->y);
             int ew = reporter_extra(state, b->arg0_id, 40);
             pen_block_draw(r, font, state, (PenBlockType)b->subtype, bx, by, b->a, b->opt, ghost, bg, sel, ov0, ew);
         }
         else if (b->kind == BK_SENSING)
         {
             SensingBlockType sbt = (SensingBlockType)b->subtype;
-            // ---> FIXED: ADDED COLOR BLOCKS AND MOUSE X/Y REPORTERS <---
             if (sbt == SENSB_TOUCHING || sbt == SENSB_KEY_PRESSED || sbt == SENSB_MOUSE_DOWN || sbt == SENSB_TOUCHING_COLOR || sbt == SENSB_COLOR_IS_TOUCHING_COLOR)
                 sensing_boolean_block_draw(r, font, sbt, bx, by, b->opt, b->color1.r, b->color1.g, b->color1.b, b->color2.r, b->color2.g, b->color2.b, ghost, bg, sel, ov0);
             else if (sbt == SENSB_ANSWER || sbt == SENSB_DISTANCE_TO || sbt == SENSB_MOUSE_X || sbt == SENSB_MOUSE_Y)
@@ -1025,6 +1189,46 @@ static void draw_chain(SDL_Renderer *r, TTF_Font *font, const Textures &tex, con
             else
                 variables_block_draw(r, font, state, (VariablesBlockType)b->subtype, bx, by, "", b->text, b->a, b->opt, ghost, sel, ov0);
         }
+        else if (b->kind == BK_MY_BLOCKS)
+        {
+            if (b->subtype == MYB_DEFINE)
+                myblocks_define_block_draw(r, font, state, b->text, bx, by, ghost);
+            else if (b->subtype == MYB_CALL)
+            {
+                static std::string p0s, p1s, p2s;
+                p0s = myblocks_get_param_val(*b, 0);
+                p1s = myblocks_get_param_val(*b, 1);
+                p2s = myblocks_get_param_val(*b, 2);
+                const char *pov0 = p0s.c_str(), *pov1 = p1s.c_str(), *pov2 = p2s.c_str();
+                static std::string live_buf;
+                if (!ghost && state.active_input == INPUT_BLOCK_FIELD && state.block_input.block_id == b->id)
+                {
+                    sel = state.block_input.field_index;
+                    live_buf = state.input_buffer;
+                    if (sel == 0)
+                        pov0 = live_buf.c_str();
+                    else if (sel == 1)
+                        pov1 = live_buf.c_str();
+                    else if (sel == 2)
+                        pov2 = live_buf.c_str();
+                }
+                int ew0 = 0, ew1 = 0, ew2 = 0;
+                const CustomFunctionDef *def = workspace_find_custom_def(state, b->text);
+                if (def)
+                {
+                    auto gw = [&](int pi)
+                    { return std::max(60, (font ? workspace_text_w(font, def->params[pi].name.c_str()) : (int)def->params[pi].name.size() * 8) + 20); };
+                    if (def->params.size() > 0)
+                        ew0 = reporter_extra(state, b->arg0_id, gw(0));
+                    if (def->params.size() > 1)
+                        ew1 = reporter_extra(state, b->arg1_id, gw(1));
+                    if (def->params.size() > 2)
+                        ew2 = reporter_extra(state, b->arg2_id, gw(2));
+                }
+                myblocks_call_block_draw(r, font, state, b->text, bx, by, b->a, b->b, b->c, b->arg0_id, b->arg1_id, b->arg2_id, ghost, bg, sel, pov0, pov1, pov2, ew0, ew1, ew2);
+            }
+            else if (b->subtype == MYB_PARAM) myblocks_param_block_draw(r, font, b->text, b->opt, bx, by, ghost); // FIXED: Added b->opt
+        }
         if (b->condition_id != -1)
             draw_chain(r, font, tex, state, bg, b->condition_id, ghost, off_x, off_y);
         if (b->child_id != -1)
@@ -1032,7 +1236,26 @@ static void draw_chain(SDL_Renderer *r, TTF_Font *font, const Textures &tex, con
         if (b->child2_id != -1)
             draw_chain(r, font, tex, state, bg, b->child2_id, ghost, off_x, off_y);
         auto draw_reporter = [&](int arg_id, int index)
-        { if (arg_id != -1) { SDL_Rect cap = get_capsule_rect(font, state, *b, index); const BlockInstance *child = workspace_find_const(state, arg_id); if (child) { SDL_Rect cbr = block_rect(state, *child); int cx = cap.x - 2; int cy = cap.y + (cap.h - cbr.h) / 2; BlockInstance *mutable_child = workspace_find((AppState &)state, arg_id); if (mutable_child) { mutable_child->x = cx; mutable_child->y = cy; } draw_chain(r, font, tex, state, bg, arg_id, ghost, cx - child->x + off_x, cy - child->y + off_y); } } };
+        {
+            if (arg_id != -1)
+            {
+                SDL_Rect cap = get_capsule_rect(font, state, *b, index);
+                const BlockInstance *child = workspace_find_const(state, arg_id);
+                if (child)
+                {
+                    SDL_Rect cbr = block_rect(state, *child);
+                    int cx = cap.x - 2;
+                    int cy = cap.y + (cap.h - cbr.h) / 2;
+                    BlockInstance *mutable_child = workspace_find((AppState &)state, arg_id);
+                    if (mutable_child)
+                    {
+                        mutable_child->x = cx;
+                        mutable_child->y = cy;
+                    }
+                    draw_chain(r, font, tex, state, bg, arg_id, ghost, cx - child->x + off_x, cy - child->y + off_y);
+                }
+            }
+        };
         draw_reporter(b->arg0_id, 0);
         draw_reporter(b->arg1_id, 1);
         draw_reporter(b->arg2_id, 2);
@@ -1103,6 +1326,8 @@ void workspace_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex, const 
                 def = workspace_make_default_operators((OperatorsBlockType)state.drag.palette_subtype);
             else if (state.drag.palette_kind == BK_VARIABLES)
                 def = workspace_make_default_variables((VariablesBlockType)state.drag.palette_subtype, state.drag.palette_text);
+            else if (state.drag.palette_kind == BK_MY_BLOCKS)
+                def = workspace_make_default_myblocks((MyBlocksBlockType)state.drag.palette_subtype, state.drag.palette_text);
             else
             {
                 def.kind = BK_CONTROL;
@@ -1177,6 +1402,8 @@ static void finish_drag(AppState &state, TTF_Font *font)
             b = workspace_make_default_operators((OperatorsBlockType)state.drag.palette_subtype);
         else if (state.drag.palette_kind == BK_VARIABLES)
             b = workspace_make_default_variables((VariablesBlockType)state.drag.palette_subtype, state.drag.palette_text);
+        else if (state.drag.palette_kind == BK_MY_BLOCKS)
+            b = workspace_make_default_myblocks((MyBlocksBlockType)state.drag.palette_subtype, state.drag.palette_text);
         else
         {
             b.kind = BK_CONTROL;
@@ -1188,7 +1415,6 @@ static void finish_drag(AppState &state, TTF_Font *font)
         }
         b.x = state.drag.snap_valid ? state.drag.snap_x : state.drag.ghost_x;
         b.y = state.drag.snap_valid ? state.drag.snap_y : state.drag.ghost_y;
-
         new_root_id = workspace_add_top_level(state, b);
     }
     else
@@ -1243,10 +1469,10 @@ static void finish_drag(AppState &state, TTF_Font *font)
         else if ((state.drag.snap_type == SNAP_INPUT_1 || state.drag.snap_type == SNAP_INPUT_2 || state.drag.snap_type == SNAP_INPUT_3) && target)
         {
             int arg_idx = (state.drag.snap_type == SNAP_INPUT_1) ? 0 : (state.drag.snap_type == SNAP_INPUT_2 ? 1 : 2);
-            // B4 FIX: center reporter on the capsule rect
             SDL_Rect cap = get_capsule_rect(font, state, *target, arg_idx);
             BlockInstance *nr = workspace_find(state, new_root_id);
-            if (nr) {
+            if (nr)
+            {
                 SDL_Rect nbr = block_rect(state, *nr);
                 nr->x = cap.x + (cap.w - nbr.w) / 2;
                 nr->y = cap.y + (cap.h - nbr.h) / 2;
@@ -1286,9 +1512,7 @@ static void finish_drag(AppState &state, TTF_Font *font)
         workspace_layout_chain(state, workspace_root_id(state, new_root_id));
     }
     else if (new_root_id != -1)
-    {
         workspace_layout_chain(state, new_root_id);
-    }
     if (state.selected_sprite >= 0)
     {
         for (int tl_id : state.sprites[state.selected_sprite].top_level_blocks)
@@ -1300,7 +1524,7 @@ static void finish_drag(AppState &state, TTF_Font *font)
     state.drag.dragged_block_id = -1;
 }
 
-static BlockFieldType block_field_type(const BlockInstance &b, int field)
+static BlockFieldType block_field_type(const AppState &state, const BlockInstance &b, int field)
 {
     if (b.kind == BK_LOOKS && (b.subtype == LB_SAY_FOR || b.subtype == LB_SAY || b.subtype == LB_THINK_FOR || b.subtype == LB_THINK))
         if (field == 0)
@@ -1308,23 +1532,30 @@ static BlockFieldType block_field_type(const BlockInstance &b, int field)
     if (b.kind == BK_SENSING && (b.subtype == SENSB_ASK_AND_WAIT))
         if (field == 0)
             return BFT_TEXT;
-    // B10 FIX: arithmetic/comparison ops are numbers-only
     if (b.kind == BK_OPERATORS)
     {
-        // OP_ADD=0,SUB=1,MUL=2,DIV=3,GT=4,LT=5,EQ=6 => both fields are numbers
-        if (b.subtype == OP_ADD || b.subtype == OP_SUB || b.subtype == OP_MUL || b.subtype == OP_DIV ||
-            b.subtype == OP_GT  || b.subtype == OP_LT  || b.subtype == OP_EQ)
+        if (b.subtype == OP_ADD || b.subtype == OP_SUB || b.subtype == OP_MUL || b.subtype == OP_DIV || b.subtype == OP_GT || b.subtype == OP_LT || b.subtype == OP_EQ)
             return BFT_INT;
-        // OP_LETTER_OF: field 0 is the index (number), field 1 is the string
         if (b.subtype == OP_LETTER_OF)
             return (field == 0) ? BFT_INT : BFT_TEXT;
-        // Everything else (JOIN, LENGTH_OF, AND, OR, NOT) is text
         return BFT_TEXT;
     }
     if (b.kind == BK_VARIABLES && b.subtype == VB_SET)
         return BFT_TEXT;
     if (b.kind == BK_VARIABLES && b.subtype == VB_CHANGE)
         return BFT_INT;
+
+    if (b.kind == BK_MY_BLOCKS && b.subtype == MYB_CALL)
+    {
+        const CustomFunctionDef *def = workspace_find_custom_def(state, b.text);
+        if (def && field >= 0 && field < (int)def->params.size())
+        {
+            if (def->params[field].type == CPARAM_NUMBER)
+                return BFT_INT;
+            return BFT_TEXT;
+        }
+        return BFT_TEXT;
+    }
     return BFT_INT;
 }
 
@@ -1336,6 +1567,12 @@ void workspace_commit_active_input(AppState &state)
     if (!b)
         return;
 
+    if (b->kind == BK_MY_BLOCKS && b->subtype == MYB_CALL)
+    {
+        myblocks_set_param_val(*b, state.block_input.field_index, state.input_buffer);
+        return;
+    }
+
     if (state.block_input.field_index == 0)
         b->text = state.input_buffer;
     else if (state.block_input.field_index == 1)
@@ -1346,7 +1583,6 @@ void workspace_commit_active_input(AppState &state)
         int val = 0;
         if (!state.input_buffer.empty() && state.input_buffer != "-")
             val = std::atoi(state.input_buffer.c_str());
-
         if (state.block_input.field_index == 0)
             b->a = val;
         else if (state.block_input.field_index == 1)
@@ -1388,7 +1624,6 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
                 SDL_GetMouseState(&mx, &my);
                 float dx = (mx - (1280 - 240)) - state.sprites[state.selected_sprite].x;
                 float dy = (180 - my + 60) - state.sprites[state.selected_sprite].y;
-                std::cout << "[DRAGGING] Live Distance to mouse-pointer: " << std::sqrt(dx * dx + dy * dy) << std::endl;
             }
         }
         return true;
@@ -1431,6 +1666,7 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
                 workspace_commit_active_input(state);
                 state.active_input = INPUT_NONE;
                 state.input_buffer.clear();
+                SDL_StopTextInput();
                 return true;
             }
         }
@@ -1505,7 +1741,11 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
         if (b->kind == BK_MOTION)
         {
             int d0 = 40, d1 = 48;
-            if (b->subtype == MB_GO_TO_XY) { d0 = 48; d1 = 48; }
+            if (b->subtype == MB_GO_TO_XY)
+            {
+                d0 = 48;
+                d1 = 48;
+            }
             field = motion_block_hittest_field(font, (MotionBlockType)b->subtype, b->x, b->y, b->a, b->b, (GoToTarget)b->opt, e.button.x, e.button.y, reporter_extra(state, b->arg0_id, d0), reporter_extra(state, b->arg1_id, d1));
         }
         else if (b->kind == BK_LOOKS)
@@ -1521,7 +1761,6 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
         else if (b->kind == BK_SENSING)
         {
             SensingBlockType sbt = (SensingBlockType)b->subtype;
-            // ---> FIXED: ADDED COLOR BLOCKS AND MOUSE X/Y REPORTERS <---
             if (sbt == SENSB_TOUCHING || sbt == SENSB_KEY_PRESSED || sbt == SENSB_MOUSE_DOWN || sbt == SENSB_TOUCHING_COLOR || sbt == SENSB_COLOR_IS_TOUCHING_COLOR)
                 field = sensing_boolean_block_hittest_field(font, sbt, b->x, b->y, b->opt, b->a, b->b, b->c, b->d, b->e, b->f, e.button.x, e.button.y);
             else if (sbt == SENSB_ANSWER || sbt == SENSB_DISTANCE_TO || sbt == SENSB_MOUSE_X || sbt == SENSB_MOUSE_Y)
@@ -1538,8 +1777,50 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
         }
         else if (b->kind == BK_VARIABLES)
             field = variables_block_hittest_field(font, state, (VariablesBlockType)b->subtype, b->x, b->y, b->text, b->opt, e.button.x, e.button.y);
+        else if (b->kind == BK_MY_BLOCKS && b->subtype == MYB_CALL)
+        {
+            int ew0 = 0, ew1 = 0, ew2 = 0;
+            const CustomFunctionDef *def = workspace_find_custom_def(state, b->text);
+            if (def)
+            {
+                auto gw = [&](int pi)
+                { return std::max(60, (font ? workspace_text_w(font, def->params[pi].name.c_str()) : (int)def->params[pi].name.size() * 8) + 20); };
+                if (def->params.size() > 0)
+                    ew0 = reporter_extra(state, b->arg0_id, gw(0));
+                if (def->params.size() > 1)
+                    ew1 = reporter_extra(state, b->arg1_id, gw(1));
+                if (def->params.size() > 2)
+                    ew2 = reporter_extra(state, b->arg2_id, gw(2));
+            }
+            field = myblocks_call_block_hittest_field(font, state, b->text, b->x, b->y, e.button.x, e.button.y, ew0, ew1, ew2);
+        }
 
-        // ---> FIXED: COLOR PICKERS FOR SENSING BLOCKS ADDED <---
+        if (b->kind == BK_MY_BLOCKS && b->subtype == MYB_DEFINE)
+        {
+            int p_idx = myblocks_define_block_hittest_param(font, state, b->text, b->x, b->y, e.button.x, e.button.y);
+            if (p_idx >= 0)
+            {
+                const CustomFunctionDef *def = workspace_find_custom_def(state, b->text);
+                if (def && p_idx < (int)def->params.size())
+                {
+                    BlockInstance p_blk = workspace_make_default_myblocks(MYB_PARAM, def->params[p_idx].name);
+                    p_blk.opt = def->params[p_idx].type;
+                    p_blk.x = e.button.x - 20;
+                    p_blk.y = e.button.y - 14;
+                    int new_id = workspace_add_top_level(state, p_blk);
+                    state.drag.active = true;
+                    state.drag.from_palette = false;
+                    state.drag.dragged_block_id = new_id;
+                    state.drag.off_x = 20;
+                    state.drag.off_y = 14;
+                    state.drag.ghost_x = p_blk.x;
+                    state.drag.ghost_y = p_blk.y;
+                    compute_snap(state, font);
+                    return true;
+                }
+            }
+        }
+
         if (field == -4)
         {
             state.active_input = INPUT_PEN_COLOR_PICKER;
@@ -1565,7 +1846,6 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
                 state.active_input = INPUT_NONE;
                 state.input_buffer.clear();
             }
-            // B8 FIX: unified, correct max_opt table with no duplicates
             int max_opt = 0;
             if (b->kind == BK_SENSING && b->subtype == SENSB_TOUCHING)
                 max_opt = 3;
@@ -1598,14 +1878,12 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
             else if (b->kind == BK_SOUND && (b->subtype == SB_START_SOUND || b->subtype == SB_PLAY_SOUND_UNTIL_DONE))
                 max_opt = (int)state.sprites[state.selected_sprite].sounds.size();
             else if (b->kind == BK_PEN && (b->subtype == PB_CHANGE_ATTRIB_BY || b->subtype == PB_SET_ATTRIB_TO))
-                max_opt = 4; // 0=color,1=saturation,2=brightness,3=size
-
-            if (max_opt == 0) max_opt = 1;
-
+                max_opt = 4;
+            if (max_opt == 0)
+                max_opt = 1;
             if (max_opt > 0)
             {
                 b->opt = (b->opt + 1) % max_opt;
-                // B8 FIX: apply draggable immediately when dropdown cycles
                 if (b->kind == BK_SENSING && b->subtype == SENSB_SET_DRAG_MODE)
                     state.sprites[state.selected_sprite].draggable = (b->opt == 0);
             }
@@ -1616,14 +1894,22 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
         else if (field >= 0)
         {
             if (state.active_input == INPUT_BLOCK_FIELD)
-            {
                 workspace_commit_active_input(state);
-            }
             state.active_input = INPUT_BLOCK_FIELD;
             state.block_input.block_id = b->id;
             state.block_input.field_index = field;
-            state.block_input.type = block_field_type(*b, field);
-            if (state.block_input.type == BFT_TEXT)
+            state.block_input.type = block_field_type(state, *b, field);
+            SDL_StartTextInput();
+            if (b->kind == BK_MY_BLOCKS && b->subtype == MYB_CALL)
+            {
+                if (field == 0)
+                    state.input_buffer = std::to_string(b->a);
+                else if (field == 1)
+                    state.input_buffer = std::to_string(b->b);
+                else
+                    state.input_buffer = std::to_string(b->c);
+            }
+            else if (state.block_input.type == BFT_TEXT)
             {
                 if (field == 0)
                     state.input_buffer = b->text;
@@ -1646,6 +1932,7 @@ bool workspace_handle_event(const SDL_Event &e, AppState &state, const SDL_Rect 
             workspace_commit_active_input(state);
             state.active_input = INPUT_NONE;
             state.input_buffer.clear();
+            SDL_StopTextInput();
         }
         start_drag_from_workspace(state, b->id, e.button.x, e.button.y, font);
         for (int tl_id : state.sprites[state.selected_sprite].top_level_blocks)

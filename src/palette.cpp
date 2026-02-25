@@ -40,6 +40,7 @@ void palette_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const 
     SDL_RenderDrawLine(r, rects.panel.x + rects.panel.w - 1, rects.panel.y, rects.panel.x + rects.panel.w - 1, rects.panel.y + rects.panel.h);
 
     int bx = rects.panel.x + 12;
+    SDL_RenderSetClipRect(r, &rects.panel);
     int by = rects.panel.y + 60;
 
     if (state.selected_category == 7) // Variables
@@ -59,6 +60,23 @@ void palette_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const 
         SDL_RenderDrawRect(r, &btn_rect);
         render_simple_text(r, font, "Make a Message", btn_rect.x + 12, btn_rect.y + 7, (Color){40, 40, 40});
         by += 50;
+    }
+    else if (state.selected_category == 8) // My Blocks
+    {
+        // "Make a Block" button (pink, like Scratch)
+        SDL_Rect btn_rect = {bx, by, 140, 32};
+        renderer_fill_rounded_rect(r, &btn_rect, 4, 255, 102, 128);
+        render_simple_text(r, font, "Make a Block", btn_rect.x + 14, btn_rect.y + 8, (Color){255, 255, 255});
+        by += 52;
+        // Draw each defined function as a call block
+        for (const auto &fn : state.custom_functions)
+        {
+            myblocks_call_block_draw(r, font, state, fn.name, bx, by, 0, 0, 0, -1, -1, -1, false, (Color){249, 249, 249}, -1);
+            SDL_Rect br = myblocks_call_block_rect(state, fn.name, bx, by);
+            by += br.h + 12;
+        }
+        SDL_RenderSetClipRect(r, nullptr); // <--- ADD THIS LINE to reset clipping
+        return; // Skip generic block rendering
     }
 
     BlockDef defs[32];
@@ -180,6 +198,7 @@ void palette_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const 
             padding = 28;
         by += br.h + padding;
     }
+    SDL_RenderSetClipRect(r, nullptr);
 }
 
 bool palette_handle_event(const SDL_Event &e, AppState &state, const PaletteRects &rects, TTF_Font *font)
@@ -217,6 +236,48 @@ bool palette_handle_event(const SDL_Event &e, AppState &state, const PaletteRect
                     return true;
                 }
                 by += 50;
+            }
+            else if (state.selected_category == 8) // My Blocks
+            {
+                // "Make a Block" button
+                SDL_Rect btn_rect = {bx, by, 140, 32};
+                if (point_in_rect(mx, my, btn_rect))
+                {
+                    state.func_modal_active = true;
+                    state.func_modal_step = 0;
+                    state.func_modal_name.clear();
+                    state.func_modal_params.clear();
+                    state.func_modal_param_type = 0;
+                    state.func_modal_param_name.clear();
+                    state.active_input = INPUT_FUNC_MODAL_NAME;
+                    state.input_buffer.clear();
+                    return true;
+                }
+                by += 52;
+                // Check clicks on defined function call blocks
+                for (const auto &fn : state.custom_functions)
+                {
+                    SDL_Rect br = myblocks_call_block_rect(state, fn.name, bx, by);
+                    if (point_in_rect(mx, my, br))
+                    {
+                        state.drag.active = true;
+                        state.drag.from_palette = true;
+                        state.drag.palette_kind = BK_MY_BLOCKS;
+                        state.drag.palette_subtype = (int)MYB_CALL;
+                        state.drag.palette_text = fn.name;
+                        state.drag.off_x = mx - bx;
+                        state.drag.off_y = my - by;
+                        state.drag.ghost_x = bx;
+                        state.drag.ghost_y = by;
+                        state.drag.mouse_x = mx;
+                        state.drag.mouse_y = my;
+                        state.drag.snap_valid = false;
+                        state.drag.snap_target_id = -1;
+                        return true;
+                    }
+                    by += br.h + 12;
+                }
+                return true;
             }
 
             BlockDef defs[32];

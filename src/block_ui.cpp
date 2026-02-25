@@ -98,11 +98,27 @@ static void draw_input_capsule(SDL_Renderer *r, const SDL_Rect &rc,
 
 // Draw text clipped to the capsule bounds (prevents overflow)
 static void draw_text_clipped(SDL_Renderer *r, TTF_Font *font, const char *text,
-                               int tx, int ty, Color col, const SDL_Rect &clip)
+                              int tx, int ty, Color col, const SDL_Rect &clip)
 {
-    SDL_RenderSetClipRect(r, &clip);
+    SDL_Rect old_clip;
+    SDL_RenderGetClipRect(r, &old_clip);
+    bool clip_active = SDL_RenderIsClipEnabled(r);
+
+    SDL_Rect new_clip = clip;
+    // Intersect so we don't break out of the palette's master clip!
+    if (clip_active) {
+        SDL_IntersectRect(&new_clip, &old_clip, &new_clip);
+    }
+    
+    SDL_RenderSetClipRect(r, &new_clip);
     draw_text(r, font, text, tx, ty, col);
-    SDL_RenderSetClipRect(r, nullptr);
+
+    // Safely restore the previous clip state
+    if (clip_active) {
+        SDL_RenderSetClipRect(r, &old_clip);
+    } else {
+        SDL_RenderSetClipRect(r, nullptr);
+    }
 }
 
 static void draw_dropdown_capsule(SDL_Renderer *r, const SDL_Rect &rc, Color base)
@@ -989,17 +1005,24 @@ int sound_block_hittest_field(TTF_Font *font, const AppState &state, SoundBlockT
 
 static const char *events_key_label(int opt)
 {
-    if (opt == 0) return "space";
-    if (opt == 1) return "up arrow";
-    if (opt == 2) return "down arrow";
-    if (opt == 3) return "left arrow";
-    if (opt == 4) return "right arrow";
-    if (opt >= 5 && opt <= 30) {
+    if (opt == 0)
+        return "space";
+    if (opt == 1)
+        return "up arrow";
+    if (opt == 2)
+        return "down arrow";
+    if (opt == 3)
+        return "left arrow";
+    if (opt == 4)
+        return "right arrow";
+    if (opt >= 5 && opt <= 30)
+    {
         static char buf[2] = {0};
         buf[0] = 'a' + (opt - 5);
         return buf;
     }
-    if (opt >= 31 && opt <= 40) {
+    if (opt >= 31 && opt <= 40)
+    {
         static char buf[2] = {0};
         buf[0] = '0' + (opt - 31);
         return buf;
@@ -1009,8 +1032,10 @@ static const char *events_key_label(int opt)
 
 static const char *events_message_label(const AppState &state, int opt)
 {
-    if (state.messages.empty()) return "message1";
-    if (opt >= 0 && opt < (int)state.messages.size()) return state.messages[opt].c_str();
+    if (state.messages.empty())
+        return "message1";
+    if (opt >= 0 && opt < (int)state.messages.size())
+        return state.messages[opt].c_str();
     return state.messages[0].c_str();
 }
 
@@ -1018,12 +1043,18 @@ int events_block_width(EventsBlockType type)
 {
     switch (type)
     {
-    case EB_WHEN_FLAG_CLICKED: return 260;
-    case EB_WHEN_KEY_PRESSED: return 330;
-    case EB_WHEN_SPRITE_CLICKED: return 280;
-    case EB_WHEN_I_RECEIVE: return 320;
-    case EB_BROADCAST: return 260;
-    default: return 260;
+    case EB_WHEN_FLAG_CLICKED:
+        return 260;
+    case EB_WHEN_KEY_PRESSED:
+        return 330;
+    case EB_WHEN_SPRITE_CLICKED:
+        return 280;
+    case EB_WHEN_I_RECEIVE:
+        return 320;
+    case EB_BROADCAST:
+        return 260;
+    default:
+        return 260;
     }
 }
 
@@ -1031,9 +1062,10 @@ SDL_Rect events_block_rect(EventsBlockType type, int x, int y, int opt)
 {
     (void)opt;
     int w = events_block_width(type);
-    
+
     // ---> FIXED: Broadcast is a normal block height, others are Hats <---
-    if (type == EB_BROADCAST) return {x, y, w, 40};
+    if (type == EB_BROADCAST)
+        return {x, y, w, 40};
     return {x, y, w, 48};
 }
 
@@ -1065,7 +1097,8 @@ void events_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex, con
     draw_stack_shape(r, br, col, panel_bg, ghost);
 
     // If it is NOT a broadcast block, draw the Hat cap on top
-    if (type != EB_BROADCAST) {
+    if (type != EB_BROADCAST)
+    {
         draw_events_hat(r, br, col, panel_bg, ghost);
     }
 
@@ -1073,9 +1106,10 @@ void events_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex, con
     int cy = br.y + (br.h - 16) / 2;
     int cap_h = 22;
     int cap_y = br.y + (br.h - cap_h) / 2;
-    
+
     // Shift text down slightly for Hat blocks so it centers nicely
-    if (type != EB_BROADCAST) {
+    if (type != EB_BROADCAST)
+    {
         cy += 4;
         cap_y += 4;
     }
@@ -1083,12 +1117,14 @@ void events_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex, con
     int cur_x = br.x + padding_x;
     Color txt_col = {255, 255, 255};
 
-    auto draw_word = [&](const char *w) {
+    auto draw_word = [&](const char *w)
+    {
         draw_text(r, font, w, cur_x, cy, txt_col);
         cur_x += text_w(font, w) + 6;
     };
-    
-    auto draw_dd = [&](const char *lbl) {
+
+    auto draw_dd = [&](const char *lbl)
+    {
         int tw = text_w(font, lbl);
         int cap_w = std::max(90, tw + 26);
         SDL_Rect dd{cur_x, cap_y, cap_w, cap_h};
@@ -1104,22 +1140,33 @@ void events_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex, con
     {
         draw_word("when");
         SDL_Rect ic{cur_x, br.y + 12, 24, 24};
-        if (tex.green_flag) renderer_draw_texture_fit(r, tex.green_flag, &ic);
+        if (tex.green_flag)
+            renderer_draw_texture_fit(r, tex.green_flag, &ic);
         cur_x += 24 + 6;
         draw_word("clicked");
     }
     break;
     case EB_WHEN_KEY_PRESSED:
-        draw_word("when"); draw_dd(events_key_label(opt)); draw_word("key"); draw_word("pressed");
+        draw_word("when");
+        draw_dd(events_key_label(opt));
+        draw_word("key");
+        draw_word("pressed");
         break;
     case EB_WHEN_SPRITE_CLICKED:
-        draw_word("when"); draw_word("this"); draw_word("sprite"); draw_word("clicked");
+        draw_word("when");
+        draw_word("this");
+        draw_word("sprite");
+        draw_word("clicked");
         break;
     case EB_WHEN_I_RECEIVE:
-        draw_word("when"); draw_word("I"); draw_word("receive"); draw_dd(events_message_label(state, opt)); 
+        draw_word("when");
+        draw_word("I");
+        draw_word("receive");
+        draw_dd(events_message_label(state, opt));
         break;
     case EB_BROADCAST:
-        draw_word("broadcast"); draw_dd(events_message_label(state, opt));
+        draw_word("broadcast");
+        draw_dd(events_message_label(state, opt));
         break;
     default:
         draw_word("events");
@@ -1130,38 +1177,50 @@ void events_block_draw(SDL_Renderer *r, TTF_Font *font, const Textures &tex, con
 int events_block_hittest_field(TTF_Font *font, const AppState &state, EventsBlockType type, int x, int y, int opt, int px, int py)
 {
     SDL_Rect br = events_block_rect(type, x, y, opt);
-    if (!(px >= br.x && px < br.x + br.w && py >= br.y && py < br.y + br.h)) return -1;
-    
+    if (!(px >= br.x && px < br.x + br.w && py >= br.y && py < br.y + br.h))
+        return -1;
+
     int padding_x = 12;
     int cur_x = br.x + padding_x;
     int cap_h = 22;
     int cap_y = br.y + (br.h - cap_h) / 2;
-    if (type != EB_BROADCAST) cap_y += 4;
+    if (type != EB_BROADCAST)
+        cap_y += 4;
 
-    auto adv_word = [&](const char *w) { cur_x += text_w(font, w) + 6; };
-    auto cap_rect = [&](int w) {
+    auto adv_word = [&](const char *w)
+    { cur_x += text_w(font, w) + 6; };
+    auto cap_rect = [&](int w)
+    {
         SDL_Rect rc{cur_x, cap_y, w, cap_h};
         cur_x += w + 6;
         return rc;
     };
-    auto dd_w = [&](const char *txt) { return std::max(90, text_w(font, txt) + 26); };
-    auto in = [&](const SDL_Rect &rc) { return px >= rc.x && px < rc.x + rc.w && py >= rc.y && py < rc.y + rc.h; };
+    auto dd_w = [&](const char *txt)
+    { return std::max(90, text_w(font, txt) + 26); };
+    auto in = [&](const SDL_Rect &rc)
+    { return px >= rc.x && px < rc.x + rc.w && py >= rc.y && py < rc.y + rc.h; };
 
     switch (type)
     {
     case EB_WHEN_KEY_PRESSED:
         adv_word("when");
-        if (in(cap_rect(dd_w(events_key_label(opt))))) return -2;
+        if (in(cap_rect(dd_w(events_key_label(opt)))))
+            return -2;
         return -1;
     case EB_WHEN_I_RECEIVE:
-        adv_word("when"); adv_word("I"); adv_word("receive");
-        if (in(cap_rect(dd_w(events_message_label(state, opt))))) return -2;
+        adv_word("when");
+        adv_word("I");
+        adv_word("receive");
+        if (in(cap_rect(dd_w(events_message_label(state, opt)))))
+            return -2;
         return -1;
     case EB_BROADCAST:
         adv_word("broadcast");
-        if (in(cap_rect(dd_w(events_message_label(state, opt))))) return -2;
+        if (in(cap_rect(dd_w(events_message_label(state, opt)))))
+            return -2;
         return -1;
-    default: return -1;
+    default:
+        return -1;
     }
 }
 /* ================================================================ */
@@ -1511,12 +1570,18 @@ int sensing_boolean_block_width(SensingBlockType type)
 {
     switch (type)
     {
-    case SENSB_TOUCHING: return 280;
-    case SENSB_KEY_PRESSED: return 280;
-    case SENSB_MOUSE_DOWN: return 240;
-    case SENSB_TOUCHING_COLOR: return 180;
-    case SENSB_COLOR_IS_TOUCHING_COLOR: return 240;
-    default: return 260;
+    case SENSB_TOUCHING:
+        return 280;
+    case SENSB_KEY_PRESSED:
+        return 280;
+    case SENSB_MOUSE_DOWN:
+        return 240;
+    case SENSB_TOUCHING_COLOR:
+        return 180;
+    case SENSB_COLOR_IS_TOUCHING_COLOR:
+        return 240;
+    default:
+        return 260;
     }
 }
 
@@ -1558,7 +1623,8 @@ void sensing_boolean_block_draw(SDL_Renderer *r, TTF_Font *font,
         cur_x += cap_w + 6;
     };
 
-    auto draw_color_picker = [&](int col_r, int col_g, int col_b) {
+    auto draw_color_picker = [&](int col_r, int col_g, int col_b)
+    {
         SDL_Rect cap = input_capsule_rect(cur_x, cap_y, 32, cap_h);
         renderer_fill_rounded_rect(r, &cap, cap.h / 2, col_r, col_g, col_b);
         SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
@@ -1571,22 +1637,32 @@ void sensing_boolean_block_draw(SDL_Renderer *r, TTF_Font *font,
     switch (type)
     {
     case SENSB_TOUCHING:
-        draw_word("touching"); draw_dd(sensing_touching_label(opt)); draw_word("?");
+        draw_word("touching");
+        draw_dd(sensing_touching_label(opt));
+        draw_word("?");
         break;
     case SENSB_KEY_PRESSED:
-        draw_word("key"); draw_dd(sensing_key_label(opt)); draw_word("pressed?");
+        draw_word("key");
+        draw_dd(sensing_key_label(opt));
+        draw_word("pressed?");
         break;
     case SENSB_MOUSE_DOWN:
-        draw_word("mouse"); draw_word("down?");
+        draw_word("mouse");
+        draw_word("down?");
         break;
-    
+
     // ---> FIXED: COLOR BLOCK RENDERING <---
     case SENSB_TOUCHING_COLOR:
-        draw_word("touching color"); draw_color_picker(r1, g1, b1); draw_word("?");
+        draw_word("touching color");
+        draw_color_picker(r1, g1, b1);
+        draw_word("?");
         break;
     case SENSB_COLOR_IS_TOUCHING_COLOR:
-        draw_word("color"); draw_color_picker(r1, g1, b1); 
-        draw_word("is touching"); draw_color_picker(r2, g2, b2); draw_word("?");
+        draw_word("color");
+        draw_color_picker(r1, g1, b1);
+        draw_word("is touching");
+        draw_color_picker(r2, g2, b2);
+        draw_word("?");
         break;
     default:
         draw_word("sensing");
@@ -1594,7 +1670,8 @@ void sensing_boolean_block_draw(SDL_Renderer *r, TTF_Font *font,
     }
 }
 
-int sensing_boolean_block_hittest_field(TTF_Font *font, SensingBlockType type, int x, int y,int opt, int a, int b, int c, int d, int e, int f, int px, int py){
+int sensing_boolean_block_hittest_field(TTF_Font *font, SensingBlockType type, int x, int y, int opt, int a, int b, int c, int d, int e, int f, int px, int py)
+{
     SDL_Rect br = sensing_boolean_block_rect(type, x, y, opt);
     if (!(px >= br.x && px < br.x + br.w && py >= br.y && py < br.y + br.h))
         return -1;
@@ -1616,25 +1693,30 @@ int sensing_boolean_block_hittest_field(TTF_Font *font, SensingBlockType type, i
     {
     case SENSB_TOUCHING:
         adv_word("touching");
-        if (in(cap_rect(dd_w(sensing_touching_label(opt))))) return -2;
+        if (in(cap_rect(dd_w(sensing_touching_label(opt)))))
+            return -2;
         return -1;
     case SENSB_KEY_PRESSED:
         adv_word("key");
-        if (in(cap_rect(dd_w(sensing_key_label(opt))))) return -2;
+        if (in(cap_rect(dd_w(sensing_key_label(opt)))))
+            return -2;
         return -1;
     case SENSB_MOUSE_DOWN:
         return -1;
-    
+
     // ---> FIXED: COLOR BLOCK HIT ZONES <---
     case SENSB_TOUCHING_COLOR:
         adv_word("touching color");
-        if (in(cap_rect(32))) return -5; // Magic number -5 for color picker 1
+        if (in(cap_rect(32)))
+            return -5; // Magic number -5 for color picker 1
         return -1;
     case SENSB_COLOR_IS_TOUCHING_COLOR:
         adv_word("color");
-        if (in(cap_rect(32))) return -5; // Magic number -5 for color picker 1
+        if (in(cap_rect(32)))
+            return -5; // Magic number -5 for color picker 1
         adv_word("is touching");
-        if (in(cap_rect(32))) return -6; // Magic number -6 for color picker 2
+        if (in(cap_rect(32)))
+            return -6; // Magic number -6 for color picker 2
         return -1;
     default:
         return -1;
@@ -1820,7 +1902,8 @@ int control_block_width(ControlBlockType type)
         return 240;
     case CB_WAIT_UNTIL:
         return 240;
-    case CB_REPEAT_UNTIL: return 240;
+    case CB_REPEAT_UNTIL:
+        return 240;
     default:
         return 200;
     }
@@ -1969,10 +2052,12 @@ int control_block_hittest_field(TTF_Font *font, ControlBlockType type, int x, in
     }
     else if (type == CB_IF || type == CB_IF_ELSE || type == CB_WAIT_UNTIL || type == CB_REPEAT_UNTIL)
     {
-        const char* txt = "if";
-        if (type == CB_WAIT_UNTIL) txt = "wait until";
-        else if (type == CB_REPEAT_UNTIL) txt = "repeat until";
-        
+        const char *txt = "if";
+        if (type == CB_WAIT_UNTIL)
+            txt = "wait until";
+        else if (type == CB_REPEAT_UNTIL)
+            txt = "repeat until";
+
         cur_x += text_w(font, txt) + 12;
         if (px >= cur_x && px < cur_x + 50 && py >= br.y + 8 && py < br.y + 32)
             return -3;
@@ -2714,11 +2799,13 @@ void sensing_reporter_block_draw(SDL_Renderer *r, TTF_Font *font, SensingBlockTy
     Color c = {90, 188, 216};
     SDL_Rect br = sensing_reporter_block_rect(type, x, y);
     draw_reporter_shape(r, br, c, ghost);
-    
-    if (type == SENSB_ANSWER) {
+
+    if (type == SENSB_ANSWER)
+    {
         draw_text(r, font, "answer", br.x + 16, br.y + 12, {255, 255, 255});
     }
-    else if (type == SENSB_DISTANCE_TO) {
+    else if (type == SENSB_DISTANCE_TO)
+    {
         draw_text(r, font, "distance to", br.x + 16, br.y + 12, {255, 255, 255});
         int cx = br.x + 16 + text_w(font, "distance to") + 8;
         SDL_Rect drop_r = {cx, br.y + 8, 100, 24};
@@ -2727,10 +2814,12 @@ void sensing_reporter_block_draw(SDL_Renderer *r, TTF_Font *font, SensingBlockTy
         draw_caret(r, drop_r.x + drop_r.w - 12, drop_r.y + 12, {255, 255, 255});
     }
     // ---> FIXED: Draw text for Mouse X and Mouse Y <---
-    else if (type == SENSB_MOUSE_X) {
+    else if (type == SENSB_MOUSE_X)
+    {
         draw_text(r, font, "mouse x", br.x + 16, br.y + 12, {255, 255, 255});
     }
-    else if (type == SENSB_MOUSE_Y) {
+    else if (type == SENSB_MOUSE_Y)
+    {
         draw_text(r, font, "mouse y", br.x + 16, br.y + 12, {255, 255, 255});
     }
 }
@@ -2979,5 +3068,328 @@ int pen_block_hittest_field(TTF_Font *font, PenBlockType type, int x, int y, int
         return -1;
     default:
         return -1;
+    }
+}
+// ============================================================
+//  MY BLOCKS  (Custom Functions)
+//  Pink/purple color scheme: RGB(255, 102, 128)
+// ============================================================
+
+static const Color MY_BLOCKS_COLOR = {255, 102, 128};
+
+// Helper: find CustomFunctionDef by name in AppState
+static const CustomFunctionDef *myblocks_find_def(const AppState &state, const std::string &name)
+{
+    for (const auto &fn : state.custom_functions)
+        if (fn.name == name)
+            return &fn;
+    return nullptr;
+}
+
+// ────────────────────────────────────────────────────────────
+// DEFINE block (hat shape — no top notch, puzzle-piece bottom)
+// ────────────────────────────────────────────────────────────
+SDL_Rect myblocks_define_block_rect(const AppState &state, const std::string &func_name, int x, int y) {
+    int w = 80;
+    if (func_name.length() > 0) w += func_name.length() * 8 + 20;
+    const CustomFunctionDef *def = myblocks_find_def(state, func_name);
+    if (def) {
+        for (const auto& p : def->params) {
+            w += std::max(52, (int)p.name.size() * 8 + 20) + 6;
+        }
+    }
+    return {x, y, w, 60}; // FIXED: Height is 60 so the hat fits!
+}
+
+static void draw_hex_capsule(SDL_Renderer *r, SDL_Rect rect, Color c) {
+    // ---> FIXED: Replaced c.a with 255 <---
+    SDL_SetRenderDrawColor(r, c.r, c.g, c.b, 255); 
+    int h2 = rect.h / 2;
+    SDL_Rect mid = {rect.x + h2, rect.y, rect.w - rect.h, rect.h};
+    SDL_RenderFillRect(r, &mid);
+    for (int y = 0; y < h2; y++) {
+        // Left point
+        SDL_RenderDrawLine(r, rect.x + h2 - y, rect.y + y, rect.x + h2, rect.y + y);
+        SDL_RenderDrawLine(r, rect.x + h2 - y, rect.y + rect.h - 1 - y, rect.x + h2, rect.y + rect.h - 1 - y);
+        // Right point
+        SDL_RenderDrawLine(r, rect.x + rect.w - h2, rect.y + y, rect.x + rect.w - h2 + y, rect.y + y);
+        SDL_RenderDrawLine(r, rect.x + rect.w - h2, rect.y + rect.h - 1 - y, rect.x + rect.w - h2 + y, rect.y + rect.h - 1 - y);
+    }
+}
+void myblocks_define_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const std::string &func_name, int x, int y, bool ghost) {
+    SDL_Rect br = myblocks_define_block_rect(state, func_name, x, y);
+    Color col = MY_BLOCKS_COLOR;
+    Color bg = {230, 230, 230};
+
+    draw_stack_shape(r, br, col, bg, ghost);
+    draw_events_hat(r, br, col, bg, ghost);
+
+    int cur_x = br.x + 16;
+    int text_y = br.y + 24; // FIXED: Text moved down perfectly inside the block
+    SDL_Color wc = {255, 255, 255, (Uint8)(ghost ? 128 : 255)};
+    
+    if (font) {
+        SDL_Surface *sf = TTF_RenderUTF8_Blended(font, "define", wc);
+        if (sf) {
+            SDL_Texture *tx = SDL_CreateTextureFromSurface(r, sf);
+            SDL_Rect dr = {cur_x, text_y, sf->w, sf->h};
+            SDL_RenderCopy(r, tx, NULL, &dr);
+            cur_x += sf->w + 8;
+            SDL_DestroyTexture(tx);
+            SDL_FreeSurface(sf);
+        }
+    } else cur_x += 48;
+
+    if (font) {
+        SDL_Surface *sf = TTF_RenderUTF8_Blended(font, func_name.c_str(), wc);
+        if (sf) {
+            SDL_Texture *tx = SDL_CreateTextureFromSurface(r, sf);
+            SDL_Rect dr = {cur_x, text_y, sf->w, sf->h};
+            SDL_RenderCopy(r, tx, NULL, &dr);
+            cur_x += sf->w + 12;
+            SDL_DestroyTexture(tx);
+            SDL_FreeSurface(sf);
+        }
+    } else cur_x += func_name.length() * 8 + 12;
+
+    const CustomFunctionDef *def = myblocks_find_def(state, func_name);
+    int pill_y = br.y + 20; // FIXED: Pills moved down perfectly
+    if (def) {
+        for (const auto &p : def->params) {
+            int param_pw = std::max(52, (font ? text_w(font, p.name.c_str()) : (int)p.name.size() * 8) + 20);
+            SDL_Rect param_pill = {cur_x, pill_y, param_pw, 24};
+            
+            // FIXED: Colored properly based on type
+            if (p.type == CPARAM_BOOLEAN) draw_hex_capsule(r, param_pill, {100, 200, 80}); 
+            else if (p.type == CPARAM_TEXT) renderer_fill_rounded_rect(r, &param_pill, 4, 80, 160, 255); 
+            else renderer_fill_rounded_rect(r, &param_pill, 12, 255, 160, 80);
+
+            if (font) {
+                SDL_Color lc = {255, 255, 255, 255};
+                SDL_Surface *sf = TTF_RenderUTF8_Blended(font, p.name.c_str(), lc);
+                if (sf) {
+                    SDL_Texture *tx = SDL_CreateTextureFromSurface(r, sf);
+                    SDL_Rect dr = {param_pill.x + (param_pill.w - sf->w) / 2, param_pill.y + (param_pill.h - sf->h) / 2, sf->w, sf->h};
+                    SDL_RenderCopy(r, tx, NULL, &dr);
+                    SDL_DestroyTexture(tx);
+                    SDL_FreeSurface(sf);
+                }
+            }
+            cur_x += param_pw + 6;
+        }
+    }
+}
+
+int myblocks_define_block_hittest_param(TTF_Font *font, const AppState &state, const std::string &func_name, int x, int y, int px, int py) {
+    const CustomFunctionDef *def = myblocks_find_def(state, func_name);
+    if (!def) return -1;
+    SDL_Rect br = myblocks_define_block_rect(state, func_name, x, y);
+    int cur_x = br.x + 16;
+    cur_x += (font ? text_w(font, "define") : 48) + 8;
+    cur_x += (font ? text_w(font, func_name.c_str()) : func_name.length() * 8) + 12;
+    int pill_y = br.y + 20;
+    for (int i=0; i<(int)def->params.size(); i++) {
+        int pw = std::max(52, (font ? text_w(font, def->params[i].name.c_str()) : (int)def->params[i].name.size() * 8) + 20);
+        SDL_Rect pr = {cur_x, pill_y, pw, 24};
+        if (px >= pr.x && px < pr.x + pr.w && py >= pr.y && py < pr.y + pr.h) return i;
+        cur_x += pw + 6;
+    }
+    return -1;
+}
+
+// CALL block (standard stack block with arg capsules)
+// ────────────────────────────────────────────────────────────
+SDL_Rect myblocks_call_block_rect(const AppState &state, const std::string &func_name, int x, int y)
+{
+    const CustomFunctionDef *def = myblocks_find_def(state, func_name);
+    // Use char count * 8 as estimate (no font available in _rect)
+    int label_w = (int)func_name.size() * 8;
+    int w = 10 + label_w + 8; // 10px left padding + label + gap
+    if (def)
+    {
+        for (int i = 0; i < (int)def->params.size() && i < 3; i++)
+        {
+            int lw = (int)(def->params[i].name.size() + 1) * 8 + 4; // "name:" label
+            int pw = (int)def->params[i].name.size() * 8;
+            w += lw + std::max(60, pw + 20) + 6;
+        }
+    }
+    w = std::max(120, w);
+    return {x, y, w, 40};
+}
+
+
+void myblocks_call_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state,
+                              const std::string &func_name, int x, int y, int a, int b, int c,
+                              int arg0_id, int arg1_id, int arg2_id,
+                              bool ghost, Color panel_bg, int selected_field,
+                              const char *ov0, const char *ov1, const char *ov2,
+                              int ew0, int ew1, int ew2)
+{
+    const CustomFunctionDef *def = myblocks_find_def(state, func_name);
+    SDL_Rect br = myblocks_call_block_rect(state, func_name, x, y);
+    br.w += ew0 + ew1 + ew2; // Expand base block width for reporters
+    Color col = MY_BLOCKS_COLOR;
+
+    draw_stack_shape(r, br, col, panel_bg, ghost);
+
+    int cur_x = br.x + 10;
+    int text_y = br.y + (br.h - 16) / 2;
+    int cap_h = 22;
+    int cap_y = br.y + (br.h - cap_h) / 2;
+    SDL_Color wc = {255, 255, 255, (Uint8)(ghost ? 128 : 255)};
+
+    if (font && !func_name.empty()) {
+        int label_w = text_w(font, func_name.c_str());
+        SDL_Surface *sf = TTF_RenderUTF8_Blended(font, func_name.c_str(), wc);
+        if (sf) {
+            SDL_Texture *tx = SDL_CreateTextureFromSurface(r, sf);
+            SDL_Rect dr = {cur_x, text_y, sf->w, sf->h};
+            SDL_RenderCopy(r, tx, NULL, &dr);
+            SDL_DestroyTexture(tx);
+            SDL_FreeSurface(sf);
+        }
+        cur_x += label_w + 8;
+    }
+
+    if (def) {
+        const char *ovs[3] = {ov0, ov1, ov2};
+        for (int pi = 0; pi < (int)def->params.size() && pi < 3; pi++) {
+            const auto &p = def->params[pi];
+            std::string lbl = p.name + ":";
+            if (font) {
+                SDL_Surface *lsf = TTF_RenderUTF8_Blended(font, lbl.c_str(), wc);
+                if (lsf) {
+                    SDL_Texture *ltx = SDL_CreateTextureFromSurface(r, lsf);
+                    SDL_Rect ldr = {cur_x, text_y, lsf->w, lsf->h};
+                    SDL_RenderCopy(r, ltx, NULL, &ldr);
+                    SDL_DestroyTexture(ltx);
+                    cur_x += lsf->w + 4;
+                    SDL_FreeSurface(lsf);
+                }
+            }
+            int param_tw = font ? text_w(font, p.name.c_str()) : (int)p.name.size() * 8;
+            int ew = (pi == 0) ? ew0 : (pi == 1 ? ew1 : ew2);
+            int cap_w = std::max(60, param_tw + 20) + ew;
+            SDL_Rect cap = {cur_x, cap_y, cap_w, cap_h};
+            
+            bool focused = (selected_field == pi);
+            Uint8 fr = focused ? 180 : 255, fg = focused ? 200 : 255, fb = focused ? 255 : 255;
+
+            // ---> DETECT IF A BLOCK IS SNAPPED INSIDE THIS SLOT <---
+            int arg_id = (pi == 0) ? arg0_id : (pi == 1 ? arg1_id : arg2_id);
+            bool has_child = (arg_id != -1);
+
+            if (p.type == CPARAM_BOOLEAN) {
+                if (!has_child) draw_hex_slot(r, cur_x + cap_w/2, cap_y + cap_h/2, col, false);
+            } else if (p.type == CPARAM_NUMBER) {
+                draw_input_capsule(r, cap, focused);
+            } else {
+                SDL_SetRenderDrawColor(r, fr, fg, fb, 255);
+                SDL_RenderFillRect(r, &cap);
+                SDL_SetRenderDrawColor(r, 160, 160, 160, 255);
+                SDL_RenderDrawRect(r, &cap);
+            }
+
+            const char *val = ovs[pi];
+            std::string fallback;
+            if (!val || val[0] == '\0') { fallback = p.name; val = fallback.c_str(); }
+
+            // ---> ONLY DRAW TEXT IF IT'S NOT A BOOLEAN AND NO BLOCK IS SNAPPED IN <---
+            if (font && p.type != CPARAM_BOOLEAN && !has_child) {
+                SDL_Color dc = {40, 40, 40, 255};
+                SDL_Surface *sf = TTF_RenderUTF8_Blended(font, val, dc);
+                if (sf) {
+                    SDL_Texture *tx = SDL_CreateTextureFromSurface(r, sf);
+                    
+                    // Safely combine with the Palette's clip rect
+                    SDL_Rect old_clip;
+                    SDL_RenderGetClipRect(r, &old_clip);
+                    bool clip_active = SDL_RenderIsClipEnabled(r);
+
+                    SDL_Rect new_clip = cap;
+                    if (clip_active) SDL_IntersectRect(&new_clip, &old_clip, &new_clip);
+
+                    SDL_RenderSetClipRect(r, &new_clip);
+                    
+                    int tw2 = sf->w;
+                    int tx2 = (tw2 <= cap.w - 10) ? (cap.x + (cap.w - tw2) / 2) : (cap.x + 6);
+                    SDL_Rect dr = {tx2, cap.y + (cap.h - sf->h) / 2, sf->w, sf->h};
+                    SDL_RenderCopy(r, tx, NULL, &dr);
+                    
+                    // Safely restore the Palette's clip rect
+                    if (clip_active) SDL_RenderSetClipRect(r, &old_clip);
+                    else SDL_RenderSetClipRect(r, nullptr);
+                    
+                    SDL_DestroyTexture(tx);
+                    SDL_FreeSurface(sf);
+                }
+            }
+            cur_x += cap_w + 6;
+        }
+    }
+}
+
+// ────────────────────────────────────────────────────────────
+// CALL block hittest (returns param index 0/1/2 or -1)
+// ────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────
+// CALL block hittest (returns param index 0/1/2 or -1)
+// ────────────────────────────────────────────────────────────
+int myblocks_call_block_hittest_field(TTF_Font *font, const AppState &state,
+                                      const std::string &func_name, int x, int y, int px, int py,
+                                      int ew0, int ew1, int ew2)
+{
+    const CustomFunctionDef *def = myblocks_find_def(state, func_name);
+    if (!def || def->params.empty()) return -1;
+    SDL_Rect br = myblocks_call_block_rect(state, func_name, x, y);
+    br.w += ew0 + ew1 + ew2;
+    if (px < br.x || px >= br.x + br.w || py < br.y || py >= br.y + br.h) return -1;
+
+    int cur_x = br.x + 10;
+    int label_w = font ? text_w(font, func_name.c_str()) : (int)func_name.size() * 8;
+    cur_x += label_w + 8;
+    int cap_y = br.y + (br.h - 22) / 2;
+    for (int pi = 0; pi < (int)def->params.size() && pi < 3; pi++) {
+        std::string lbl = def->params[pi].name + ":";
+        cur_x += (font ? text_w(font, lbl.c_str()) : (int)lbl.size() * 8) + 4;
+        
+        int pw = font ? text_w(font, def->params[pi].name.c_str()) : (int)def->params[pi].name.size() * 8;
+        int ew = (pi == 0) ? ew0 : (pi == 1 ? ew1 : ew2);
+        int cap_w = std::max(60, pw + 20) + ew; // Add expanded width here!
+        
+        SDL_Rect cap = {cur_x, cap_y, cap_w, 22};
+        if (px >= cap.x && px < cap.x + cap.w && py >= cap.y && py < cap.y + cap.h) return pi;
+        cur_x += cap_w + 6;
+    }
+    return -1;
+}
+
+// ────────────────────────────────────────────────────────────
+// PARAM reporter oval (shows param name, pink bg)
+// ────────────────────────────────────────────────────────────
+SDL_Rect myblocks_param_block_rect(TTF_Font *font, const std::string &param_name, int param_type, int x, int y) {
+    int tw = (font ? text_w(font, param_name.c_str()) : param_name.size() * 8) + 20;
+    return {x, y, std::max(48, tw), 28};
+}
+
+void myblocks_param_block_draw(SDL_Renderer *r, TTF_Font *font, const std::string &param_name, int param_type, int x, int y, bool ghost) {
+    SDL_Rect br = myblocks_param_block_rect(font, param_name, param_type, x, y);
+    
+    // FIXED: Draws hex for boolean params!
+    if (param_type == CPARAM_BOOLEAN) draw_hex_capsule(r, br, {100, 200, 80});
+    else if (param_type == CPARAM_TEXT) renderer_fill_rounded_rect(r, &br, 4, 80, 160, 255);
+    else renderer_fill_rounded_rect(r, &br, 14, 255, 160, 80);
+
+    if (font) {
+        SDL_Color wc = {255, 255, 255, (Uint8)(ghost ? 128 : 255)};
+        SDL_Surface *sf = TTF_RenderUTF8_Blended(font, param_name.c_str(), wc);
+        if (sf) {
+            SDL_Texture *tx = SDL_CreateTextureFromSurface(r, sf);
+            SDL_Rect dr = {br.x + (br.w - sf->w)/2, br.y + (br.h - sf->h)/2, sf->w, sf->h};
+            SDL_RenderCopy(r, tx, NULL, &dr);
+            SDL_DestroyTexture(tx);
+            SDL_FreeSurface(sf);
+        }
     }
 }

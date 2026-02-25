@@ -142,6 +142,25 @@ static void get_sprite_screen_rect(Sprite &spr, int &cx, int &cy, int &w, int &h
     h = (int)((base_h * spr.size / 100.0f) * scale_y);
 }
 
+// ---> ADDED: Helper to extract text from parameter slots
+static std::string myblocks_get_param_val(const BlockInstance &b, int idx)
+{
+    int cur = 0;
+    size_t pos = 0;
+    const std::string &t = b.text2;
+    while (pos <= t.size())
+    {
+        size_t next = t.find('\x01', pos);
+        if (cur == idx)
+            return (next == std::string::npos) ? t.substr(pos) : t.substr(pos, next - pos);
+        if (next == std::string::npos)
+            break;
+        pos = next + 1;
+        cur++;
+    }
+    return "";
+}
+
 static float eval_value(AppState &state, Sprite &spr, int block_id, float default_val, const std::string &text_val);
 static std::string eval_string(AppState &state, Sprite &spr, int block_id, const std::string &text_val);
 static bool eval_bool(AppState &state, Sprite &spr, int block_id);
@@ -206,6 +225,11 @@ static float eval_value(AppState &state, Sprite &spr, int block_id, float defaul
         }
         if (b->kind == BK_VARIABLES && b->subtype == VB_VARIABLE)
             return std::atof(state.variable_values[b->text].c_str());
+
+        // ---> ADDED: Read custom function parameters <---
+        if (b->kind == BK_MY_BLOCKS && b->subtype == MYB_PARAM)
+            return std::atof(state.variable_values["__param__" + b->text].c_str());
+
         if (b->kind == BK_LOOKS)
         {
             if (b->subtype == LB_SIZE)
@@ -299,6 +323,11 @@ static std::string eval_string(AppState &state, Sprite &spr, int block_id, const
 
         if (b->kind == BK_VARIABLES && b->subtype == VB_VARIABLE)
             return state.variable_values[b->text];
+
+        // ---> ADDED: Read custom function parameters <---
+        if (b->kind == BK_MY_BLOCKS && b->subtype == MYB_PARAM)
+            return state.variable_values["__param__" + b->text];
+
         if (b->kind == BK_LOOKS)
         {
             if (b->subtype == LB_SIZE)
@@ -453,27 +482,38 @@ static bool eval_bool(AppState &state, Sprite &spr, int block_id)
                 return false;
 
             // Use EXACT same coordinate math as renderer_stamp_on_pen_layer
-            int spr_px = 240 + spr.x;   // Scratch → pen layer x
-            int spr_py = 180 - spr.y;   // Scratch → pen layer y
+            int spr_px = 240 + spr.x; // Scratch → pen layer x
+            int spr_py = 180 - spr.y; // Scratch → pen layer y
 
             int tex_w = 100, tex_h = 100;
-            if (spr.texture) SDL_QueryTexture(spr.texture, NULL, NULL, &tex_w, &tex_h);
+            if (spr.texture)
+                SDL_QueryTexture(spr.texture, NULL, NULL, &tex_w, &tex_h);
             int base_w = tex_w, base_h = tex_h;
             const int MAX_DEFAULT = 120;
-            if (base_w > MAX_DEFAULT || base_h > MAX_DEFAULT) {
-                if (base_w > base_h) { base_h = base_h * MAX_DEFAULT / base_w; base_w = MAX_DEFAULT; }
-                else { base_w = base_w * MAX_DEFAULT / base_h; base_h = MAX_DEFAULT; }
+            if (base_w > MAX_DEFAULT || base_h > MAX_DEFAULT)
+            {
+                if (base_w > base_h)
+                {
+                    base_h = base_h * MAX_DEFAULT / base_w;
+                    base_w = MAX_DEFAULT;
+                }
+                else
+                {
+                    base_w = base_w * MAX_DEFAULT / base_h;
+                    base_h = MAX_DEFAULT;
+                }
             }
             int sw = std::max(1, base_w * spr.size / 100);
             int sh = std::max(1, base_h * spr.size / 100);
 
             // Sample a ring of points around the sprite edge (more accurate than full bbox)
             // Use the sprite's bounding box in pen-layer coords
-            int x0 = std::max(0,   spr_px - sw / 2);
-            int y0 = std::max(0,   spr_py - sh / 2);
+            int x0 = std::max(0, spr_px - sw / 2);
+            int y0 = std::max(0, spr_py - sh / 2);
             int x1 = std::min(479, spr_px + sw / 2);
             int y1 = std::min(359, spr_py + sh / 2);
-            if (x0 >= x1 || y0 >= y1) return false;
+            if (x0 >= x1 || y0 >= y1)
+                return false;
 
             int rw = x1 - x0, rh = y1 - y0;
             SDL_Rect sample_rect = {x0, y0, rw, rh};
@@ -486,15 +526,15 @@ static bool eval_bool(AppState &state, Sprite &spr, int block_id)
 
             // ARGB8888: uint32 = 0xAARRGGBB
             Uint8 tr = b->color1.r, tg = b->color1.g, tb_ = b->color1.b;
-            const int EPS = 1; // small epsilon for color matching
+            const int EPS = 10; // small epsilon for color matching
 
             if (b->subtype == SENSB_TOUCHING_COLOR)
             {
                 for (auto &px : pixels)
                 {
                     Uint8 r2 = (px >> 16) & 0xFF;
-                    Uint8 g2 = (px >>  8) & 0xFF;
-                    Uint8 b2 = (px >>  0) & 0xFF;
+                    Uint8 g2 = (px >> 8) & 0xFF;
+                    Uint8 b2 = (px >> 0) & 0xFF;
                     if (std::abs((int)r2 - tr) <= EPS && std::abs((int)g2 - tg) <= EPS && std::abs((int)b2 - tb_) <= EPS)
                         return true;
                 }
@@ -507,16 +547,22 @@ static bool eval_bool(AppState &state, Sprite &spr, int block_id)
                 for (auto &px : pixels)
                 {
                     Uint8 r2 = (px >> 16) & 0xFF;
-                    Uint8 g2 = (px >>  8) & 0xFF;
-                    Uint8 b2 = (px >>  0) & 0xFF;
-                    if (std::abs((int)r2 - tr)  <= EPS && std::abs((int)g2 - tg)  <= EPS && std::abs((int)b2 - tb_) <= EPS) found1 = true;
-                    if (std::abs((int)r2 - tr2) <= EPS && std::abs((int)g2 - tg2) <= EPS && std::abs((int)b2 - tb2) <= EPS) found2 = true;
+                    Uint8 g2 = (px >> 8) & 0xFF;
+                    Uint8 b2 = (px >> 0) & 0xFF;
+                    if (std::abs((int)r2 - tr) <= EPS && std::abs((int)g2 - tg) <= EPS && std::abs((int)b2 - tb_) <= EPS)
+                        found1 = true;
+                    if (std::abs((int)r2 - tr2) <= EPS && std::abs((int)g2 - tg2) <= EPS && std::abs((int)b2 - tb2) <= EPS)
+                        found2 = true;
                 }
                 return found1 && found2;
             }
         }
     }
-    if (b->kind == BK_VARIABLES || b->kind == BK_EVENTS || (b->kind == BK_SENSING && (b->subtype == SENSB_ANSWER || b->subtype == SENSB_DISTANCE_TO || b->subtype == SENSB_MOUSE_X || b->subtype == SENSB_MOUSE_Y)))
+
+    // ---> FIXED: Added MYB_PARAM to the boolean fallback evaluation! <---
+    if (b->kind == BK_VARIABLES || b->kind == BK_EVENTS ||
+        (b->kind == BK_SENSING && (b->subtype == SENSB_ANSWER || b->subtype == SENSB_DISTANCE_TO || b->subtype == SENSB_MOUSE_X || b->subtype == SENSB_MOUSE_Y)) ||
+        (b->kind == BK_MY_BLOCKS && b->subtype == MYB_PARAM))
     {
         std::string s = eval_string(state, spr, block_id, "");
         std::string ls = s;
@@ -771,13 +817,20 @@ void interpreter_tick(AppState &state)
                 {
                     float val = eval_value(state, spr, b->arg0_id, b->a, b->text);
                     // opt 0=color, 1=saturation, 2=brightness, 3=size
-                    if (b->opt == 0) {
+                    if (b->opt == 0)
+                    {
                         spr.pen_color_val = ((spr.pen_color_val + (int)val) % 100 + 100) % 100;
-                    } else if (b->opt == 1) {
+                    }
+                    else if (b->opt == 1)
+                    {
                         spr.pen_saturation = std::max(0, std::min(100, spr.pen_saturation + (int)val));
-                    } else if (b->opt == 2) {
+                    }
+                    else if (b->opt == 2)
+                    {
                         spr.pen_brightness = std::max(0, std::min(100, spr.pen_brightness + (int)val));
-                    } else if (b->opt == 3) {
+                    }
+                    else if (b->opt == 3)
+                    {
                         spr.pen_size = std::max(1, spr.pen_size + (int)val);
                     }
                     update_pen_rgb(spr);
@@ -787,13 +840,20 @@ void interpreter_tick(AppState &state)
                 {
                     float val = eval_value(state, spr, b->arg0_id, b->a, b->text);
                     // opt 0=color, 1=saturation, 2=brightness, 3=size
-                    if (b->opt == 0) {
+                    if (b->opt == 0)
+                    {
                         spr.pen_color_val = ((int)val % 100 + 100) % 100;
-                    } else if (b->opt == 1) {
+                    }
+                    else if (b->opt == 1)
+                    {
                         spr.pen_saturation = std::max(0, std::min(100, (int)val));
-                    } else if (b->opt == 2) {
+                    }
+                    else if (b->opt == 2)
+                    {
                         spr.pen_brightness = std::max(0, std::min(100, (int)val));
-                    } else if (b->opt == 3) {
+                    }
+                    else if (b->opt == 3)
+                    {
                         spr.pen_size = std::max(1, (int)val);
                     }
                     update_pen_rgb(spr);
@@ -1185,6 +1245,67 @@ void interpreter_tick(AppState &state)
                     interpreter_trigger_message(state, b->opt);
                 }
                 frame.cur_node = b->next_id;
+            }
+            else if (b->kind == BK_MY_BLOCKS)
+            {
+                if (b->subtype == MYB_CALL)
+                {
+                    // Advance caller to next block after this call
+                    frame.cur_node = b->next_id;
+
+                    // Find function definition
+                    const CustomFunctionDef *fndef = nullptr;
+                    for (const auto &fn : state.custom_functions)
+                        if (fn.name == b->text)
+                        {
+                            fndef = &fn;
+                            break;
+                        }
+
+                    if (fndef)
+                    {
+                        // ---> FIXED: Evaluate and bind arguments accurately! <---
+                        for (int pi = 0; pi < (int)fndef->params.size() && pi < 3; ++pi)
+                        {
+                            std::string pvar = "__param__" + fndef->params[pi].name;
+                            int arg_id = (pi == 0) ? b->arg0_id : (pi == 1 ? b->arg1_id : b->arg2_id);
+                            std::string raw_val = myblocks_get_param_val(*b, pi);
+
+                            if (fndef->params[pi].type == CPARAM_BOOLEAN)
+                            {
+                                bool val = eval_bool(state, spr, arg_id);
+                                state.variable_values[pvar] = val ? "true" : "false";
+                            }
+                            else
+                            {
+                                state.variable_values[pvar] = eval_string(state, spr, arg_id, raw_val);
+                            }
+                        }
+
+                        // Find define block in this sprite and push a call frame
+                        for (auto &blk : spr.blocks)
+                        {
+                            if (blk.kind == BK_MY_BLOCKS && blk.subtype == MYB_DEFINE && blk.text == b->text)
+                            {
+                                if (blk.next_id != -1)
+                                {
+                                    StackFrame call_frame;
+                                    call_frame.cur_node = blk.next_id;
+                                    call_frame.loop_block_id = -1;
+                                    call_frame.loop_count = 0;
+                                    g_threads[i].stack.push_back(call_frame);
+                                    LogSimple(LOG_INFO, execution_cycle, b->id, "CALL_FUNC", "Calling: " + b->text);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    yielded = true;
+                }
+                else // MYB_DEFINE or MYB_PARAM - hat/reporter blocks, skip
+                {
+                    frame.cur_node = b->next_id;
+                }
             }
             else
             {

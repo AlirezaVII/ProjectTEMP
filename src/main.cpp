@@ -263,30 +263,59 @@ int main(int /*argc*/, char * /*argv*/[])
                 if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
                 {
                     int mw = 380, mh = 180, mx2 = WINDOW_WIDTH / 2 - mw / 2, my2 = WINDOW_HEIGHT / 2 - mh / 2;
-                    SDL_Rect yes_btn  = {mx2 + mw - 120, my2 + mh - 60, 90, 40};
-                    SDL_Rect no_btn   = {mx2 + mw - 220, my2 + mh - 60, 90, 40};
-                    auto in_r = [](int px, int py, const SDL_Rect &r){ return px >= r.x && px < r.x+r.w && py >= r.y && py < r.y+r.h; };
+                    SDL_Rect yes_btn = {mx2 + mw - 120, my2 + mh - 60, 90, 40};
+                    SDL_Rect no_btn = {mx2 + mw - 220, my2 + mh - 60, 90, 40};
+                    auto in_r = [](int px, int py, const SDL_Rect &r)
+                    { return px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h; };
                     if (in_r(e.button.x, e.button.y, yes_btn))
                     {
                         // Confirmed: clear project
-                        for (auto &s : state.sprites) {
-                            for (auto &c : s.costumes) { if (c.original_texture) SDL_DestroyTexture(c.original_texture); if (c.paint_layer) SDL_DestroyTexture(c.paint_layer); if (c.composed_texture) SDL_DestroyTexture(c.composed_texture); }
-                            for (auto &snd : s.sounds) { if (snd.chunk) Mix_FreeChunk(snd.chunk); }
+                        for (auto &s : state.sprites)
+                        {
+                            for (auto &c : s.costumes)
+                            {
+                                if (c.original_texture)
+                                    SDL_DestroyTexture(c.original_texture);
+                                if (c.paint_layer)
+                                    SDL_DestroyTexture(c.paint_layer);
+                                if (c.composed_texture)
+                                    SDL_DestroyTexture(c.composed_texture);
+                            }
+                            for (auto &snd : s.sounds)
+                            {
+                                if (snd.chunk)
+                                    Mix_FreeChunk(snd.chunk);
+                            }
                         }
-                        for (auto &b : state.backdrops) { if (b.original_texture) SDL_DestroyTexture(b.original_texture); if (b.paint_layer) SDL_DestroyTexture(b.paint_layer); if (b.composed_texture) SDL_DestroyTexture(b.composed_texture); }
-                        state.sprites.clear(); state.backdrops.clear(); state.drag.active = false;
+                        for (auto &b : state.backdrops)
+                        {
+                            if (b.original_texture)
+                                SDL_DestroyTexture(b.original_texture);
+                            if (b.paint_layer)
+                                SDL_DestroyTexture(b.paint_layer);
+                            if (b.composed_texture)
+                                SDL_DestroyTexture(b.composed_texture);
+                        }
+                        state.sprites.clear();
+                        state.backdrops.clear();
+                        state.drag.active = false;
                         state.project_name = "Untitled";
-                        state.variables.clear(); state.variable_values.clear(); state.variable_visible.clear();
-                        state.messages.clear(); state.messages.push_back("message1");
+                        state.variables.clear();
+                        state.variable_values.clear();
+                        state.variable_visible.clear();
+                        state.messages.clear();
+                        state.messages.push_back("message1");
                         state.sprites.push_back(Sprite("Sprite1", IMG_LoadTexture(renderer, "assets/sprites/scratch_cat.png"), "assets/sprites/scratch_cat.png"));
                         Mix_Chunk *ds = audio_load_sound("assets/sounds/meow.wav");
                         state.sprites.back().sounds.push_back(SoundData("meow", ds, "assets/sounds/meow.wav"));
                         state.backdrops.push_back(Backdrop("backdrop1", nullptr, ""));
                         renderer_init_pen_layer(renderer);
-                        state.selected_sprite = 0; state.selected_backdrop = 0; state.next_block_id = 1;
+                        state.selected_sprite = 0;
+                        state.selected_backdrop = 0;
+                        state.next_block_id = 1;
                         state.new_confirm_active = false;
                     }
-                    else if (in_r(e.button.x, e.button.y, no_btn) || e.button.x < mx2 || e.button.x > mx2+mw || e.button.y < my2 || e.button.y > my2+mh)
+                    else if (in_r(e.button.x, e.button.y, no_btn) || e.button.x < mx2 || e.button.x > mx2 + mw || e.button.y < my2 || e.button.y > my2 + mh)
                         state.new_confirm_active = false;
                 }
                 else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE)
@@ -441,7 +470,181 @@ int main(int /*argc*/, char * /*argv*/[])
                 continue;
             }
 
-            // ---> FIXED: BLOCK COLOR PICKER MODAL (TOUCHING COLOR) <---
+            // -------- MY BLOCKS (Make a Block) MODAL --------
+            if (state.func_modal_active)
+            {
+                auto in_rect = [](int px, int py, const SDL_Rect &r)
+                { return px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h; };
+                int mw = 480, mh = 360;
+                int mx = WINDOW_WIDTH / 2 - mw / 2;
+                int my = WINDOW_HEIGHT / 2 - mh / 2;
+
+                if (e.type == SDL_KEYDOWN)
+                {
+                    if (e.key.keysym.sym == SDLK_ESCAPE)
+                    {
+                        state.func_modal_active = false;
+                        state.active_input = INPUT_NONE;
+                        state.input_buffer.clear();
+                    }
+                    else if (e.key.keysym.sym == SDLK_BACKSPACE)
+                    {
+                        if (!state.input_buffer.empty())
+                            state.input_buffer.pop_back();
+                    }
+                    else if (e.key.keysym.sym == SDLK_RETURN || e.key.keysym.sym == SDLK_KP_ENTER)
+                    {
+                        if (state.func_modal_step == 0 && !state.input_buffer.empty())
+                        {
+                            state.func_modal_name = state.input_buffer;
+                            state.func_modal_step = 1;
+                            state.input_buffer.clear();
+                            state.active_input = INPUT_NONE;
+                        }
+                        else if (state.func_modal_step == 1 && state.active_input == INPUT_FUNC_MODAL_PARAM && !state.input_buffer.empty())
+                        {
+                            CustomParam p(state.input_buffer, (CustomParamType)state.func_modal_param_type);
+                            state.func_modal_params.push_back(p);
+                            state.input_buffer.clear();
+                            state.active_input = INPUT_NONE;
+                        }
+                    }
+                }
+                else if (e.type == SDL_TEXTINPUT)
+                {
+                    state.input_buffer += e.text.text;
+                }
+                else if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
+                {
+                    // Cancel button (always visible)
+                    SDL_Rect cancel_btn = {mx + mw - 220, my + mh - 56, 90, 36};
+                    if (in_rect(e.button.x, e.button.y, cancel_btn))
+                    {
+                        state.func_modal_active = false;
+                        state.active_input = INPUT_NONE;
+                        state.input_buffer.clear();
+                        goto func_modal_done;
+                    }
+
+                    if (state.func_modal_step == 0)
+                    {
+                        SDL_Rect next_btn = {mx + mw - 120, my + mh - 56, 90, 36};
+                        if (in_rect(e.button.x, e.button.y, next_btn) && !state.input_buffer.empty())
+                        {
+                            state.func_modal_name = state.input_buffer;
+                            state.func_modal_step = 1;
+                            state.input_buffer.clear();
+                            state.active_input = INPUT_NONE;
+                        }
+                    }
+                    else // step 1 - params
+                    {
+                        if (state.active_input != INPUT_FUNC_MODAL_PARAM)
+                        {
+                            // Add Number Input
+                            // Add Number Input
+                            // Add Number Input
+                            SDL_Rect add_num_btn = {mx + 20, my + 148, 130, 30};
+                            if (in_rect(e.button.x, e.button.y, add_num_btn) && state.func_modal_params.size() < 3) // <--- ADDED LIMIT
+                            {
+                                state.func_modal_param_type = (int)CPARAM_NUMBER;
+                                state.active_input = INPUT_FUNC_MODAL_PARAM;
+                                state.input_buffer.clear();
+                                goto func_modal_done;
+                            }
+                            // Add Text Input
+                            SDL_Rect add_txt_btn = {mx + 160, my + 148, 130, 30};
+                            if (in_rect(e.button.x, e.button.y, add_txt_btn) && state.func_modal_params.size() < 3) // <--- ADDED LIMIT
+                            {
+                                state.func_modal_param_type = (int)CPARAM_TEXT;
+                                state.active_input = INPUT_FUNC_MODAL_PARAM;
+                                state.input_buffer.clear();
+                                goto func_modal_done;
+                            }
+                            // Add Boolean Input
+                            SDL_Rect add_bool_btn = {mx + 300, my + 148, 150, 30};
+                            if (in_rect(e.button.x, e.button.y, add_bool_btn) && state.func_modal_params.size() < 3) // <--- ADDED LIMIT
+                            {
+                                state.func_modal_param_type = (int)CPARAM_BOOLEAN;
+                                state.active_input = INPUT_FUNC_MODAL_PARAM;
+                                state.input_buffer.clear();
+                                goto func_modal_done;
+                            }
+                            // Remove param (x button per param pill)
+                            int param_start_y = my + 216;
+                            for (int pi = 0; pi < (int)state.func_modal_params.size(); ++pi)
+                            {
+                                int px2 = mx + 20 + pi * 120;
+                                SDL_Rect pill = {px2, param_start_y, 110, 24};
+                                SDL_Rect x_btn = {pill.x + pill.w - 20, pill.y + 2, 18, 20};
+                                if (in_rect(e.button.x, e.button.y, x_btn))
+                                {
+                                    state.func_modal_params.erase(state.func_modal_params.begin() + pi);
+                                    goto func_modal_done;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // OK button while entering param name
+                            SDL_Rect ok_btn = {mx + mw - 120, my + 250, 80, 30};
+                            if (in_rect(e.button.x, e.button.y, ok_btn) && !state.input_buffer.empty())
+                            {
+                                CustomParam p(state.input_buffer, (CustomParamType)state.func_modal_param_type);
+                                state.func_modal_params.push_back(p);
+                                state.input_buffer.clear();
+                                state.active_input = INPUT_NONE;
+                                goto func_modal_done;
+                            }
+                            SDL_Rect back_btn = {mx + mw - 210, my + 250, 80, 30};
+                            if (in_rect(e.button.x, e.button.y, back_btn))
+                            {
+                                state.input_buffer.clear();
+                                state.active_input = INPUT_NONE;
+                                goto func_modal_done;
+                            }
+                        }
+
+                        // Done button
+                        SDL_Rect done_btn = {mx + mw - 120, my + mh - 56, 90, 36};
+                        
+                        if (in_rect(e.button.x, e.button.y, done_btn) && !state.func_modal_name.empty())
+                        {
+                            // Check uniqueness
+                            bool unique = true;
+                            for (const auto &fn : state.custom_functions)
+                                if (fn.name == state.func_modal_name)
+                                {
+                                    unique = false;
+                                    break;
+                                }
+                            if (unique)
+                            {
+                                CustomFunctionDef fn(state.func_modal_name);
+                                fn.params = state.func_modal_params;
+
+                                // Create the define hat block in the workspace
+                                if (state.selected_sprite >= 0 && state.selected_sprite < (int)state.sprites.size())
+                                {
+                                    BlockInstance def = workspace_make_default_myblocks(MYB_DEFINE, fn.name);
+                                    def.x = CATEGORY_WIDTH + PALETTE_WIDTH + 40 + (int)state.custom_functions.size() * 280;
+                                    def.y = NAVBAR_HEIGHT + 40;
+                                    fn.params = state.func_modal_params;
+                                    workspace_add_top_level(state, def);
+                                                                    
+                                }
+                                state.custom_functions.push_back(fn);
+                            }
+                            state.func_modal_active = false;
+                            state.active_input = INPUT_NONE;
+                            state.input_buffer.clear();
+                            state.selected_category = 8; // Switch to My Blocks category
+                        }
+                    }
+                func_modal_done:;
+                }
+                continue;
+            }
             if (state.active_input == INPUT_BLOCK_COLOR_PICKER_1 || state.active_input == INPUT_BLOCK_COLOR_PICKER_2)
             {
                 if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
@@ -612,7 +815,7 @@ int main(int /*argc*/, char * /*argv*/[])
                         }
                         state.active_input = INPUT_NONE;
                         state.input_buffer.clear();
-                        
+
                         continue;
                     }
                 }
@@ -698,7 +901,7 @@ int main(int /*argc*/, char * /*argv*/[])
                 continue;
             }
 
-            if (e.type == SDL_KEYDOWN && state.active_input == INPUT_NONE && !state.file_menu_open && !state.var_modal_active && !state.msg_modal_active)
+            if (e.type == SDL_KEYDOWN && state.active_input == INPUT_NONE && !state.file_menu_open && !state.var_modal_active && !state.msg_modal_active && !state.func_modal_active)
                 interpreter_trigger_key(state, e.key.keysym.sym);
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE && state.active_input == INPUT_NONE && !state.file_menu_open)
             {
@@ -1161,6 +1364,222 @@ int main(int /*argc*/, char * /*argv*/[])
             render_simple_text(renderer, font, "Cancel", cancel_btn.x + 22, cancel_btn.y + 12, (Color){40, 40, 40});
         }
 
+        // -------- MY BLOCKS (Make a Block) MODAL DRAW --------
+        if (state.func_modal_active)
+        {
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 150);
+            SDL_Rect screen_rect = {0, 0, WINDOW_WIDTH, WINDOW_HEIGHT};
+            SDL_RenderFillRect(renderer, &screen_rect);
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+            int mw = 480, mh = 360;
+            int mx = WINDOW_WIDTH / 2 - mw / 2;
+            int my = WINDOW_HEIGHT / 2 - mh / 2;
+            SDL_Rect modal_rect = {mx, my, mw, mh};
+            renderer_fill_rounded_rect(renderer, &modal_rect, 8, 255, 255, 255);
+            SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
+            SDL_RenderDrawRect(renderer, &modal_rect);
+            // Header
+            SDL_Rect hdr = {mx, my, mw, 48};
+            renderer_fill_rounded_rect(renderer, &hdr, 8, 255, 102, 128);
+            render_simple_text(renderer, font_large, "Make a Block", mx + 20, my + 12, (Color){255, 255, 255});
+            Color textCol = {40, 40, 40};
+
+            if (state.func_modal_step == 0)
+            {
+                render_simple_text(renderer, font, "Block name:", mx + 24, my + 68, textCol);
+                SDL_Rect inp = {mx + 24, my + 92, mw - 48, 40};
+                renderer_fill_rounded_rect(renderer, &inp, 4, 240, 240, 240);
+                SDL_SetRenderDrawColor(renderer, 76, 151, 255, 255);
+                SDL_RenderDrawRect(renderer, &inp);
+                render_simple_text(renderer, font, state.input_buffer.c_str(), inp.x + 10, inp.y + 12, textCol);
+                if ((SDL_GetTicks() / 500) % 2 == 0)
+                {
+                    int tw = 0;
+                    TTF_SizeUTF8(font, state.input_buffer.c_str(), &tw, NULL);
+                    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+                    SDL_RenderDrawLine(renderer, inp.x + 12 + tw, inp.y + 8, inp.x + 12 + tw, inp.y + 32);
+                }
+                // Next button
+                SDL_Rect next_btn = {mx + mw - 120, my + mh - 56, 90, 36};
+                renderer_fill_rounded_rect(renderer, &next_btn, 4, 76, 151, 255);
+                render_simple_text(renderer, font, "Next", next_btn.x + 26, next_btn.y + 10, (Color){255, 255, 255});
+            }
+            else // step 1: add params
+            {
+
+                int prev_x = mx + 20;
+                int prev_y = my + 72;
+                Color MY_COL = {255, 102, 128};
+
+                int tw_def = 0;
+                TTF_SizeUTF8(font, "define", &tw_def, NULL);
+                int tw_name = 0;
+                TTF_SizeUTF8(font, state.func_modal_name.c_str(), &tw_name, NULL);
+                int name_pill_w = std::max(80, tw_name + 16);
+                int total_w = 12 + tw_def + 8 + name_pill_w + 8;
+                for (const auto &p : state.func_modal_params)
+                {
+                    int pw = 0;
+                    TTF_SizeUTF8(font, p.name.c_str(), &pw, NULL);
+                    total_w += std::max(52, pw + 20) + 6;
+                }
+                total_w = std::max(200, total_w);
+                int prev_h = 48;
+                SDL_Rect prev_br = {prev_x, prev_y, total_w, prev_h};
+
+                // Stack body
+                renderer_fill_rounded_rect(renderer, &prev_br, 8, MY_COL.r, MY_COL.g, MY_COL.b);
+                // Hat cap
+                int cap_h2 = 20;
+                int cap_w2 = std::min(160, total_w - 20);
+                SDL_Rect hat = {prev_x, prev_y - cap_h2 / 2, cap_w2, cap_h2};
+                renderer_fill_rounded_rect(renderer, &hat, cap_h2 / 2, MY_COL.r, MY_COL.g, MY_COL.b);
+
+                SDL_Color wc = {255, 255, 255, 255};
+                int cpx = prev_x + 12;
+                int text_py2 = prev_y + (prev_h - 14) / 2 + 2;
+                int pill_py2 = prev_y + (prev_h - 26) / 2 + 2;
+
+                // "define" label
+                {
+                    SDL_Surface *sf = TTF_RenderUTF8_Blended(font, "define", wc);
+                    if (sf)
+                    {
+                        SDL_Texture *tx = SDL_CreateTextureFromSurface(renderer, sf);
+                        SDL_Rect dr2 = {cpx, text_py2, sf->w, sf->h};
+                        SDL_RenderCopy(renderer, tx, NULL, &dr2);
+                        SDL_DestroyTexture(tx);
+                        SDL_FreeSurface(sf);
+                    }
+                    cpx += tw_def + 8;
+                }
+
+                // Function name pill
+                {
+                    SDL_Rect pil = {cpx, pill_py2, name_pill_w, 26};
+                    renderer_fill_rounded_rect(renderer, &pil, 5, 220, 80, 110);
+                    SDL_Surface *sf = TTF_RenderUTF8_Blended(font, state.func_modal_name.c_str(), wc);
+                    if (sf)
+                    {
+                        SDL_Texture *tx = SDL_CreateTextureFromSurface(renderer, sf);
+                        SDL_Rect dr2 = {pil.x + (pil.w - sf->w) / 2, pil.y + (pil.h - sf->h) / 2, sf->w, sf->h};
+                        SDL_RenderCopy(renderer, tx, NULL, &dr2);
+                        SDL_DestroyTexture(tx);
+                        SDL_FreeSurface(sf);
+                    }
+                    cpx += name_pill_w + 6;
+                }
+
+                // Param pills (shaped correctly by type)
+                for (const auto &p : state.func_modal_params)
+                {
+                    int pw = 0;
+                    TTF_SizeUTF8(font, p.name.c_str(), &pw, NULL);
+                    int pil_w = std::max(52, pw + 20);
+                    SDL_Rect pil = {cpx, pill_py2 + 1, pil_w, 24};
+                    if (p.type == CPARAM_NUMBER)
+                        renderer_fill_rounded_rect(renderer, &pil, 12, 255, 160, 80);
+                    else if (p.type == CPARAM_TEXT)
+                        renderer_fill_rounded_rect(renderer, &pil, 4, 80, 160, 255);
+                    else
+                    { // boolean — hexagonal
+                        int hh3 = pil.h / 2;
+                        for (int dy = 0; dy <= hh3; dy++)
+                        {
+                            int xo = hh3 - dy;
+                            SDL_SetRenderDrawColor(renderer, 100, 200, 80, 255);
+                            SDL_RenderDrawLine(renderer, pil.x + xo, pil.y + dy, pil.x + pil_w - xo, pil.y + dy);
+                            SDL_RenderDrawLine(renderer, pil.x + xo, pil.y + pil.h - dy, pil.x + pil_w - xo, pil.y + pil.h - dy);
+                        }
+                    }
+                    if (!p.name.empty())
+                    {
+                        SDL_Surface *sf = TTF_RenderUTF8_Blended(font, p.name.c_str(), wc);
+                        if (sf)
+                        {
+                            SDL_Texture *tx = SDL_CreateTextureFromSurface(renderer, sf);
+                            SDL_Rect dr2 = {pil.x + (pil.w - sf->w) / 2, pil.y + (pil.h - sf->h) / 2, sf->w, sf->h};
+                            SDL_RenderCopy(renderer, tx, NULL, &dr2);
+                            SDL_DestroyTexture(tx);
+                            SDL_FreeSurface(sf);
+                        }
+                    }
+                    cpx += pil_w + 6;
+                }
+
+                // ── End preview ───────────────────────────────────────────────
+
+                if (state.active_input != INPUT_FUNC_MODAL_PARAM)
+                {
+                    render_simple_text(renderer, font, "Add inputs:", mx + 24, my + 124, textCol);
+                    SDL_Rect add_num = {mx + 20, my + 148, 130, 30};
+                    SDL_Rect add_txt = {mx + 160, my + 148, 130, 30};
+                    SDL_Rect add_bool = {mx + 300, my + 148, 150, 30};
+                    renderer_fill_rounded_rect(renderer, &add_num, 4, 100, 180, 255);
+                    renderer_fill_rounded_rect(renderer, &add_txt, 4, 100, 200, 100);
+                    renderer_fill_rounded_rect(renderer, &add_bool, 4, 200, 160, 80);
+                    render_simple_text(renderer, font, "Number Input", add_num.x + 8, add_num.y + 7, (Color){255, 255, 255});
+                    render_simple_text(renderer, font, "Text Input", add_txt.x + 14, add_txt.y + 7, (Color){255, 255, 255});
+                    render_simple_text(renderer, font, "Boolean Input", add_bool.x + 6, add_bool.y + 7, (Color){255, 255, 255});
+
+                    // Show existing params as pills with remove buttons
+                    if (!state.func_modal_params.empty())
+                        render_simple_text(renderer, font, "Parameters:", mx + 24, my + 196, textCol);
+                    int param_start_y = my + 216;
+                    for (int pi = 0; pi < (int)state.func_modal_params.size(); ++pi)
+                    {
+                        const auto &p = state.func_modal_params[pi];
+                        int px2 = mx + 20 + pi * 120;
+                        SDL_Rect pill = {px2, param_start_y, 110, 24};
+                        int pr = p.type == CPARAM_NUMBER ? 100 : (p.type == CPARAM_TEXT ? 80 : 100);
+                        int pg = p.type == CPARAM_NUMBER ? 180 : (p.type == CPARAM_TEXT ? 160 : 200);
+                        int pb2 = p.type == CPARAM_NUMBER ? 255 : (p.type == CPARAM_TEXT ? 255 : 80);
+                        renderer_fill_rounded_rect(renderer, &pill, 4, pr, pg, pb2);
+                        render_simple_text(renderer, font, p.name.c_str(), pill.x + 4, pill.y + 4, textCol);
+                        SDL_Rect x_btn = {pill.x + pill.w - 20, pill.y + 2, 18, 20};
+                        renderer_fill_rounded_rect(renderer, &x_btn, 4, 220, 80, 80);
+                        render_simple_text(renderer, font, "x", x_btn.x + 4, x_btn.y + 2, (Color){255, 255, 255});
+                    }
+                }
+                else
+                {
+                    const char *type_labels[] = {"number", "text", "boolean"};
+                    std::string prompt = std::string("Param name (") + type_labels[state.func_modal_param_type] + "):";
+                    render_simple_text(renderer, font, prompt.c_str(), mx + 24, my + 138, textCol);
+                    SDL_Rect inp = {mx + 24, my + 162, mw - 48, 36};
+                    renderer_fill_rounded_rect(renderer, &inp, 4, 240, 240, 240);
+                    SDL_SetRenderDrawColor(renderer, 76, 151, 255, 255);
+                    SDL_RenderDrawRect(renderer, &inp);
+                    render_simple_text(renderer, font, state.input_buffer.c_str(), inp.x + 10, inp.y + 10, textCol);
+                    if ((SDL_GetTicks() / 500) % 2 == 0)
+                    {
+                        int tw = 0;
+                        TTF_SizeUTF8(font, state.input_buffer.c_str(), &tw, NULL);
+                        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+                        SDL_RenderDrawLine(renderer, inp.x + 12 + tw, inp.y + 6, inp.x + 12 + tw, inp.y + 30);
+                    }
+                    SDL_Rect ok_btn = {mx + mw - 120, my + 250, 80, 30};
+                    renderer_fill_rounded_rect(renderer, &ok_btn, 4, 76, 151, 255);
+                    render_simple_text(renderer, font, "Add", ok_btn.x + 22, ok_btn.y + 7, (Color){255, 255, 255});
+                    SDL_Rect back_btn = {mx + mw - 210, my + 250, 80, 30};
+                    renderer_fill_rounded_rect(renderer, &back_btn, 4, 220, 220, 220);
+                    render_simple_text(renderer, font, "Back", back_btn.x + 18, back_btn.y + 7, textCol);
+
+                }
+            }
+
+            // Done button (always visible on step 1)
+            SDL_Rect done_btn = {mx + mw - 120, my + mh - 56, 90, 36};
+            renderer_fill_rounded_rect(renderer, &done_btn, 4, 80, 200, 100);
+            render_simple_text(renderer, font, "Done", done_btn.x + 24, done_btn.y + 10, (Color){255, 255, 255});
+
+            // Cancel button (always visible)
+            SDL_Rect cancel_btn = {mx + mw - 220, my + mh - 56, 90, 36};
+            renderer_fill_rounded_rect(renderer, &cancel_btn, 4, 220, 220, 220);
+            render_simple_text(renderer, font, "Cancel", cancel_btn.x + 20, cancel_btn.y + 10, textCol);
+
+        }
         if (state.active_input == INPUT_PEN_COLOR_PICKER || state.active_input == INPUT_BLOCK_COLOR_PICKER_1 || state.active_input == INPUT_BLOCK_COLOR_PICKER_2)
         {
             SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);

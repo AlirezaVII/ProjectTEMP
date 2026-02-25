@@ -106,4 +106,31 @@ void pen_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state,
                     int extra_w = 0);
 int pen_block_hittest_field(TTF_Font *font, PenBlockType type, int x, int y, int opt, int px, int py);
 
+// ============================================================
+// MY BLOCKS (Custom Functions)
+// ============================================================
+SDL_Rect myblocks_define_block_rect(const AppState &state, const std::string &func_name, int x, int y);
+void myblocks_define_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state, const std::string &func_name, int x, int y, bool ghost);
+
+// ---> ADDED: Hit test to detect clicking on a parameter inside the Define block
+int myblocks_define_block_hittest_param(TTF_Font *font, const AppState &state, const std::string &func_name, int x, int y, int px, int py);
+
+SDL_Rect myblocks_call_block_rect(const AppState &state, const std::string &func_name, int x, int y);
+
+// ---> FIXED: Added extra width arguments to support snapping!
+void myblocks_call_block_draw(SDL_Renderer *r, TTF_Font *font, const AppState &state,
+                              const std::string &func_name, int x, int y, int a, int b, int c,
+                              int arg0_id, int arg1_id, int arg2_id,
+                              bool ghost, Color panel_bg, int selected_field,
+                              const char *ov0 = nullptr, const char *ov1 = nullptr, const char *ov2 = nullptr,
+                              int ew0 = 0, int ew1 = 0, int ew2 = 0);
+
+// ---> FIXED: Added extra width arguments to support snapping!
+int myblocks_call_block_hittest_field(TTF_Font *font, const AppState &state,
+                                      const std::string &func_name, int x, int y, int px, int py,
+                                      int ew0 = 0, int ew1 = 0, int ew2 = 0);
+
+// Change these two lines in src/block_ui.h:
+SDL_Rect myblocks_param_block_rect(TTF_Font *font, const std::string &param_name, int param_type, int x, int y);
+void myblocks_param_block_draw(SDL_Renderer *r, TTF_Font *font, const std::string &param_name, int param_type, int x, int y, bool ghost);
 #endif

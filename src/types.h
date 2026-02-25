@@ -41,7 +41,9 @@ enum ActiveInput
     INPUT_COSTUME_TEXT,
     INPUT_MSG_MODAL,
     INPUT_BLOCK_COLOR_PICKER_1,
-    INPUT_BLOCK_COLOR_PICKER_2
+    INPUT_BLOCK_COLOR_PICKER_2,
+    INPUT_FUNC_MODAL_NAME,   // typing function name in Make-a-Block dialog
+    INPUT_FUNC_MODAL_PARAM   // typing param name in Make-a-Block dialog
 };
 
 enum MotionBlockType
@@ -179,7 +181,40 @@ enum BlockKind
     BK_SENSING = 5,
     BK_OPERATORS = 6,
     BK_VARIABLES = 7,
-    BK_PEN = 8
+    BK_PEN = 8,
+    BK_MY_BLOCKS = 9  // Custom functions (My Blocks)
+};
+
+// --- My Blocks (Custom Functions) ---
+enum MyBlocksBlockType
+{
+    MYB_DEFINE = 0,  // Hat block: defines a custom function
+    MYB_CALL   = 1,  // Stack block: calls a custom function
+    MYB_PARAM  = 2   // Reporter oval: reads a param value inside function body
+};
+
+enum CustomParamType
+{
+    CPARAM_NUMBER  = 0,
+    CPARAM_TEXT    = 1,
+    CPARAM_BOOLEAN = 2
+};
+
+struct CustomParam
+{
+    std::string    name;
+    CustomParamType type;
+    CustomParam() : name(""), type(CPARAM_NUMBER) {}
+    CustomParam(const std::string &n, CustomParamType t) : name(n), type(t) {}
+};
+
+// One entry per user-defined function (global, shared across sprites in the project)
+struct CustomFunctionDef
+{
+    std::string              name;
+    std::vector<CustomParam> params; // max 3 params supported in UI
+    CustomFunctionDef() = default;
+    CustomFunctionDef(const std::string &n) : name(n) {}
 };
 enum BlockFieldType
 {
@@ -351,7 +386,6 @@ struct AppState
 
     std::vector<std::string> messages;
     bool msg_modal_active;
-    bool new_confirm_active; // B9: "Are you sure?" modal for New project
 
     bool stage_drag_active;
     int stage_drag_off_x, stage_drag_off_y;
@@ -361,13 +395,24 @@ struct AppState
     std::string global_answer;
     bool pen_extension_enabled;
 
+    // --- Custom Functions (My Blocks) modal state ---
+    std::vector<CustomFunctionDef> custom_functions; // project-wide function definitions
+    bool func_modal_active;           // "Make a Block" dialog open
+    int  func_modal_step;             // 0 = entering name, 1 = adding params
+    std::string func_modal_name;      // function name being typed
+    std::vector<CustomParam> func_modal_params; // params being built
+    int  func_modal_param_type;       // selected param type for next add (CPARAM_*)
+    std::string func_modal_param_name; // param name being typed
+
     bool editing_target_is_stage;
     EditTool active_tool;
     SDL_Color active_color;
     int active_shape_index;
     bool trigger_costume_import;
+    bool new_confirm_active;
 
-    AppState() : file_menu_open(false), file_menu_hover(-1), sprite_menu_open(false), backdrop_menu_open(false), current_tab(TAB_CODE), start_hover(false), stop_hover(false), running(false), mode(MODE_EDITOR), selected_sprite(0), add_sprite_hover(false), selected_backdrop(0), selected_tab(TAB_CODE), selected_category(0), project_name("Untitled"), drag(), next_block_id(1), active_input(INPUT_NONE), input_buffer(""), block_input(), variables({"my variable"}), variable_values({{"my variable", "0"}}), variable_visible({{"my variable", true}}), var_modal_active(false), messages({"message1"}), msg_modal_active(false), new_confirm_active(false), stage_drag_active(false), stage_drag_off_x(0), stage_drag_off_y(0), ask_active(false), ask_msg(""), ask_reply(""), global_answer(""), pen_extension_enabled(false), editing_target_is_stage(false), active_tool(TOOL_POINTER), active_color({0, 0, 0, 255}), active_shape_index(-1), trigger_costume_import(false) {}
+    AppState() : file_menu_open(false), file_menu_hover(-1), sprite_menu_open(false), backdrop_menu_open(false), current_tab(TAB_CODE), start_hover(false), stop_hover(false), running(false), mode(MODE_EDITOR), selected_sprite(0), add_sprite_hover(false), selected_backdrop(0), selected_tab(TAB_CODE), selected_category(0), project_name("Untitled"), drag(), next_block_id(1), active_input(INPUT_NONE), input_buffer(""), block_input(), variables({"my variable"}), variable_values({{"my variable", "0"}}), variable_visible({{"my variable", true}}), var_modal_active(false), messages({"message1"}), msg_modal_active(false), stage_drag_active(false), stage_drag_off_x(0), stage_drag_off_y(0), ask_active(false), ask_msg(""), ask_reply(""), global_answer(""), pen_extension_enabled(false), editing_target_is_stage(false), active_tool(TOOL_POINTER), active_color({0, 0, 0, 255}), active_shape_index(-1), trigger_costume_import(false),
+        func_modal_active(false), func_modal_step(0), func_modal_name(""), func_modal_params(), func_modal_param_type(0), func_modal_param_name(""), new_confirm_active(false) {}
 };
 
 inline std::string copy_asset_to_project(std::string proj_name, std::string original_path)
