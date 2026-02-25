@@ -1,226 +1,190 @@
 === System Logger Initialized ===
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Sprite clicked.
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Sprite clicked.
+[INFO] [Cycle: 0] [Line: -1] [CMD: SELECT_STAGE] -> User selected the Stage.
+[INFO] [Cycle: 0] [Line: -1] [CMD: SELECT_TOOL] -> Selected Rectangle Tool
+[INFO] [Cycle: 0] [Line: -1] [CMD: DRAW_SHAPE] -> Added Rect/Circle shape
+[INFO] [Cycle: 0] [Line: -1] [CMD: SELECT_SPRITE] -> Selected Sprite: Sprite1
 [INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
-[INFO] [Cycle: 16081] [Line: 3] [CMD: ERASE_ALL] -> Cleared pen layer.
-[INFO] [Cycle: 16082] [Line: 4] [CMD: GO_TO_XY] -> Movement from 0,0 to -150,50
-[INFO] [Cycle: 16083] [Line: 6] [CMD: SET_PEN_SIZE] -> Pen Size from 1 to 8
-[INFO] [Cycle: 16084] [Line: 8] [CMD: SET_PEN_COLOR_PICKER] -> Set pen color via picker.
-[INFO] [Cycle: 16085] [Line: 9] [CMD: SET_PEN_ATTRIB] -> Set pen attribute 1
-[INFO] [Cycle: 16086] [Line: 10] [CMD: SET_PEN_ATTRIB] -> Set pen attribute 2
-[INFO] [Cycle: 16087] [Line: 11] [CMD: PEN_DOWN] -> Pen down.
-[INFO] [Cycle: 16088] [Line: 12] [CMD: REPEAT] -> Repeating 10 times.
-[INFO] [Cycle: 16088] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -150,50 to -140,50
-[INFO] [Cycle: 16089] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 16090] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 16211] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -140,50 to -130,50
-[INFO] [Cycle: 16212] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 16213] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 16333] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -130,50 to -120,50
-[INFO] [Cycle: 16334] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 16335] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 16456] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -120,50 to -110,50
-[INFO] [Cycle: 16457] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 16458] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 16579] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -110,50 to -100,50
-[INFO] [Cycle: 16580] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 16581] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 16701] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -100,50 to -90,50
-[INFO] [Cycle: 16702] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 16703] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 16824] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -90,50 to -80,50
-[INFO] [Cycle: 16825] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 16826] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 16947] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -80,50 to -70,50
-[INFO] [Cycle: 16948] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 16949] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 17071] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -70,50 to -60,50
-[INFO] [Cycle: 17072] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 17073] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 17194] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -60,50 to -50,50
-[INFO] [Cycle: 17195] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 17196] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 17316] [Line: 17] [CMD: PEN_UP] -> Pen up.
+[INFO] [Cycle: 3993] [Line: 2] [CMD: REPEAT_UNTIL] -> Condition false, looping...
+[INFO] [Cycle: 3993] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -171,-115 to -166,-107
+[INFO] [Cycle: 3995] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -166,-107 to -161,-99
+[INFO] [Cycle: 3997] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -161,-99 to -156,-91
+[INFO] [Cycle: 3999] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -156,-91 to -151,-83
+[INFO] [Cycle: 4001] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -151,-83 to -146,-75
+[INFO] [Cycle: 4003] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -146,-75 to -141,-67
+[INFO] [Cycle: 4005] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -141,-67 to -136,-59
+[INFO] [Cycle: 4007] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -136,-59 to -131,-51
+[INFO] [Cycle: 4009] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -131,-51 to -126,-43
+[INFO] [Cycle: 4011] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -126,-43 to -121,-35
+[INFO] [Cycle: 4013] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -121,-35 to -116,-27
+[INFO] [Cycle: 4015] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -116,-27 to -111,-19
+[INFO] [Cycle: 4017] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -111,-19 to -106,-11
+[INFO] [Cycle: 4019] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -106,-11 to -101,-3
+[INFO] [Cycle: 4021] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -101,-3 to -96,5
+[INFO] [Cycle: 4023] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -96,5 to -91,13
+[INFO] [Cycle: 4025] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -91,13 to -86,21
+[INFO] [Cycle: 4027] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -86,21 to -81,29
+[INFO] [Cycle: 4029] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -81,29 to -76,37
+[INFO] [Cycle: 4031] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -76,37 to -71,45
+[INFO] [Cycle: 4033] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -71,45 to -66,53
+[INFO] [Cycle: 4035] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -66,53 to -61,61
+[INFO] [Cycle: 4037] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -61,61 to -56,69
+[ERROR] [Cycle: 4038] [Line: 2] [CMD: REPEAT_UNTIL] -> Condition met, exiting loop.
 [INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Sprite clicked.
 [INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
-[INFO] [Cycle: 18952] [Line: 3] [CMD: ERASE_ALL] -> Cleared pen layer.
-[INFO] [Cycle: 18953] [Line: 4] [CMD: GO_TO_XY] -> Movement from -51,-34 to -150,50
-[INFO] [Cycle: 18954] [Line: 6] [CMD: SET_PEN_SIZE] -> Pen Size from 8 to 8
-[INFO] [Cycle: 18955] [Line: 8] [CMD: SET_PEN_COLOR_PICKER] -> Set pen color via picker.
-[INFO] [Cycle: 18956] [Line: 9] [CMD: SET_PEN_ATTRIB] -> Set pen attribute 1
-[INFO] [Cycle: 18957] [Line: 10] [CMD: SET_PEN_ATTRIB] -> Set pen attribute 2
-[INFO] [Cycle: 18958] [Line: 11] [CMD: PEN_DOWN] -> Pen down.
-[INFO] [Cycle: 18959] [Line: 12] [CMD: REPEAT] -> Repeating 10 times.
-[INFO] [Cycle: 18959] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -150,50 to -140,50
-[INFO] [Cycle: 18960] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 18961] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 19082] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -140,50 to -130,50
-[INFO] [Cycle: 19083] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 19084] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 19204] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -130,50 to -120,50
-[INFO] [Cycle: 19205] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 19206] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
+[INFO] [Cycle: 4681] [Line: 2] [CMD: REPEAT_UNTIL] -> Condition false, looping...
+[INFO] [Cycle: 4681] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -130,-30 to -125,-22
+[INFO] [Cycle: 4683] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -125,-22 to -120,-14
+[INFO] [Cycle: 4685] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -120,-14 to -115,-6
+[INFO] [Cycle: 4687] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -115,-6 to -110,2
+[INFO] [Cycle: 4689] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -110,2 to -105,10
+[INFO] [Cycle: 4691] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -105,10 to -100,18
+[INFO] [Cycle: 4693] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -100,18 to -95,26
+[INFO] [Cycle: 4695] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -95,26 to -90,34
+[INFO] [Cycle: 4697] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -90,34 to -85,42
+[INFO] [Cycle: 4699] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -85,42 to -80,50
+[INFO] [Cycle: 4701] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -80,50 to -75,58
+[INFO] [Cycle: 4703] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -75,58 to -70,66
+[INFO] [Cycle: 4705] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -70,66 to -65,74
+[INFO] [Cycle: 4707] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -65,74 to -60,82
+[INFO] [Cycle: 4709] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -60,82 to -55,90
+[ERROR] [Cycle: 4710] [Line: 2] [CMD: REPEAT_UNTIL] -> Condition met, exiting loop.
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Sprite clicked.
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[ERROR] [Cycle: 5259] [Line: 2] [CMD: REPEAT_UNTIL] -> Condition met, exiting loop.
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Sprite clicked.
+[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
+[INFO] [Cycle: 6004] [Line: 2] [CMD: REPEAT_UNTIL] -> Condition false, looping...
+[INFO] [Cycle: 6004] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -146,-119 to -141,-111
+[INFO] [Cycle: 6006] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -141,-111 to -136,-103
+[INFO] [Cycle: 6008] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -136,-103 to -131,-95
+[INFO] [Cycle: 6010] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -131,-95 to -126,-87
+[INFO] [Cycle: 6012] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -126,-87 to -121,-79
+[INFO] [Cycle: 6014] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -121,-79 to -116,-71
+[INFO] [Cycle: 6016] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -116,-71 to -111,-63
+[INFO] [Cycle: 6018] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -111,-63 to -106,-55
+[INFO] [Cycle: 6020] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -106,-55 to -101,-47
+[INFO] [Cycle: 6022] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -101,-47 to -96,-39
+[INFO] [Cycle: 6024] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -96,-39 to -91,-31
+[INFO] [Cycle: 6026] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -91,-31 to -86,-23
+[INFO] [Cycle: 6028] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -86,-23 to -81,-15
+[INFO] [Cycle: 6030] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -81,-15 to -76,-7
+[INFO] [Cycle: 6032] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -76,-7 to -71,1
+[INFO] [Cycle: 6034] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -71,1 to -66,9
+[INFO] [Cycle: 6036] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -66,9 to -61,17
+[INFO] [Cycle: 6038] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -61,17 to -56,25
+[INFO] [Cycle: 6040] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -56,25 to -51,33
+[INFO] [Cycle: 6042] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -51,33 to -46,41
+[INFO] [Cycle: 6044] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -46,41 to -41,49
+[INFO] [Cycle: 6046] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -41,49 to -36,57
+[INFO] [Cycle: 6048] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -36,57 to -31,65
+[INFO] [Cycle: 6050] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -31,65 to -26,73
+[INFO] [Cycle: 6052] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -26,73 to -21,81
+[INFO] [Cycle: 6054] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -21,81 to -16,89
+[INFO] [Cycle: 6056] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -16,89 to -11,97
+[INFO] [Cycle: 6058] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -11,97 to -6,105
+[INFO] [Cycle: 6060] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -6,105 to -1,113
+[INFO] [Cycle: 6062] [Line: 4] [CMD: MOVE_STEPS] -> Movement from -1,113 to 4,121
+[INFO] [Cycle: 6064] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 4,121 to 9,129
+[INFO] [Cycle: 6066] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 9,129 to 14,137
+[INFO] [Cycle: 6068] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 14,137 to 19,145
+[INFO] [Cycle: 6070] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 19,145 to 24,153
+[INFO] [Cycle: 6072] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 24,153 to 29,161
+[INFO] [Cycle: 6074] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 29,161 to 34,169
+[INFO] [Cycle: 6076] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 34,169 to 39,177
+[WARNING] [Cycle: 6078] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6078] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 39,177 to 44,180
+[WARNING] [Cycle: 6080] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6080] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 44,180 to 49,180
+[WARNING] [Cycle: 6082] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6082] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 49,180 to 54,180
+[WARNING] [Cycle: 6084] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6084] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 54,180 to 59,180
+[WARNING] [Cycle: 6086] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6086] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 59,180 to 64,180
+[WARNING] [Cycle: 6088] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6088] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 64,180 to 69,180
+[WARNING] [Cycle: 6090] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6090] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 69,180 to 74,180
+[WARNING] [Cycle: 6092] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6092] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 74,180 to 79,180
+[WARNING] [Cycle: 6094] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6094] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 79,180 to 84,180
+[WARNING] [Cycle: 6096] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6096] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 84,180 to 89,180
+[WARNING] [Cycle: 6098] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6098] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 89,180 to 94,180
+[WARNING] [Cycle: 6100] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6100] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 94,180 to 99,180
+[WARNING] [Cycle: 6102] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6102] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 99,180 to 104,180
+[WARNING] [Cycle: 6104] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6104] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 104,180 to 109,180
+[WARNING] [Cycle: 6106] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6106] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 109,180 to 114,180
+[WARNING] [Cycle: 6108] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6108] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 114,180 to 119,180
+[WARNING] [Cycle: 6110] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6110] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 119,180 to 124,180
+[WARNING] [Cycle: 6112] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6112] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 124,180 to 129,180
+[WARNING] [Cycle: 6114] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6114] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 129,180 to 134,180
+[WARNING] [Cycle: 6116] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6116] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 134,180 to 139,180
+[WARNING] [Cycle: 6118] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6118] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 139,180 to 144,180
+[WARNING] [Cycle: 6120] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6120] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 144,180 to 149,180
+[WARNING] [Cycle: 6122] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6122] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 149,180 to 154,180
+[WARNING] [Cycle: 6124] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6124] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 154,180 to 159,180
+[WARNING] [Cycle: 6126] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6126] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 159,180 to 164,180
+[WARNING] [Cycle: 6128] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6128] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 164,180 to 169,180
+[WARNING] [Cycle: 6130] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6130] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 169,180 to 174,180
+[WARNING] [Cycle: 6132] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6132] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 174,180 to 179,180
+[WARNING] [Cycle: 6134] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6134] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 179,180 to 184,180
+[WARNING] [Cycle: 6136] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6136] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 184,180 to 189,180
+[WARNING] [Cycle: 6138] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6138] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 189,180 to 194,180
+[WARNING] [Cycle: 6140] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6140] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 194,180 to 199,180
+[WARNING] [Cycle: 6142] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6142] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 199,180 to 204,180
+[WARNING] [Cycle: 6144] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6144] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 204,180 to 209,180
+[WARNING] [Cycle: 6146] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6146] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 209,180 to 214,180
+[WARNING] [Cycle: 6148] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6148] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 214,180 to 219,180
+[WARNING] [Cycle: 6150] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6150] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 219,180 to 224,180
+[WARNING] [Cycle: 6152] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6152] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 224,180 to 229,180
+[WARNING] [Cycle: 6154] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6154] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 229,180 to 234,180
+[WARNING] [Cycle: 6156] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6156] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 234,180 to 239,180
+[WARNING] [Cycle: 6158] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite X clamped to 240
+[WARNING] [Cycle: 6158] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6158] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 239,180 to 240,180
+[WARNING] [Cycle: 6160] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite X clamped to 240
+[WARNING] [Cycle: 6160] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6160] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 240,180 to 240,180
+[WARNING] [Cycle: 6162] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite X clamped to 240
+[WARNING] [Cycle: 6162] [Line: 4] [CMD: BOUNDARY_CHECK] -> Sprite Y clamped to 180
+[INFO] [Cycle: 6162] [Line: 4] [CMD: MOVE_STEPS] -> Movement from 240,180 to 240,180
 [INFO] [Cycle: 0] [Line: -1] [CMD: STOP] -> Execution stopped completely.
 [INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Sprite clicked.
-[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
-[INFO] [Cycle: 19472] [Line: 3] [CMD: ERASE_ALL] -> Cleared pen layer.
-[INFO] [Cycle: 19473] [Line: 4] [CMD: GO_TO_XY] -> Movement from -121,-16 to -150,50
-[INFO] [Cycle: 19474] [Line: 6] [CMD: SET_PEN_SIZE] -> Pen Size from 8 to 8
-[INFO] [Cycle: 19475] [Line: 8] [CMD: SET_PEN_COLOR_PICKER] -> Set pen color via picker.
-[INFO] [Cycle: 19476] [Line: 9] [CMD: SET_PEN_ATTRIB] -> Set pen attribute 1
-[INFO] [Cycle: 19477] [Line: 10] [CMD: SET_PEN_ATTRIB] -> Set pen attribute 2
-[INFO] [Cycle: 19478] [Line: 11] [CMD: PEN_DOWN] -> Pen down.
-[INFO] [Cycle: 19479] [Line: 12] [CMD: REPEAT] -> Repeating 10 times.
-[INFO] [Cycle: 19479] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -150,50 to -140,50
-[INFO] [Cycle: 19480] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 19481] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 19554] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -140,50 to -130,50
-[INFO] [Cycle: 19555] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 19556] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 19626] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -130,50 to -120,50
-[INFO] [Cycle: 19627] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 19628] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 19703] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -120,50 to -110,50
-[INFO] [Cycle: 19704] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 19705] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 19776] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -110,50 to -100,50
-[INFO] [Cycle: 19777] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 19778] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 19854] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -100,50 to -90,50
-[INFO] [Cycle: 19855] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 19856] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 19930] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -90,50 to -80,50
-[INFO] [Cycle: 19931] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 19932] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 20004] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -80,50 to -70,50
-[INFO] [Cycle: 20005] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 20006] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 20080] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -70,50 to -60,50
-[INFO] [Cycle: 20081] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 20082] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 20161] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -60,50 to -50,50
-[INFO] [Cycle: 20162] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 20163] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 20258] [Line: 17] [CMD: PEN_UP] -> Pen up.
 [INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Sprite clicked.
-[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
-[INFO] [Cycle: 21640] [Line: 3] [CMD: ERASE_ALL] -> Cleared pen layer.
-[INFO] [Cycle: 21641] [Line: 4] [CMD: GO_TO_XY] -> Movement from -139,-48 to -150,50
-[INFO] [Cycle: 21642] [Line: 6] [CMD: SET_PEN_SIZE] -> Pen Size from 8 to 8
-[INFO] [Cycle: 21643] [Line: 8] [CMD: SET_PEN_COLOR_PICKER] -> Set pen color via picker.
-[INFO] [Cycle: 21644] [Line: 9] [CMD: SET_PEN_ATTRIB] -> Set pen attribute 1
-[INFO] [Cycle: 21645] [Line: 10] [CMD: SET_PEN_ATTRIB] -> Set pen attribute 2
-[INFO] [Cycle: 21646] [Line: 11] [CMD: PEN_DOWN] -> Pen down.
-[INFO] [Cycle: 21647] [Line: 12] [CMD: REPEAT] -> Repeating 10 times.
-[INFO] [Cycle: 21647] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -150,50 to -125,50
-[INFO] [Cycle: 21648] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 21649] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 21770] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -125,50 to -100,50
-[INFO] [Cycle: 21771] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 21772] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 21893] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -100,50 to -75,50
-[INFO] [Cycle: 21894] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 21895] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 22015] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -75,50 to -50,50
-[INFO] [Cycle: 22016] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 22017] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 22138] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -50,50 to -25,50
-[INFO] [Cycle: 22139] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 22140] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 22261] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -25,50 to 0,50
-[INFO] [Cycle: 22262] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 22263] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 22384] [Line: 13] [CMD: MOVE_STEPS] -> Movement from 0,50 to 25,50
-[INFO] [Cycle: 22385] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 22386] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 22507] [Line: 13] [CMD: MOVE_STEPS] -> Movement from 25,50 to 50,50
-[INFO] [Cycle: 22508] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 22509] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 22630] [Line: 13] [CMD: MOVE_STEPS] -> Movement from 50,50 to 75,50
-[INFO] [Cycle: 22631] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 22632] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 22753] [Line: 13] [CMD: MOVE_STEPS] -> Movement from 75,50 to 100,50
-[INFO] [Cycle: 22754] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 22755] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 22875] [Line: 17] [CMD: PEN_UP] -> Pen up.
-[INFO] [Cycle: 0] [Line: -1] [CMD: STOP] -> Execution stopped completely.
-[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Sprite clicked.
-[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
-[INFO] [Cycle: 24037] [Line: 3] [CMD: ERASE_ALL] -> Cleared pen layer.
-[INFO] [Cycle: 24038] [Line: 4] [CMD: GO_TO_XY] -> Movement from -116,-78 to -150,50
-[INFO] [Cycle: 24039] [Line: 6] [CMD: SET_PEN_SIZE] -> Pen Size from 8 to 8
-[INFO] [Cycle: 24040] [Line: 8] [CMD: SET_PEN_COLOR_PICKER] -> Set pen color via picker.
-[INFO] [Cycle: 24041] [Line: 9] [CMD: SET_PEN_ATTRIB] -> Set pen attribute 1
-[INFO] [Cycle: 24042] [Line: 10] [CMD: SET_PEN_ATTRIB] -> Set pen attribute 2
-[INFO] [Cycle: 24043] [Line: 11] [CMD: PEN_DOWN] -> Pen down.
-[INFO] [Cycle: 24044] [Line: 12] [CMD: REPEAT] -> Repeating 10 times.
-[INFO] [Cycle: 24044] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -150,50 to -125,50
-[INFO] [Cycle: 24045] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 24046] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 24168] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -125,50 to -100,50
-[INFO] [Cycle: 24169] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 24170] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 24290] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -100,50 to -75,50
-[INFO] [Cycle: 24291] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 24292] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 24413] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -75,50 to -50,50
-[INFO] [Cycle: 24414] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 24415] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 24535] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -50,50 to -25,50
-[INFO] [Cycle: 24536] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 24537] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 24658] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -25,50 to 0,50
-[INFO] [Cycle: 24659] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 24660] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 24781] [Line: 13] [CMD: MOVE_STEPS] -> Movement from 0,50 to 25,50
-[INFO] [Cycle: 24782] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 24783] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 24904] [Line: 13] [CMD: MOVE_STEPS] -> Movement from 25,50 to 50,50
-[INFO] [Cycle: 24905] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 24906] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 25027] [Line: 13] [CMD: MOVE_STEPS] -> Movement from 50,50 to 75,50
-[INFO] [Cycle: 25028] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 25029] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 25150] [Line: 13] [CMD: MOVE_STEPS] -> Movement from 75,50 to 100,50
-[INFO] [Cycle: 25151] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 1
-[INFO] [Cycle: 25152] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 25272] [Line: 17] [CMD: PEN_UP] -> Pen up.
-[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Sprite clicked.
-[INFO] [Cycle: 0] [Line: -1] [CMD: TRIGGER] -> Green flag clicked. Starting execution.
-[INFO] [Cycle: 27287] [Line: 3] [CMD: ERASE_ALL] -> Cleared pen layer.
-[INFO] [Cycle: 27288] [Line: 4] [CMD: GO_TO_XY] -> Movement from -65,-81 to -150,50
-[INFO] [Cycle: 27289] [Line: 6] [CMD: SET_PEN_SIZE] -> Pen Size from 8 to 8
-[INFO] [Cycle: 27290] [Line: 8] [CMD: SET_PEN_COLOR_PICKER] -> Set pen color via picker.
-[INFO] [Cycle: 27291] [Line: 9] [CMD: SET_PEN_ATTRIB] -> Set pen attribute 1
-[INFO] [Cycle: 27292] [Line: 10] [CMD: SET_PEN_ATTRIB] -> Set pen attribute 2
-[INFO] [Cycle: 27293] [Line: 11] [CMD: PEN_DOWN] -> Pen down.
-[INFO] [Cycle: 27294] [Line: 12] [CMD: REPEAT] -> Repeating 10 times.
-[INFO] [Cycle: 27294] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -150,50 to -125,50
-[INFO] [Cycle: 27295] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 2
-[INFO] [Cycle: 27296] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 27400] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -125,50 to -100,50
-[INFO] [Cycle: 27401] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 2
-[INFO] [Cycle: 27402] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 27522] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -100,50 to -75,50
-[INFO] [Cycle: 27523] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 2
-[INFO] [Cycle: 27524] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 27646] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -75,50 to -50,50
-[INFO] [Cycle: 27647] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 2
-[INFO] [Cycle: 27648] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 27768] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -50,50 to -25,50
-[INFO] [Cycle: 27769] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 2
-[INFO] [Cycle: 27770] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 27891] [Line: 13] [CMD: MOVE_STEPS] -> Movement from -25,50 to 0,50
-[INFO] [Cycle: 27892] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 2
-[INFO] [Cycle: 27893] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 28014] [Line: 13] [CMD: MOVE_STEPS] -> Movement from 0,50 to 25,50
-[INFO] [Cycle: 28015] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 2
-[INFO] [Cycle: 28016] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 28137] [Line: 13] [CMD: MOVE_STEPS] -> Movement from 25,50 to 50,50
-[INFO] [Cycle: 28138] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 2
-[INFO] [Cycle: 28139] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 28260] [Line: 13] [CMD: MOVE_STEPS] -> Movement from 50,50 to 75,50
-[INFO] [Cycle: 28261] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 2
-[INFO] [Cycle: 28262] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 28383] [Line: 13] [CMD: MOVE_STEPS] -> Movement from 75,50 to 100,50
-[INFO] [Cycle: 28384] [Line: 15] [CMD: CHANGE_PEN_ATTRIB] -> Changed pen attribute 2
-[INFO] [Cycle: 28385] [Line: 16] [CMD: WAIT] -> Waiting for 1.000000 seconds.
-[INFO] [Cycle: 28505] [Line: 17] [CMD: PEN_UP] -> Pen up.
+[INFO] [Cycle: 0] [Line: -1] [CMD: SELECT_SPRITE] -> Selected Sprite: soldier
+[INFO] [Cycle: 0] [Line: -1] [CMD: SELECT_SPRITE] -> Selected Sprite: Sprite1
+[INFO] [Cycle: 0] [Line: -1] [CMD: SELECT_SPRITE] -> Selected Sprite: soldier

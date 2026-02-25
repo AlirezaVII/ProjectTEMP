@@ -1259,6 +1259,19 @@ static void draw_chain(SDL_Renderer *r, TTF_Font *font, const Textures &tex, con
         draw_reporter(b->arg0_id, 0);
         draw_reporter(b->arg1_id, 1);
         draw_reporter(b->arg2_id, 2);
+        // ---> NEW: Draw execution highlight border! <---
+        if (b->id == state.exec_highlight_id && SDL_GetTicks() <= state.exec_highlight_timer) {
+            SDL_Rect hbr = block_rect(state, *b);
+            if (state.exec_highlight_type == 0) SDL_SetRenderDrawColor(r, 0, 0, 0, 255); // Black (Executing)
+            else if (state.exec_highlight_type == 1) SDL_SetRenderDrawColor(r, 220, 180, 0, 255); // Yellow (Warning)
+            else if (state.exec_highlight_type == 2) SDL_SetRenderDrawColor(r, 220, 20, 20, 255); // Red (Error)
+
+            // Draw a 3-pixel thick border
+            for (int i = 0; i < 3; i++) {
+                SDL_Rect tr = {hbr.x - i + off_x, hbr.y - i + off_y, hbr.w + i * 2, hbr.h + i * 2};
+                SDL_RenderDrawRect(r, &tr);
+            }
+        }
         cur = b->next_id;
     }
 }

@@ -91,7 +91,6 @@ static void update_pen_rgb(Sprite &spr)
     spr.pen_color.b = (Uint8)((b + m) * 255);
 }
 
-// ---> ADDED: Sync HSV values from the current pen RGB color <---
 static void sync_hsv_from_rgb(Sprite &spr)
 {
     float r = spr.pen_color.r / 255.0f;
@@ -120,7 +119,6 @@ static void sync_hsv_from_rgb(Sprite &spr)
     spr.pen_saturation = (int)(s * 100.0f);
     spr.pen_brightness = (int)(v * 100.0f);
 }
-
 struct StackFrame
 {
     int cur_node;
@@ -243,6 +241,11 @@ static float eval_value(AppState &state, Sprite &spr, int block_id, float defaul
                 float denom = eval_value(state, spr, b->arg1_id, b->b, b->text2);
                 if (denom == 0)
                 {
+                    // ---> NEW: Red Error Highlight <---
+                    state.exec_highlight_id = block_id;
+                    state.exec_highlight_type = 2;                      // Red
+                    state.exec_highlight_timer = SDL_GetTicks() + 2000; // Stay red for 2 seconds
+
                     LogSimple(LOG_ERROR, 0, block_id, "MATH_SAFEGUARD", "Division by zero prevented!");
                     return 0.0f;
                 }
@@ -536,8 +539,7 @@ static bool eval_bool(AppState &state, Sprite &spr, int block_id)
             int sw = std::max(1, base_w * spr.size / 100);
             int sh = std::max(1, base_h * spr.size / 100);
 
-            // Sample a ring of points around the sprite edge (more accurate than full bbox)
-            // Use the sprite's bounding box in pen-layer coords
+            // Sprite's bounding box in pen-layer coords
             int x0 = std::max(0, spr_px - sw / 2);
             int y0 = std::max(0, spr_py - sh / 2);
             int x1 = std::min(479, spr_px + sw / 2);
@@ -547,21 +549,45 @@ static bool eval_bool(AppState &state, Sprite &spr, int block_id)
 
             int rw = x1 - x0, rh = y1 - y0;
             SDL_Rect sample_rect = {x0, y0, rw, rh};
-            std::vector<Uint32> pixels(rw * rh, 0);
 
+            // Get pixels from the Stage (Background)
+            std::vector<Uint32> stage_pixels(rw * rh, 0);
             SDL_Texture *prev_target = SDL_GetRenderTarget(g_pen_renderer);
             SDL_SetRenderTarget(g_pen_renderer, g_stage_snapshot);
-            SDL_RenderReadPixels(g_pen_renderer, &sample_rect, SDL_PIXELFORMAT_ARGB8888, pixels.data(), rw * 4);
+            SDL_RenderReadPixels(g_pen_renderer, &sample_rect, SDL_PIXELFORMAT_ARGB8888, stage_pixels.data(), rw * 4);
+
+            // ---> NEW: Get exact pixels of the Sprite to ignore transparent corners! <---
+            std::vector<Uint32> sprite_pixels(rw * rh, 0);
+            SDL_Texture *temp_tex = SDL_CreateTexture(g_pen_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, rw, rh);
+            if (temp_tex)
+            {
+                SDL_SetTextureBlendMode(temp_tex, SDL_BLENDMODE_BLEND);
+                SDL_SetRenderTarget(g_pen_renderer, temp_tex);
+                SDL_SetRenderDrawColor(g_pen_renderer, 0, 0, 0, 0); // Clear with fully transparent background
+                SDL_RenderClear(g_pen_renderer);
+
+                // Render the sprite exactly as it appears on screen (with rotation!)
+                SDL_Rect spr_dest = {(spr_px - sw / 2) - x0, (spr_py - sh / 2) - y0, sw, sh};
+                double angle = spr.direction - 90.0;
+                SDL_Point center = {sw / 2, sh / 2};
+                SDL_RenderCopyEx(g_pen_renderer, spr.texture, NULL, &spr_dest, angle, &center, SDL_FLIP_NONE);
+                SDL_RenderReadPixels(g_pen_renderer, NULL, SDL_PIXELFORMAT_ARGB8888, sprite_pixels.data(), rw * 4);
+                SDL_DestroyTexture(temp_tex);
+            }
             SDL_SetRenderTarget(g_pen_renderer, prev_target);
 
-            // ARGB8888: uint32 = 0xAARRGGBB
-            Uint8 tr = b->color1.r, tg = b->color1.g, tb_ = b->color1.b;
             const int EPS = 10; // small epsilon for color matching
 
             if (b->subtype == SENSB_TOUCHING_COLOR)
             {
-                for (auto &px : pixels)
+                Uint8 tr = b->color1.r, tg = b->color1.g, tb_ = b->color1.b;
+                for (size_t i = 0; i < stage_pixels.size(); i++)
                 {
+                    // ---> FIXED: Only trigger if the sprite pixel is NOT transparent! <---
+                    if ((sprite_pixels[i] >> 24) < 10)
+                        continue;
+
+                    Uint32 px = stage_pixels[i];
                     Uint8 r2 = (px >> 16) & 0xFF;
                     Uint8 g2 = (px >> 8) & 0xFF;
                     Uint8 b2 = (px >> 0) & 0xFF;
@@ -570,21 +596,33 @@ static bool eval_bool(AppState &state, Sprite &spr, int block_id)
                 }
                 return false;
             }
-            else
+            else // SENSB_COLOR_IS_TOUCHING_COLOR
             {
+                Uint8 tr1 = b->color1.r, tg1 = b->color1.g, tb1 = b->color1.b;
                 Uint8 tr2 = b->color2.r, tg2 = b->color2.g, tb2 = b->color2.b;
-                bool found1 = false, found2 = false;
-                for (auto &px : pixels)
+                for (size_t i = 0; i < stage_pixels.size(); i++)
                 {
-                    Uint8 r2 = (px >> 16) & 0xFF;
-                    Uint8 g2 = (px >> 8) & 0xFF;
-                    Uint8 b2 = (px >> 0) & 0xFF;
-                    if (std::abs((int)r2 - tr) <= EPS && std::abs((int)g2 - tg) <= EPS && std::abs((int)b2 - tb_) <= EPS)
-                        found1 = true;
-                    if (std::abs((int)r2 - tr2) <= EPS && std::abs((int)g2 - tg2) <= EPS && std::abs((int)b2 - tb2) <= EPS)
-                        found2 = true;
+                    // ---> FIXED: Check if sprite pixel exists AND matches Color 1! <---
+                    if ((sprite_pixels[i] >> 24) < 10)
+                        continue;
+
+                    Uint8 sr = (sprite_pixels[i] >> 16) & 0xFF;
+                    Uint8 sg = (sprite_pixels[i] >> 8) & 0xFF;
+                    Uint8 sb = (sprite_pixels[i] >> 0) & 0xFF;
+
+                    // Is the sprite pixel color equal to Color 1?
+                    if (std::abs((int)sr - tr1) <= EPS && std::abs((int)sg - tg1) <= EPS && std::abs((int)sb - tb1) <= EPS)
+                    {
+                        // Check if stage pixel behind it matches Color 2
+                        Uint32 px = stage_pixels[i];
+                        Uint8 r2 = (px >> 16) & 0xFF;
+                        Uint8 g2 = (px >> 8) & 0xFF;
+                        Uint8 b2 = (px >> 0) & 0xFF;
+                        if (std::abs((int)r2 - tr2) <= EPS && std::abs((int)g2 - tg2) <= EPS && std::abs((int)b2 - tb2) <= EPS)
+                            return true;
+                    }
                 }
-                return found1 && found2;
+                return false;
             }
         }
     }
@@ -672,6 +710,11 @@ void interpreter_tick(AppState &state)
             watchdog_counter++;
             if (watchdog_counter > 1000)
             {
+                // ---> NEW: Red Error Highlight <---
+                state.exec_highlight_id = g_threads[i].stack.back().cur_node; // <--- FIXED
+                state.exec_highlight_type = 2;                                // Red
+                state.exec_highlight_timer = SDL_GetTicks() + 2000;
+
                 LogSimple(LOG_ERROR, execution_cycle, -1, "WATCHDOG", "Infinite loop detected! Execution halted.");
                 state.running = false;
                 break;
@@ -723,6 +766,14 @@ void interpreter_tick(AppState &state)
             {
                 frame.cur_node = -1;
                 continue;
+            }
+            // ---> NEW: Set Normal Execution Highlight (Black) <---
+            // (Only override if there isn't a current Warning/Error displaying)
+            if (state.exec_highlight_type == 0 || SDL_GetTicks() > state.exec_highlight_timer)
+            {
+                state.exec_highlight_id = b->id;
+                state.exec_highlight_type = 0;                     // Black
+                state.exec_highlight_timer = SDL_GetTicks() + 100; // Linger for 100ms so you can see it flash
             }
 
             if (b->kind == BK_MOTION)
@@ -804,9 +855,20 @@ void interpreter_tick(AppState &state)
                 constrain_sprite_to_stage(spr);
 
                 if (spr.x != pre_clamp_x)
+                {
+                    // ---> NEW: Yellow Warning Highlight <---
+                    state.exec_highlight_id = b->id;
+                    state.exec_highlight_type = 1;                      // Yellow
+                    state.exec_highlight_timer = SDL_GetTicks() + 1000; // Stay yellow for 1 second
                     LogSimple(LOG_WARNING, execution_cycle, b->id, "BOUNDARY_CHECK", "Sprite X clamped to " + std::to_string(spr.x));
+                }
                 if (spr.y != pre_clamp_y)
+                {
+                    state.exec_highlight_id = b->id;
+                    state.exec_highlight_type = 1; // Yellow
+                    state.exec_highlight_timer = SDL_GetTicks() + 1000;
                     LogSimple(LOG_WARNING, execution_cycle, b->id, "BOUNDARY_CHECK", "Sprite Y clamped to " + std::to_string(spr.y));
+                }
 
                 if (!cmd_name.empty())
                 {
@@ -842,14 +904,6 @@ void interpreter_tick(AppState &state)
                 {
                     spr.pen_down = false;
                     LogSimple(LOG_INFO, execution_cycle, b->id, "PEN_UP", "Pen up.");
-                }
-                else if (b->subtype == PB_SET_COLOR_TO_PICKER)
-                {
-                    spr.pen_color.r = b->color1.r;
-                    spr.pen_color.g = b->color1.g;
-                    spr.pen_color.b = b->color1.b;
-                    sync_hsv_from_rgb(spr);
-                    LogSimple(LOG_INFO, execution_cycle, b->id, "SET_PEN_COLOR_PICKER", "Set pen color via picker.");
                 }
                 else if (b->subtype == PB_CHANGE_ATTRIB_BY)
                 {
@@ -1148,6 +1202,10 @@ void interpreter_tick(AppState &state)
                     // ---> FIXED: SAFETY NET FOR HIGH REPEAT COUNT <---
                     if (count > 1000)
                     {
+                        state.exec_highlight_id = b->id;
+                        state.exec_highlight_type = 2; // Red
+                        state.exec_highlight_timer = SDL_GetTicks() + 2000;
+
                         LogSimple(LOG_ERROR, execution_cycle, b->id, "LIMIT_EXCEEDED", "Repeat count > 1000 (" + std::to_string(count) + "). Loop stopped.");
                         count = 0; // Abort loop to prevent lag
                     }
@@ -1372,6 +1430,10 @@ void interpreter_trigger_flag(AppState &state)
     state.running = true;
     g_threads.clear();
 
+    state.exec_highlight_id = -1;
+    state.exec_highlight_type = 0;
+    state.exec_highlight_timer = 0;
+
     LogSimple(LOG_INFO, 0, -1, "TRIGGER", "Green flag clicked. Starting execution.");
 
     for (auto &spr : state.sprites)
@@ -1487,6 +1549,9 @@ void interpreter_stop_all(AppState &state)
     state.running = false;
     LogSimple(LOG_INFO, 0, -1, "STOP", "Execution stopped completely.");
     g_threads.clear();
+    state.exec_highlight_id = -1;
+    state.exec_highlight_type = 0;
+    state.exec_highlight_timer = 0;
     for (auto &spr : state.sprites)
     {
         spr.say_text = "";

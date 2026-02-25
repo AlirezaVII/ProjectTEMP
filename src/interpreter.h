@@ -12,6 +12,7 @@ void interpreter_trigger_message(AppState &state, int msg_opt);
 void interpreter_stop_all(AppState &state);
 
 // ---> NEW: Process running scripts every frame <---
+// ---> NEW: Process running scripts every frame <---
 void interpreter_tick(AppState &state);
 
 #endif

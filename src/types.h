@@ -411,8 +411,13 @@ struct AppState
     bool trigger_costume_import;
     bool new_confirm_active;
 
+    // --- Block execution highlight ---
+    int exec_highlight_id;
+    int exec_highlight_type; // 0 = Black (Normal), 1 = Yellow (Warning), 2 = Red (Error)
+    Uint32 exec_highlight_timer;
+
     AppState() : file_menu_open(false), file_menu_hover(-1), sprite_menu_open(false), backdrop_menu_open(false), current_tab(TAB_CODE), start_hover(false), stop_hover(false), running(false), mode(MODE_EDITOR), selected_sprite(0), add_sprite_hover(false), selected_backdrop(0), selected_tab(TAB_CODE), selected_category(0), project_name("Untitled"), drag(), next_block_id(1), active_input(INPUT_NONE), input_buffer(""), block_input(), variables({"my variable"}), variable_values({{"my variable", "0"}}), variable_visible({{"my variable", true}}), var_modal_active(false), messages({"message1"}), msg_modal_active(false), stage_drag_active(false), stage_drag_off_x(0), stage_drag_off_y(0), ask_active(false), ask_msg(""), ask_reply(""), global_answer(""), pen_extension_enabled(false), editing_target_is_stage(false), active_tool(TOOL_POINTER), active_color({0, 0, 0, 255}), active_shape_index(-1), trigger_costume_import(false),
-        func_modal_active(false), func_modal_step(0), func_modal_name(""), func_modal_params(), func_modal_param_type(0), func_modal_param_name(""), new_confirm_active(false) {}
+        func_modal_active(false), func_modal_step(0), func_modal_name(""), func_modal_params(), func_modal_param_type(0), func_modal_param_name(""), new_confirm_active(false) , exec_highlight_id(-1), exec_highlight_type(0), exec_highlight_timer(0) {}
 };
 
 inline std::string copy_asset_to_project(std::string proj_name, std::string original_path)
